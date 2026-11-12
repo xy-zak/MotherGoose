@@ -231,3 +231,9 @@ examples/            sample pages to try things out
 The web UI is plain HTML, CSS and JS with no build step, and it is embedded in the binary. It uses JetBrains Mono, Atkinson Hyperlegible Mono, Atkinson Hyperlegible Next and OpenDyslexic, all bundled under the SIL Open Font License (see `web/fonts/`). Icons are [Iconoir](https://iconoir.com) 7.12.1 (MIT, `web/icons-LICENSE.txt`), built into `web/icons.svg` by `scripts/icons.py`. The fonts and icons came from the npm registry and were checked against the registry's published hashes.
 
 PDFs are shown with [PDF.js](https://mozilla.github.io/pdf.js/) 4.10.38, legacy build for older phones, bundled in `web/vendor/` under the Apache 2.0 licence: the library and its worker, its viewer component (`web/pdf_viewer.mjs` and `.css`, with their images) for fillable fields, and its scripting sandbox (`pdf.sandbox.min.mjs`), which runs a fillable PDF's own calculations in an isolated JavaScript engine. The sandbox is loaded only for PDFs that contain scripts. Everything came from the npm registry and was checked against the registry's published hash. Fillable PDFs: AcroForm fields (text, checkboxes, radio buttons, dropdowns and lists) are supported. Older XFA forms aren't: the viewer says so and shows what it can. A calculation runs when a field is confirmed (Tab, Enter or clicking elsewhere in the page). Only its standard fonts are bundled, not its CJK character maps, so a PDF with unembedded Chinese, Japanese or Korean fonts may show boxes for that text.
+
+---
+
+## Licence
+
+MotherGoose is released under the [MIT License](LICENSE). The bundled third-party files keep their own licences: PDF.js (Apache 2.0, `web/vendor/pdfjs-4.10.38/LICENSE`), the fonts (SIL Open Font License, `web/fonts/`) and Iconoir (MIT, `web/icons-LICENSE.txt`).
