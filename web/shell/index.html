@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>MotherGoose</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' fill='%231e1e2e'/%3E%3Ctext x='16' y='22' font-family='monospace' font-weight='700' font-size='15' fill='%23cba6f7' text-anchor='middle'%3EMG%3C/text%3E%3C/svg%3E">
+<link rel="preload" href="/_mg/fonts/jetbrains-mono.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="stylesheet" href="/_mg/theme.css">
+<script src="/_mg/prefs.js"></script>
+<script src="/_mg/tips.js" defer></script>
+<style>
+  html, body { height: 100%; }
+  body { display: flex; flex-direction: column; height: 100dvh; overflow: hidden; }
+
+  /* Row 1: information about the session and connection. */
+  .info { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
+  .info .session { font-weight: 700; max-width: 55vw; flex-shrink: 1; min-width: 0; gap: 10px; }
+  .info .session .label { color: var(--text); font-size: var(--fs-small); }
+  .info .session .mg-game { font-weight: 500; }
+
+  /* Row 2: navigation, on a lighter background than the info bar. */
+  .tabbar {
+    flex: none; display: flex; align-items: stretch;
+    height: 30px; background: var(--bg);
+    border-bottom: 1px solid var(--line);
+    padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right);
+  }
+  .tabs { position: relative; flex: 1; display: flex; overflow-x: auto; scrollbar-width: none; min-width: 0; }
+  .tabs::-webkit-scrollbar { display: none; }
+  .tab {
+    --scope: var(--players);
+    flex: none; display: inline-flex; align-items: center; gap: 6px;
+    padding: 0 10px; height: 100%;
+    font: 500 var(--fs-body)/1 var(--font); letter-spacing: var(--track); color: var(--muted);
+    background: none; border: 0; border-right: 1px solid var(--line);
+    cursor: pointer; white-space: nowrap;
+  }
+  .tab.referee { --scope: var(--referee); }
+  .tab .n { color: var(--ctp-overlay1); font-weight: 400; }
+  .tab .who { color: var(--scope); }
+  .tab:hover { color: var(--text); background: var(--surface); }
+  /* The open tab: filled with its audience's colour (lines stay 1px). */
+  .tab[aria-selected="true"] {
+    color: var(--text); font-weight: 700;
+    background: color-mix(in srgb, var(--scope) 32%, var(--bg));
+  }
+  .tab[aria-selected="true"] .n { color: var(--text); }
+  .tab-group {
+    position: relative; flex: none; display: inline-flex; align-items: center; gap: 5px; padding: 0 8px;
+    font-size: var(--fs-small); font-weight: 700; text-transform: uppercase; letter-spacing: .08em;
+    border-right: 1px solid var(--line);
+  }
+  .tab-group.players { color: var(--players-ink); background: color-mix(in srgb, var(--players) 8%, var(--bg)); }
+  .tab-group.referee { color: var(--referee-ink); background: color-mix(in srgb, var(--referee) 9%, var(--bg)); border-left: 1px solid var(--line); }
+
+  #stage { flex: 1; display: flex; flex-direction: column; min-height: 0; background: var(--deep); }
+  #frames { flex: 1; position: relative; min-height: 0; }
+  #frames iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; background: #fff; }
+  #frames iframe.viewer { background: var(--deep); }
+
+  /* Who this device is, next to "player dashboard". */
+  .info .where b { color: var(--text); font-weight: 700; }
+  .info .whoami { color: var(--players-ink); }
+  .info .whoami:hover { background: color-mix(in srgb, var(--players) 16%, transparent); }
+  .info .whoami.ask { background: color-mix(in srgb, var(--players) 18%, var(--deep)); color: var(--text); font-weight: 700; }
+  .info .whoami.ask .mg-i { color: var(--players-ink); }
+  .info .whoami .sm-name { display: none; }
+
+  /* The referee's strip above a per-player page: whose copy is shown. The
+     chosen one is shaded in the players' blue; lines stay 1px. */
+  .pick {
+    flex: none; display: flex; align-items: stretch; height: 26px;
+    background: color-mix(in srgb, var(--players) 7%, var(--bar));
+    border-bottom: 1px solid color-mix(in srgb, var(--players) 45%, var(--line));
+    overflow-x: auto; scrollbar-width: none; white-space: nowrap;
+    padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right);
+  }
+  .pick::-webkit-scrollbar { display: none; }
+  .pick > * { flex: none; display: inline-flex; align-items: center; gap: 5px; padding: 0 10px; border-right: 1px solid var(--line); }
+  .pick-label { color: var(--players-ink); font-size: var(--fs-small); font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
+  .pick-btn { background: none; border: 0; border-right: 1px solid var(--line); color: var(--muted); font: 500 var(--fs-body)/1 var(--font); letter-spacing: var(--track); cursor: pointer; }
+  .pick-btn:hover { background: color-mix(in srgb, var(--players) 14%, var(--bar)); color: var(--text); }
+  .pick-btn[aria-selected="true"] { background: color-mix(in srgb, var(--players) 32%, var(--bg)); color: var(--text); font-weight: 700; }
+  .pick-btn .mg-i { color: var(--players-ink); }
+  .pick-note { color: var(--muted); font-size: var(--fs-small); border-right: 0 !important; }
+
+  /* "Who are you?" in place of a per-player page, for a player with no name. */
+  .who { position: absolute; inset: 0; overflow: auto; display: grid; place-items: center; padding: 16px; }
+  .who .mg-notice { width: min(520px, 100%); }
+  #whoRoster { display: grid; gap: 10px; }
+  #whoRoster:empty { display: none; }
+  .roster { display: flex; flex-wrap: wrap; gap: 6px; }
+  .roster .mg-btn { height: 30px; padding: 0 12px; }
+  .roster .mg-btn[aria-pressed="true"] { background: color-mix(in srgb, var(--players) 34%, var(--bg)); font-weight: 700; }
+  .who-pick { display: grid; gap: 12px; }
+  #empty { flex: 1; overflow: auto; }
+
+  .bar-btn { flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; border: 0; border-left: 1px solid var(--line); background: none; color: var(--text); font: 500 var(--fs-body)/1 var(--font); cursor: pointer; }
+  .bar-btn:hover { background: var(--surface); }
+
+  /* Full screen: only a slim tab strip and the shrink button remain. */
+  body.mg-full .info { display: none; }
+  body.mg-full .tabbar { height: 22px; background: var(--deep); }
+  body.mg-full .tab { font-size: var(--fs-small); padding: 0 8px; gap: 4px; }
+  body.mg-full .tab .mg-tag { display: none; }
+  body.mg-full .tab-group { font-size: var(--fs-small); padding: 0 6px; }
+  body.mg-full .tab-group .lbl { display: none; }
+  body.mg-full .bar-btn { font-size: var(--fs-small); padding: 0 8px; }
+  body.mg-full .pick { height: 22px; }
+  body.mg-full .pick-btn { font-size: var(--fs-small); }
+
+  .desc { white-space: pre-wrap; }
+
+  @media (max-width: 560px) {
+    .hide-sm { display: none !important; }
+    /* No room for the session name next to full-size buttons: it's in the
+       details popup (tap LIVE) instead of leaving an empty box. */
+    .info .session { display: none !important; }
+    /* Phones: bar buttons and group labels show their icons only. */
+    .tab-group .lbl, .info .mg-actions .mg-i ~ .lbl, #fullBtn .mg-i ~ .lbl {
+      position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+    }
+    :root[data-labels="text"] .info .mg-actions .lbl, :root[data-labels="text"] #fullBtn .lbl { position: static; width: auto; height: auto; clip-path: none; }
+    :root[data-labels="text"] .info .mg-actions .lbl.hide-sm { display: inline !important; } /* text only: a button needs its word */
+    /* "player dashboard · Ana" doesn't fit: the name moves into the "not you?"
+       button, which opens the name picker. The brand always stays MOTHERGOOSE. */
+    .info .whoami .lbl { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+    :root[data-labels="text"] .info .whoami.ask .lbl { position: static; width: auto; height: auto; clip-path: none; }
+    .info .whoami .sm-name { display: inline; max-width: 9ch; overflow: hidden; text-overflow: ellipsis; font-weight: 700; color: var(--text); }
+  }
+</style>
+</head>
+<body>
+  <header class="mg-bar mg-head info" id="info">
+    <a class="mg-brand" href="/" title="MotherGoose">MOTHERGOOSE</a>
+    <span class="mg-seg where players hide-sm" id="where"><svg class="mg-i" aria-hidden="true"><use href="/_mg/icons.svg#players"></use></svg><span>player dashboard</span><span id="meName" hidden></span></span>
+    <button class="mg-btn players whoami" id="whoBtn" type="button" hidden></button>
+    <button class="mg-seg session" id="sessionBtn" type="button" title="Session details (i)">
+      <span class="label" id="sessionName">no session</span><span id="sessionGame" class="hide-sm"></span>
+    </button>
+    <button class="mg-btn mg-state warn" id="syncBtn" type="button" title="Connection details (i)"><span id="syncLabel">connecting</span></button>
+    <span class="mg-grow"></span>
+    <span class="mg-actions">
+      <a class="mg-btn referee" id="adminLink" href="/admin" hidden title="The referee's dashboard (this computer only)"><svg class="mg-i" aria-hidden="true"><use href="/_mg/icons.svg#view"></use></svg><span class="lbl">referee's dashboard</span></a>
+      <button class="mg-btn" data-prefs type="button" title="Display settings: theme, font, icons"><svg class="mg-i" aria-hidden="true"><use href="/_mg/icons.svg#settings"></use></svg><span class="lbl hide-sm">display</span></button>
+      <button class="mg-btn" id="helpBtn" type="button" title="Keyboard shortcuts (?)"><svg class="mg-i" aria-hidden="true"><use href="/_mg/icons.svg#help"></use></svg><span class="lbl hide-sm">help</span></button>
+    </span>
+  </header>
+  <nav class="tabbar" aria-label="Session pages">
+    <div class="tabs" id="tabs" role="tablist"></div>
+    <button class="bar-btn" id="fullBtn" type="button" title="Full screen (f)"></button>
+  </nav>
+
+  <main id="stage" hidden>
+    <div class="pick" id="pick" role="tablist" aria-label="Whose copy" hidden></div>
+    <div id="frames">
+      <section id="who" class="who" hidden>
+        <div class="mg-notice mg-panel players">
+          <div class="mg-panel-title"><span class="t"><svg class="mg-i" aria-hidden="true"><use href="/_mg/icons.svg#player"></use></svg><span id="whoEyebrow">per player</span></span></div>
+          <h1 id="whoTitle">Who are you?</h1>
+          <p class="mg-muted" id="whoText"></p>
+          <div id="whoRoster"></div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <section id="empty" class="mg-center" hidden>
+    <div class="mg-notice mg-panel">
+      <div class="mg-panel-title"><span class="t" id="emptyEyebrow">waiting</span></div>
+      <h1 id="emptyTitle">The referee hasn't opened a session yet.</h1>
+      <p class="mg-muted" id="emptyText">Keep this page open. It will update by itself when the session starts.</p>
+    </div>
+  </section>
+
+  <script type="module" src="/_mg/shell/shell.js"></script>
+</body>
+</html>

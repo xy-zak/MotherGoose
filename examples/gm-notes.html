@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GM Notes</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 860px; margin: 24px auto; padding: 0 16px; color: #222; }
+  textarea { font: inherit; width: 100%; box-sizing: border-box; padding: 8px; border: 1px solid #bbb; }
+  table { border-collapse: collapse; width: 100%; margin-top: 8px; }
+  td, th { border: 1px solid #bbb; padding: 6px 8px; text-align: left; }
+  [contenteditable] { outline: none; min-height: 1.2em; }
+  [contenteditable]:focus { background: #fff7e6; }
+  .secret { background: #222; color: #eee; padding: 12px; }
+</style>
+</head>
+<body>
+  <h1>GM Notes · Session 1</h1>
+  <p class="secret">The hooded stranger is the Duke's sister. The letter is a forgery.</p>
+
+  <h2>Initiative</h2>
+  <table>
+    <thead><tr><th>Name</th><th>Init</th><th>HP</th></tr></thead>
+    <tbody id="init">
+      <tr><td contenteditable>Goblin boss</td><td contenteditable>14</td><td contenteditable>21</td></tr>
+      <tr><td contenteditable>Goblin</td><td contenteditable>11</td><td contenteditable>7</td></tr>
+    </tbody>
+  </table>
+
+  <h2>Session log</h2>
+  <textarea id="log" rows="10" placeholder="What happened tonight…"></textarea>
+
+  <h2>Loot handed out</h2>
+  <div id="loot" contenteditable><p>Nothing yet.</p></div>
+</body>
+</html>

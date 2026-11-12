@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Character Sheet</title>
+<style>
+  body { font-family: Georgia, serif; max-width: 760px; margin: 24px auto; padding: 0 16px; color: #222; }
+  h1 { margin: 0 0 16px; }
+  label { display: block; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: #666; margin-top: 12px; }
+  input, select, textarea { font: inherit; padding: 6px; border: 1px solid #bbb; width: 100%; box-sizing: border-box; }
+  .row { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
+  .abilities { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 10px; margin-top: 12px; }
+  .ability { border: 1px solid #bbb; padding: 8px; text-align: center; }
+  .ability input { text-align: center; font-size: 20px; }
+  .mod { font-size: 22px; font-weight: bold; }
+  fieldset { border: 1px solid #bbb; margin-top: 16px; }
+  .checks label, .radios label { display: inline-flex; gap: 6px; text-transform: none; font-size: 14px; color: #222; margin-right: 12px; }
+  .checks input, .radios input { width: auto; }
+</style>
+</head>
+<body>
+  <h1>Character Sheet</h1>
+  <div class="row">
+    <div><label for="name">Name</label><input id="name" placeholder="Character name"></div>
+    <div><label for="class">Class</label>
+      <select id="class"><option>Fighter</option><option>Wizard</option><option>Rogue</option><option>Cleric</option><option>Bard</option></select></div>
+    <div><label for="level">Level</label><input id="level" type="number" min="1" max="20" value="1"></div>
+    <div><label for="hp">Hit points</label><input id="hp" type="number" value="10"></div>
+  </div>
+
+  <div class="abilities">
+    <div class="ability">STR<input type="number" data-ability value="10"><div class="mod">+0</div></div>
+    <div class="ability">DEX<input type="number" data-ability value="10"><div class="mod">+0</div></div>
+    <div class="ability">CON<input type="number" data-ability value="10"><div class="mod">+0</div></div>
+    <div class="ability">INT<input type="number" data-ability value="10"><div class="mod">+0</div></div>
+    <div class="ability">WIS<input type="number" data-ability value="10"><div class="mod">+0</div></div>
+    <div class="ability">CHA<input type="number" data-ability value="10"><div class="mod">+0</div></div>
+  </div>
+
+  <fieldset class="radios"><legend>Alignment</legend>
+    <label><input type="radio" name="alignment" value="lawful"> Lawful</label>
+    <label><input type="radio" name="alignment" value="neutral"> Neutral</label>
+    <label><input type="radio" name="alignment" value="chaotic"> Chaotic</label>
+  </fieldset>
+
+  <fieldset class="checks"><legend>Conditions</legend>
+    <label><input type="checkbox" name="poisoned"> Poisoned</label>
+    <label><input type="checkbox" name="prone"> Prone</label>
+    <label><input type="checkbox" name="inspired"> Inspired</label>
+  </fieldset>
+
+  <label for="notes">Backstory & notes</label>
+  <textarea id="notes" rows="6"></textarea>
+
+  <script>
+    // The sheet's own logic: modifiers follow the scores.
+    document.addEventListener('DOMContentLoaded', function () {
+      function update(input) {
+        var mod = Math.floor((Number(input.value || 10) - 10) / 2);
+        input.parentElement.querySelector('.mod').textContent = (mod >= 0 ? '+' : '') + mod;
+      }
+      document.querySelectorAll('[data-ability]').forEach(function (i) {
+        update(i);
+        i.addEventListener('input', function () { update(i); });
+      });
+    });
+  </script>
+</body>
+</html>

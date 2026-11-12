@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Image · MotherGoose</title>
+<link rel="stylesheet" href="/_mg/theme.css">
+<link rel="stylesheet" href="/_mg/viewer/viewer.css">
+<script src="/_mg/prefs.js"></script>
+<script src="/_mg/tips.js" defer></script>
+</head>
+<body class="viewer">
+  <main class="img-wrap" id="wrap"><img id="img" alt=""></main>
+  <div class="vtools compact" role="toolbar" aria-label="Image controls">
+    <span class="vname"><svg class="mg-i" aria-hidden="true"><use href="/_mg/icons.svg#kind-image"></use></svg><span id="name"></span></span>
+    <span class="mg-muted" id="dims"></span>
+    <span class="vsep"></span>
+    <button class="mg-btn small" id="fit" type="button" aria-pressed="true" title="Fit to screen (0)"><svg class="mg-i" aria-hidden="true"><use href="/_mg/icons.svg#fit"></use></svg><span class="lbl">fit</span></button>
+    <button class="mg-btn quiet small" id="actual" type="button" aria-pressed="false" title="Actual size (1)"><svg class="mg-i" aria-hidden="true"><use href="/_mg/icons.svg#zoom-in"></use></svg><span class="lbl">100%</span></button>
+  </div>
+  <p id="error" class="verror" hidden></p>
+  <script src="/_mg/viewer/image.js"></script>
+</body>
+</html>

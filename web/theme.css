@@ -1,0 +1,555 @@
+/* MotherGoose theme: a terminal-style UI in the Catppuccin palette, shared by
+ * the dashboard, the player shell and the viewers.
+ *
+ * Flavours: Latte (light), Frappé, Macchiato, Mocha (dark). With no choice
+ * made (data-theme unset) it follows the system: Latte or Mocha.
+ * Components only use the semantic tokens (--bg, --accent…), never --ctp-*.
+ */
+
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("fonts/jetbrains-mono.woff2") format("woff2");
+  font-weight: 100 800;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+2500-259F, U+25A0-25FF, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("fonts/jetbrains-mono-latin-ext.woff2") format("woff2");
+  font-weight: 100 800;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("fonts/jetbrains-mono-italic.woff2") format("woff2");
+  font-weight: 100 800;
+  font-style: italic;
+  font-display: swap;
+}
+
+/* ---- palettes -------------------------------------------------------------- */
+
+:root, :root[data-theme="latte"] {
+  --ctp-rosewater: #dc8a78; --ctp-flamingo: #dd7878; --ctp-pink: #ea76cb; --ctp-mauve: #8839ef;
+  --ctp-red: #d20f39; --ctp-maroon: #e64553; --ctp-peach: #fe640b; --ctp-yellow: #df8e1d;
+  --ctp-green: #40a02b; --ctp-teal: #179299; --ctp-sky: #04a5e5; --ctp-sapphire: #209fb5;
+  --ctp-blue: #1e66f5; --ctp-lavender: #7287fd;
+  --ctp-text: #4c4f69; --ctp-subtext1: #5c5f77; --ctp-subtext0: #6c6f85;
+  --ctp-overlay2: #7c7f93; --ctp-overlay1: #8c8fa1; --ctp-overlay0: #9ca0b0;
+  --ctp-surface2: #acb0be; --ctp-surface1: #bcc0cc; --ctp-surface0: #ccd0da;
+  --ctp-base: #eff1f5; --ctp-mantle: #e6e9ef; --ctp-crust: #dce0e8;
+  --ctp-on-accent: #eff1f5;   /* text on a filled accent: base, for contrast on Latte */
+  --ctp-warn-ink: #a0620a;    /* yellow is too light for text on Latte */
+  --ctp-referee-ink: #b5470b; /* likewise peach */
+  --ctp-live-fill: #2f7d1f;   /* Latte's green is too light to put text on */
+  --ctp-on-live: #eff1f5;
+  color-scheme: light;
+}
+:root[data-theme="frappe"] {
+  --ctp-rosewater: #f2d5cf; --ctp-flamingo: #eebebe; --ctp-pink: #f4b8e4; --ctp-mauve: #ca9ee6;
+  --ctp-red: #e78284; --ctp-maroon: #ea999c; --ctp-peach: #ef9f76; --ctp-yellow: #e5c890;
+  --ctp-green: #a6d189; --ctp-teal: #81c8be; --ctp-sky: #99d1db; --ctp-sapphire: #85c1dc;
+  --ctp-blue: #8caaee; --ctp-lavender: #babbf1;
+  --ctp-text: #c6d0f5; --ctp-subtext1: #b5bfe2; --ctp-subtext0: #a5adce;
+  --ctp-overlay2: #949cbb; --ctp-overlay1: #838ba7; --ctp-overlay0: #737994;
+  --ctp-surface2: #626880; --ctp-surface1: #51576d; --ctp-surface0: #414559;
+  --ctp-base: #303446; --ctp-mantle: #292c3c; --ctp-crust: #232634;
+  --ctp-on-accent: #232634; --ctp-warn-ink: #e5c890; --ctp-referee-ink: #ef9f76; --ctp-live-fill: #a6d189; --ctp-on-live: #232634;
+  color-scheme: dark;
+}
+:root[data-theme="macchiato"] {
+  --ctp-rosewater: #f4dbd6; --ctp-flamingo: #f0c6c6; --ctp-pink: #f5bde6; --ctp-mauve: #c6a0f6;
+  --ctp-red: #ed8796; --ctp-maroon: #ee99a0; --ctp-peach: #f5a97f; --ctp-yellow: #eed49f;
+  --ctp-green: #a6da95; --ctp-teal: #8bd5ca; --ctp-sky: #91d7e3; --ctp-sapphire: #7dc4e4;
+  --ctp-blue: #8aadf4; --ctp-lavender: #b7bdf8;
+  --ctp-text: #cad3f5; --ctp-subtext1: #b8c0e0; --ctp-subtext0: #a5adcb;
+  --ctp-overlay2: #939ab7; --ctp-overlay1: #8087a2; --ctp-overlay0: #6e738d;
+  --ctp-surface2: #5b6078; --ctp-surface1: #494d64; --ctp-surface0: #363a4f;
+  --ctp-base: #24273a; --ctp-mantle: #1e2030; --ctp-crust: #181926;
+  --ctp-on-accent: #181926; --ctp-warn-ink: #eed49f; --ctp-referee-ink: #f5a97f; --ctp-live-fill: #a6da95; --ctp-on-live: #181926;
+  color-scheme: dark;
+}
+:root[data-theme="mocha"] {
+  --ctp-rosewater: #f5e0dc; --ctp-flamingo: #f2cdcd; --ctp-pink: #f5c2e7; --ctp-mauve: #cba6f7;
+  --ctp-red: #f38ba8; --ctp-maroon: #eba0ac; --ctp-peach: #fab387; --ctp-yellow: #f9e2af;
+  --ctp-green: #a6e3a1; --ctp-teal: #94e2d5; --ctp-sky: #89dceb; --ctp-sapphire: #74c7ec;
+  --ctp-blue: #89b4fa; --ctp-lavender: #b4befe;
+  --ctp-text: #cdd6f4; --ctp-subtext1: #bac2de; --ctp-subtext0: #a6adc8;
+  --ctp-overlay2: #9399b2; --ctp-overlay1: #7f849c; --ctp-overlay0: #6c7086;
+  --ctp-surface2: #585b70; --ctp-surface1: #45475a; --ctp-surface0: #313244;
+  --ctp-base: #1e1e2e; --ctp-mantle: #181825; --ctp-crust: #11111b;
+  --ctp-on-accent: #11111b; --ctp-warn-ink: #f9e2af; --ctp-referee-ink: #fab387; --ctp-live-fill: #a6e3a1; --ctp-on-live: #11111b;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {  /* auto + dark system = Mocha */
+    --ctp-rosewater: #f5e0dc; --ctp-flamingo: #f2cdcd; --ctp-pink: #f5c2e7; --ctp-mauve: #cba6f7;
+    --ctp-red: #f38ba8; --ctp-maroon: #eba0ac; --ctp-peach: #fab387; --ctp-yellow: #f9e2af;
+    --ctp-green: #a6e3a1; --ctp-teal: #94e2d5; --ctp-sky: #89dceb; --ctp-sapphire: #74c7ec;
+    --ctp-blue: #89b4fa; --ctp-lavender: #b4befe;
+    --ctp-text: #cdd6f4; --ctp-subtext1: #bac2de; --ctp-subtext0: #a6adc8;
+    --ctp-overlay2: #9399b2; --ctp-overlay1: #7f849c; --ctp-overlay0: #6c7086;
+    --ctp-surface2: #585b70; --ctp-surface1: #45475a; --ctp-surface0: #313244;
+    --ctp-base: #1e1e2e; --ctp-mantle: #181825; --ctp-crust: #11111b;
+    --ctp-on-accent: #11111b; --ctp-warn-ink: #f9e2af; --ctp-referee-ink: #fab387; --ctp-live-fill: #a6e3a1; --ctp-on-live: #11111b;
+    color-scheme: dark;
+  }
+}
+
+/* ---- semantic tokens --------------------------------------------------------- */
+
+:root {
+  --bg: var(--ctp-base);          /* panels and pages */
+  --bar: var(--ctp-mantle);       /* status / info bars */
+  --deep: var(--ctp-crust);       /* inputs, viewer backdrops */
+  --surface: var(--ctp-surface0); /* default buttons, hovered rows */
+  --line: var(--ctp-surface1);    /* panel borders and dividers */
+  --line-strong: var(--ctp-surface2);
+  --text: var(--ctp-text);
+  --muted: var(--ctp-subtext0);   /* secondary text (overlay0 is too faint for text) */
+  --accent: var(--ctp-mauve);     /* primary actions, focus, the active tab */
+  --on-accent: var(--ctp-on-accent);
+  --live: var(--ctp-green);
+  --live-fill: var(--ctp-live-fill);  /* background for anything that says "live" */
+  --on-live: var(--ctp-on-live);
+  --warn: var(--ctp-yellow);
+  --warn-ink: var(--ctp-warn-ink);
+  --danger: var(--ctp-red);
+  --info: var(--ctp-blue);
+  /* Who a page is for. Used for tags, buttons, panel fills and tabs. */
+  --players: var(--ctp-blue);
+  --players-ink: var(--ctp-blue);
+  --referee: var(--ctp-peach);
+  --referee-ink: var(--ctp-referee-ink);
+
+  --font: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  /* The only three text sizes in the app. Everything uses one of these. */
+  --fs-title: 14px;   /* headings, panel titles, overlay titles, section labels */
+  --fs-body: 13px;    /* text, buttons, inputs, tabs, bars */
+  --fs-small: 11.5px; /* metadata, hints, tags, counts */
+  --track: 0;  /* extra letter spacing, for the fonts that read better with it */
+  --bar-h: 28px;
+  --head-h: 40px;   /* page headers: tall enough for full-size buttons */
+  --focus: 0 0 0 1px var(--bg), 0 0 0 2px var(--accent);
+}
+
+/* ---- base -------------------------------------------------------------------- */
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 400 var(--fs-body)/1.5 var(--font);
+  letter-spacing: var(--track);
+  -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3 { font: 700 var(--fs-title)/1.3 var(--font); margin: 0; letter-spacing: var(--track); }
+p { margin: 0; }
+a { color: var(--accent); text-underline-offset: 3px; }
+code { font-family: var(--font); color: var(--ctp-teal); }
+button, input, select, textarea { font: inherit; color: inherit; }
+::selection { background: var(--accent); color: var(--on-accent); }
+:focus-visible { outline: none; box-shadow: var(--focus); }
+[hidden] { display: none !important; }
+.mg-muted { color: var(--muted); }
+.mg-grow { flex: 1; min-width: 0; }
+
+/* ---- bars: one-line strips of information ------------------------------------- */
+
+.mg-bar {
+  display: flex; align-items: stretch;
+  height: var(--bar-h); flex: none;
+  background: var(--deep);
+  border-bottom: 1px solid var(--line);
+  font-size: var(--fs-body); white-space: nowrap;
+  overflow-x: auto; scrollbar-width: none;  /* never overlap: scroll sideways if it must */
+}
+.mg-bar::-webkit-scrollbar { display: none; }
+.mg-bar > * { display: inline-flex; align-items: center; }
+.mg-seg {
+  flex: none; gap: 6px; padding: 0 10px;
+  border: 0; border-right: 1px solid var(--line);
+  background: none; color: var(--text); text-decoration: none;
+}
+button.mg-seg { cursor: pointer; }
+button.mg-seg:hover { background: var(--surface); }
+.mg-seg.end { border-right: 0; border-left: 1px solid var(--line); }
+.mg-seg .label { overflow: hidden; text-overflow: ellipsis; }
+.mg-brand {
+  flex: none; padding: 0 10px; gap: 0;
+  color: var(--accent); border-right: 1px solid var(--line);
+  font-weight: 800; letter-spacing: .08em; text-decoration: none;
+}
+.mg-brand:hover { background: var(--surface); }
+.mg-bar .mg-grow { flex: 1 0 0; }
+/* Top-row buttons: full height, each divided from the next by a line. */
+.mg-bar .mg-actions { flex: none; align-self: stretch; }
+.mg-bar .mg-actions > * { align-self: stretch; height: auto; border-left: 1px solid var(--line); }
+.mg-bar .mg-actions > :last-child { border-right: 0; }
+.mg-bar .mg-btn, .mg-bar .mg-btn.quiet {
+  height: auto; padding: 0 10px; gap: 6px;
+  background: none; border-top: 0; border-bottom: 0; border-right: 0;
+  color: var(--muted);
+}
+.mg-bar .mg-btn:hover { background: var(--surface); color: var(--text); }
+/* Which dashboard this is, and buttons that lead to the other one: blue for
+   the player dashboard, orange for the referee's. Same size and weight as
+   every other bar item; only the colour says which. */
+.mg-bar .where { gap: 6px; }
+.mg-bar .where.players, .mg-bar .mg-btn.players { color: var(--players-ink); }
+.mg-bar .where.referee, .mg-bar .mg-btn.referee { color: var(--referee-ink); }
+.mg-bar .mg-btn.players, .mg-bar .mg-btn.referee { background: none; border-color: var(--line); }
+.mg-bar .mg-btn.players:hover { background: color-mix(in srgb, var(--players) 16%, transparent); color: var(--players-ink); }
+.mg-bar .mg-btn.referee:hover { background: color-mix(in srgb, var(--referee) 16%, transparent); color: var(--referee-ink); }
+.mg-bar .mg-btn.players .mg-i { color: var(--players-ink); }
+.mg-bar .mg-btn.referee .mg-i { color: var(--referee-ink); }
+
+/* Connection states other than live are words in a colour: no dots. */
+.mg-state.warn, .mg-bar .mg-btn.mg-state.warn { color: var(--warn-ink); animation: mg-pulse 1.2s ease-in-out infinite; }
+.mg-state.err, .mg-bar .mg-btn.mg-state.err { color: var(--danger); font-weight: 700; }
+@keyframes mg-pulse { 50% { opacity: .35; } }
+
+/* ---- panels: bordered boxes with the title set into the top border --------- */
+
+.mg-panel {
+  --panel-bg: var(--bg);
+  position: relative;
+  border: 1px solid var(--line);
+  background: var(--panel-bg);
+  padding: 14px 12px 12px;
+  margin-top: 8px;
+  min-width: 0;
+}
+.mg-panel:focus-within { border-color: var(--accent); }
+.mg-panel-title {
+  position: absolute; top: -10px; left: 8px; right: 8px;
+  display: flex; align-items: center; gap: 8px;
+  font-size: var(--fs-title); line-height: 18px; font-weight: 700;
+  pointer-events: none;
+}
+.mg-panel-title > * { pointer-events: auto; }
+.mg-panel-title .t {
+  display: inline-flex; align-items: center; gap: 6px; background: var(--panel-bg); padding: 0 6px;
+  font-size: var(--fs-title); text-transform: uppercase; letter-spacing: .06em;
+}
+.mg-panel-title .t::before { content: "─ "; color: var(--line-strong); font-weight: 400; }
+.mg-panel:focus-within > .mg-panel-title .t { color: var(--accent); }
+.mg-panel-title .side { margin-left: auto; background: var(--panel-bg); padding: 0 4px; display: flex; align-items: center; gap: 4px; }
+.mg-panel-title .count { color: var(--muted); font-weight: 400; }
+.mg-panel-title .mg-btn { height: 20px; padding: 0 6px; }
+.mg-panel-title .mg-tag { height: 18px; }
+
+/* Panels with their own fill, so it's obvious what belongs together. */
+.mg-panel.players { --panel-bg: color-mix(in srgb, var(--players) 7%, var(--bg)); border-color: color-mix(in srgb, var(--players) 45%, var(--line)); }
+.mg-panel.players > .mg-panel-title .t { color: var(--players-ink); }
+.mg-panel.referee { --panel-bg: color-mix(in srgb, var(--referee) 8%, var(--bg)); border-color: color-mix(in srgb, var(--referee) 45%, var(--line)); }
+.mg-panel.referee > .mg-panel-title .t { color: var(--referee-ink); }
+.mg-panel.list { --panel-bg: color-mix(in srgb, var(--accent) 10%, var(--bar)); border-color: color-mix(in srgb, var(--accent) 35%, var(--line)); }
+.mg-panel.players:focus-within { border-color: var(--players); }
+.mg-panel.referee:focus-within { border-color: var(--referee); }
+
+/* ---- buttons: four kinds that look different at a glance -------------------
+ *   .mg-btn          default   - framed, filled surface
+ *   .mg-btn.primary  primary   - solid accent, bold; one per area
+ *   .mg-btn.quiet    quiet     - no frame; toolbar and secondary actions
+ *   .mg-btn.danger   danger    - red frame; .solid inside confirm dialogs
+ *   .mg-btn.warn     caution   - yellow frame (ending a live session)
+ */
+.mg-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+  height: 26px; padding: 0 10px;
+  font: 500 var(--fs-body)/1 var(--font);
+  color: var(--text); background: var(--surface);
+  border: 1px solid var(--line-strong); border-radius: 0;
+  text-decoration: none; cursor: pointer; white-space: nowrap;
+}
+.mg-btn:hover { border-color: var(--text); }
+.mg-btn:disabled { opacity: .5; cursor: default; }
+.mg-btn.small { height: 24px; padding: 0 7px; }
+.mg-btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 700; }
+.mg-btn.primary:hover { filter: brightness(1.08); border-color: var(--accent); }
+.mg-btn.quiet { background: transparent; border-color: transparent; color: var(--muted); }
+.mg-btn.quiet:hover { color: var(--text); background: var(--surface); border-color: transparent; }
+.mg-btn.danger { background: transparent; border-color: var(--danger); color: var(--danger); }
+.mg-btn.danger:hover, .mg-btn.danger.solid { background: var(--danger); color: var(--on-accent); }
+.mg-btn.warn { background: transparent; border-color: var(--warn); color: var(--warn-ink); }
+.mg-btn.warn:hover { background: var(--warn); color: var(--on-accent); }
+/* Who-it's-for buttons: moving a page to the players or the referee. */
+.mg-btn.players { background: color-mix(in srgb, var(--players) 10%, var(--bg)); border-color: var(--players); color: var(--text); }
+.mg-btn.players .mg-i { color: var(--players-ink); }
+.mg-btn.players:hover { background: color-mix(in srgb, var(--players) 24%, var(--bg)); }
+.mg-btn.referee { background: color-mix(in srgb, var(--referee) 10%, var(--bg)); border-color: var(--referee); color: var(--text); }
+.mg-btn.referee .mg-i { color: var(--referee-ink); }
+.mg-btn.referee:hover { background: color-mix(in srgb, var(--referee) 24%, var(--bg)); }
+.mg-kbd, kbd {
+  display: inline-block; min-width: 1.6em; padding: 0 4px;
+  font: 500 var(--fs-small)/16px var(--font); text-align: center;
+  color: var(--muted); background: var(--bar);
+  border: 1px solid var(--line);
+}
+
+/* ---- inputs --------------------------------------------------------------- */
+
+.mg-input {
+  height: 26px; padding: 0 8px; min-width: 0;
+  font: 400 var(--fs-body)/1 var(--font);
+  color: var(--text); background: var(--deep);
+  border: 1px solid var(--line); border-radius: 0;
+}
+.mg-input::placeholder { color: var(--ctp-overlay1); }
+.mg-input:focus { outline: none; border-color: var(--accent); }
+textarea.mg-input { height: auto; min-height: 84px; padding: 6px 8px; line-height: 1.5; resize: vertical; }
+
+/* Form rows in overlays. */
+.mg-field { display: grid; gap: 4px; }
+.mg-field > span { font-size: var(--fs-small); font-weight: 700; color: var(--muted); }
+.mg-field .hint { font-size: var(--fs-small); color: var(--muted); font-weight: 400; }
+/* A yes/no setting: the box first, then what it means. */
+.mg-field.check { grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 8px; cursor: pointer; }
+.mg-field.check > span { font-size: var(--fs-body); color: var(--text); }
+.mg-field.check .hint { display: block; margin-top: 2px; }
+.mg-field.check input, .mg-choice input { width: 15px; height: 15px; margin: 2px 0 0; accent-color: var(--accent); }
+
+/* A choice inside a confirmation (e.g. keep or delete entries): the chosen
+   option is shaded, its outline stays 1px. */
+.mg-choice { display: grid; gap: 4px; margin: 0; padding: 0; border: 0; min-width: 0; }
+.mg-choice legend { padding: 0; margin-bottom: 4px; font-size: var(--fs-small); font-weight: 700; color: var(--muted); }
+.mg-choice label { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; padding: 6px 8px; border: 1px solid var(--line); cursor: pointer; }
+.mg-choice label:hover { background: var(--surface); }
+.mg-choice label:has(input:checked) { background: color-mix(in srgb, var(--accent) 12%, var(--bg)); border-color: var(--accent); }
+.mg-choice .hint { display: block; font-size: var(--fs-small); color: var(--muted); }
+
+/* ---- tags ----------------------------------------------------------------- */
+
+.mg-tag {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 0 5px; height: 18px;
+  font: 700 var(--fs-small)/1 var(--font); letter-spacing: .06em; text-transform: uppercase;
+  color: var(--muted); border: 1px solid currentColor; white-space: nowrap;
+}
+.mg-tag.live { color: var(--live); }
+.mg-tag.live.solid { background: var(--live-fill); border-color: var(--live-fill); color: var(--on-live); }
+
+/* "Live" always reads LIVE:<port>, filled green, in the body size. */
+.mg-live, .mg-bar .mg-seg.is-live, .mg-bar .mg-btn.is-live {
+  background: var(--live-fill); color: var(--on-live);
+  font-size: var(--fs-body); font-weight: 700; letter-spacing: .02em;
+}
+.mg-live { display: inline-flex; align-items: center; height: 20px; padding: 0 6px; line-height: 1; white-space: nowrap; }
+.mg-bar .mg-btn.is-live:hover { background: var(--live-fill); filter: brightness(1.08); color: var(--on-live); }
+.mg-btn.go-live { background: var(--live-fill); border-color: var(--live-fill); color: var(--on-live); font-weight: 700; }
+.mg-btn.go-live:hover { filter: brightness(1.08); border-color: var(--live-fill); }
+.mg-tag.players { color: var(--players-ink); }
+.mg-tag.referee { color: var(--referee-ink); }
+.mg-tag.kind { color: var(--muted); }
+.mg-tag.filled { color: var(--warn-ink); }
+.mg-tag .mg-i { width: 11px; height: 11px; stroke-width: 2; }
+.mg-tag .extra { font-weight: 500; letter-spacing: 0; color: var(--text); }
+/* The game or rules a session is for, shown next to its name. */
+.mg-game { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: var(--fs-small); font-weight: 500; white-space: nowrap; }
+.mg-game .mg-i { color: var(--ctp-teal); }
+/* Free-form page tags, written by the referee. */
+.mg-chips { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+.mg-chip {
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 0 5px; height: 18px; font-size: var(--fs-small); line-height: 1;
+  color: var(--text); background: var(--surface); border: 1px solid var(--line);
+}
+.mg-chip::before { content: "#"; color: var(--muted); }
+
+/* ---- key / value lists (used in overlays) ------------------------------------- */
+
+.mg-kv { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 16px; margin: 0; font-size: var(--fs-body); }
+.mg-kv dt { color: var(--muted); }
+.mg-kv dd { margin: 0; overflow-wrap: anywhere; }
+.mg-rule { border: 0; border-top: 1px dashed var(--line); margin: 12px 0; }
+.mg-section-label { font-size: var(--fs-title); font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 6px; }
+
+/* ---- overlays (built on <dialog>) --------------------------------------------- */
+
+.mg-dialog {
+  width: min(560px, calc(100vw - 24px)); max-height: calc(100dvh - 48px);
+  padding: 0; overflow: auto;
+  color: var(--text); background: var(--bg);
+  border: 1px solid var(--accent); border-radius: 0;
+}
+.mg-dialog::backdrop {
+  /* Diagonal hatching over the page, so it reads as "behind". Each var() has
+     a fallback for browsers where ::backdrop doesn't see :root's variables. */
+  background-color: color-mix(in srgb, var(--deep, #11111b) 62%, transparent);
+  background-image: repeating-linear-gradient(-45deg,
+    color-mix(in srgb, var(--line-strong, #585b70) 55%, transparent) 0 1px,
+    transparent 1px 7px);
+}
+.mg-dialog-head {
+  position: sticky; top: 0; z-index: 1;
+  display: flex; align-items: center; gap: 8px;
+  height: var(--bar-h); padding: 0 4px 0 12px;
+  background: var(--bar); border-bottom: 1px solid var(--line);
+  font-size: var(--fs-title); font-weight: 700; color: var(--accent);
+}
+.mg-dialog-head .t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mg-dialog-body { padding: 14px 14px 4px; display: grid; gap: 12px; }
+.mg-dialog-foot { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 6px; padding: 12px 14px 14px; }
+.mg-dialog.danger { border-color: var(--danger); }
+.mg-dialog.danger .mg-dialog-head { color: var(--danger); }
+
+/* ---- toast ----------------------------------------------------------------- */
+
+.mg-toast {
+  position: fixed; right: 12px; bottom: 12px; z-index: 100;
+  max-width: min(460px, calc(100vw - 24px));
+  padding: 6px 10px;
+  background: var(--bar); color: var(--text);
+  border: 1px solid var(--accent);
+  font-size: var(--fs-body);
+}
+.mg-toast.err { border-color: var(--danger); }
+
+/* ---- centred notice pages (403, waiting) ------------------------------------- */
+
+.mg-center { min-height: 100vh; display: grid; place-items: center; padding: 16px; }
+.mg-notice { max-width: 520px; display: grid; gap: 12px; padding: 18px 16px 16px; border: 1px solid var(--line); position: relative; }
+.mg-eyebrow { font-size: var(--fs-title); font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); }
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation: none !important; transition: none !important; }
+}
+
+/* ---- icons (Iconoir, from /_mg/icons.svg) -----------------------------------
+ * <svg class="mg-i"><use href="/_mg/icons.svg#NAME"></use></svg>, usually
+ * followed by <span class="lbl">text</span>. Display settings choose whether
+ * buttons show the icon, the text, or both.
+ */
+.mg-i {
+  width: 15px; height: 15px; flex: none;
+  fill: none; stroke: none; stroke-width: 1.7;
+  vertical-align: -3px;
+}
+.mg-i.lg { width: 18px; height: 18px; }
+.mg-bar .mg-i { width: 14px; height: 14px; }
+
+/* Hidden labels are positioned absolutely, so whatever holds them must be the
+   positioning container: otherwise a label inside a scrolled-away tab is
+   placed against the page and widens it (on phones, the whole layout). */
+.mg-btn, .mg-tag, .mg-seg, .mg-opt, .mg-live { position: relative; }
+.mg-vh, :root[data-labels="icons"] .mg-i ~ .lbl {
+  position: absolute !important; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
+}
+:root[data-labels="text"] .mg-i:has(~ .lbl) { display: none; }
+/* An icon beside text that always shows, such as a player's name: it goes
+   in text-only mode, and the text stays in icons-only mode. */
+:root[data-labels="text"] .mg-i.deco { display: none; }
+/* Compact places (viewer controls) show icons unless text was asked for. */
+:root:not([data-labels="text"]) .compact .mg-i ~ .lbl,
+:root:not([data-labels="text"]) .mg-btn.compact .mg-i ~ .lbl {
+  position: absolute !important; width: 1px; height: 1px; overflow: hidden;
+  clip: rect(0 0 0 0); clip-path: inset(50%); white-space: nowrap;
+}
+:root[data-labels="icons"] .mg-btn:has(.mg-i), :root:not([data-labels="text"]) .compact .mg-btn:has(.mg-i),
+:root:not([data-labels="text"]) .mg-btn.compact:has(.mg-i) { padding-inline: 6px; }
+
+/* ---- fonts ------------------------------------------------------------------
+ * Chosen per device in Display settings. Atkinson Hyperlegible was designed
+ * for low vision; OpenDyslexic for dyslexic readers.
+ */
+@font-face { font-family: "Atkinson Hyperlegible Mono"; src: url("fonts/atkinson-hyperlegible-mono-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-display: swap; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: "Atkinson Hyperlegible Mono"; src: url("fonts/atkinson-hyperlegible-mono-latin-700-normal.woff2") format("woff2"); font-weight: 500 800; font-display: swap; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: "Atkinson Hyperlegible Mono"; src: url("fonts/atkinson-hyperlegible-mono-latin-ext-400-normal.woff2") format("woff2"); font-weight: 400; font-display: swap; unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: "Atkinson Hyperlegible Mono"; src: url("fonts/atkinson-hyperlegible-mono-latin-ext-700-normal.woff2") format("woff2"); font-weight: 500 800; font-display: swap; unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: "Atkinson Hyperlegible Next"; src: url("fonts/atkinson-hyperlegible-next-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-display: swap; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: "Atkinson Hyperlegible Next"; src: url("fonts/atkinson-hyperlegible-next-latin-700-normal.woff2") format("woff2"); font-weight: 500 800; font-display: swap; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: "Atkinson Hyperlegible Next"; src: url("fonts/atkinson-hyperlegible-next-latin-ext-400-normal.woff2") format("woff2"); font-weight: 400; font-display: swap; unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: "Atkinson Hyperlegible Next"; src: url("fonts/atkinson-hyperlegible-next-latin-ext-700-normal.woff2") format("woff2"); font-weight: 500 800; font-display: swap; unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: "OpenDyslexic"; src: url("fonts/opendyslexic-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "OpenDyslexic"; src: url("fonts/opendyslexic-latin-700-normal.woff2") format("woff2"); font-weight: 500 800; font-display: swap; }
+
+:root[data-font="hyper-mono"] { --font: "Atkinson Hyperlegible Mono", ui-monospace, monospace; }
+:root[data-font="hyper"] { --font: "Atkinson Hyperlegible Next", system-ui, sans-serif; --track: .01em; }
+:root[data-font="dyslexic"] { --font: "OpenDyslexic", "Atkinson Hyperlegible Next", sans-serif; --track: .02em; }
+:root[data-font="system"] { --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+/* OpenDyslexic runs large, so the whole scale steps down together and the
+   sizes stay consistent with each other. */
+:root[data-font="dyslexic"] { --fs-title: 13px; --fs-body: 12px; --fs-small: 10.5px; }
+
+/* ---- display settings overlay ------------------------------------------------- */
+
+.mg-prefs { display: grid; gap: 14px; }
+.mg-opts { display: grid; gap: 4px; }
+.mg-opts.row { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+.mg-opts.grid { grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
+.mg-opt {
+  display: flex; align-items: center; gap: 10px; padding: 6px 8px; min-height: 32px;
+  background: none; border: 1px solid var(--line); cursor: pointer; text-align: left; color: var(--text);
+}
+.mg-opt:hover { background: var(--surface); }
+.mg-opt[aria-checked="true"] { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 12%, var(--bg)); }
+.mg-opt[aria-checked="true"]::after { content: "✓"; margin-left: auto; color: var(--accent); font-weight: 700; }
+.mg-opt .sw { display: flex; outline: 1px solid var(--line-strong); }
+.mg-opt .sw i { width: 14px; height: 14px; display: block; }
+.mg-opt .name { font-weight: 700; }
+.mg-opt .hint { color: var(--muted); font-size: var(--fs-small); }
+.mg-opt .sample { font-size: var(--fs-body); }
+
+/* ---- hints (tips.js): hover and focus help, in the app's own style ---------- */
+
+.mg-tip {
+  position: fixed; inset: auto; margin: 0; z-index: 1000;
+  max-width: min(320px, calc(100vw - 12px)); width: max-content;
+  padding: 4px 8px;
+  font: 500 var(--fs-small)/1.45 var(--font); letter-spacing: var(--track);
+  color: var(--text); background: var(--deep);
+  border: 1px solid var(--accent); border-radius: 0;
+  box-shadow: 2px 2px 0 color-mix(in srgb, var(--deep) 60%, transparent);
+  white-space: pre-line; overflow-wrap: anywhere;
+  pointer-events: none;
+}
+.mg-tip[hidden] { display: none; }
+
+/* Theme options are previews: each box uses its flavour's own colours. */
+.mg-opt.theme { min-height: 46px; border-width: 1px; }
+.mg-opt.theme:hover { background-image: none; filter: brightness(1.06); }
+.mg-opt.theme .mode { display: inline-flex; gap: 2px; }
+.mg-opt.theme .mode .mg-i { width: 16px; height: 16px; }
+.mg-opt.theme .txt { display: grid; gap: 1px; }
+.mg-opt.theme .hint { color: var(--opt-sub, var(--muted)); }
+.mg-opt.theme .sw { margin-left: auto; outline: 0; gap: 2px; }
+.mg-opt.theme .sw i { width: 10px; height: 18px; }
+/* A theme preview can't be re-shaded (its colours are the point), so the
+   chosen one is marked by an accent line in the same 1px and a check. */
+.mg-opt.theme[aria-checked="true"] { border-color: var(--accent); }
+.mg-opt.theme[aria-checked="true"]::after { color: var(--opt-accent, var(--accent)); margin-left: 8px; }
+/* Auto gets its own row above the four flavours, which sit two by two below. */
+.mg-opt.theme.auto { grid-column: 1 / -1; }
+.mg-opt.theme.auto[aria-checked="true"]::after { margin-left: auto; }
+.mg-opt.theme.auto .mode { gap: 0; outline: 1px solid var(--line-strong); }
+.mg-opt.theme.auto .chip { display: inline-grid; place-items: center; width: 24px; height: 24px; }
+
+/* ---- page headers -------------------------------------------------------------
+ * The top bar of both dashboards is taller than other bars, so its buttons are
+ * the same framed 26px buttons as everywhere else. Information (brand, which
+ * dashboard, the session) stays as full-height segments divided by lines.
+ */
+.mg-bar.mg-head { height: var(--head-h); }
+.mg-head .mg-actions { display: inline-flex; align-items: center; gap: 6px; padding: 0 8px; border-left: 1px solid var(--line); }
+.mg-head .mg-actions > *, .mg-head .mg-btn, .mg-head .mg-btn.quiet {
+  align-self: center; height: 26px; padding: 0 10px; margin: 0;
+  color: var(--text); background: var(--surface);
+  border: 1px solid var(--line-strong);
+}
+.mg-head > .mg-btn { margin: 0 6px; }
+.mg-head .mg-btn:hover, .mg-head .mg-btn.quiet:hover { color: var(--text); background: var(--surface); border-color: var(--text); }
+.mg-head .mg-i { width: 15px; height: 15px; }
+.mg-head .mg-btn.players { color: var(--players-ink); background: color-mix(in srgb, var(--players) 10%, var(--bg)); border-color: var(--players); }
+.mg-head .mg-btn.players:hover { color: var(--players-ink); background: color-mix(in srgb, var(--players) 24%, var(--bg)); border-color: var(--players); }
+.mg-head .mg-btn.referee { color: var(--referee-ink); background: color-mix(in srgb, var(--referee) 10%, var(--bg)); border-color: var(--referee); }
+.mg-head .mg-btn.referee:hover { color: var(--referee-ink); background: color-mix(in srgb, var(--referee) 24%, var(--bg)); border-color: var(--referee); }
+.mg-head .mg-btn.is-live, .mg-head .mg-btn.is-live:hover { color: var(--on-live); background: var(--live-fill); border-color: var(--live-fill); }
+.mg-head .mg-btn.mg-state.warn { border-color: var(--warn); background: none; }
+.mg-head .mg-btn.mg-state.err { border-color: var(--danger); background: none; }

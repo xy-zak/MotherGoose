@@ -1,0 +1,121 @@
+/* Shared by the PDF and image viewers. */
+html, body { height: 100%; }
+body.viewer { position: relative; height: 100dvh; overflow: hidden; background: var(--deep); }
+
+/* Floating controls, bottom right: the viewers add nothing to the top of the
+   screen, which belongs to the shell's info and tab bars. */
+.vtools {
+  position: fixed; z-index: 5;
+  right: max(10px, env(safe-area-inset-right)); bottom: max(10px, env(safe-area-inset-bottom));
+  display: flex; align-items: center; gap: 3px;
+  padding: 3px 4px; font-size: var(--fs-body);
+  background: color-mix(in srgb, var(--deep) 90%, transparent);
+  border: 1px solid var(--line-strong);
+  opacity: .88; transition: opacity .15s;
+}
+.vtools:hover, .vtools:focus-within { opacity: 1; border-color: var(--accent); }
+.vtools .vname { display: none; align-items: center; gap: 6px; padding: 0 6px 0 2px; max-width: 30vw; overflow: hidden; white-space: nowrap; }
+.standalone .vtools .vname { display: inline-flex; }
+.vtools .vname #name { overflow: hidden; text-overflow: ellipsis; }
+.vtools .vsep { width: 1px; align-self: stretch; background: var(--line); margin: 0 3px; }
+.vtools .page { width: 4.5ch; height: 20px; padding: 0 4px; text-align: center; }
+.vtools .zoom { min-width: 4.5ch; text-align: center; color: var(--muted); }
+.vtools #dims { padding: 0 4px; }
+.vtools [hidden] { display: none; }
+
+/* z-index: its own stacking context, so PDF.js's numbered field layers stay
+   under the toolbar. */
+.pages { position: absolute; inset: 0; z-index: 0; overflow: auto; padding: 12px 0 56px; outline: none; }
+
+/* PDF.js's viewer, restyled: pages on the dark backdrop with a 1px outline,
+   no shadows or loading spinners. */
+.pdfViewer .page {
+  margin: 0 auto 12px; border: none;
+  background-color: #fff; box-shadow: 0 0 0 1px var(--line);
+}
+.pdfViewer .page::before {
+  content: attr(data-page-number);
+  position: absolute; right: 100%; top: 0; margin-right: 6px;
+  font-size: var(--fs-small); color: var(--ctp-overlay1);
+}
+.pdfViewer .page.loadingIcon::after { display: none; }
+
+/* Form fields: clearly fillable (a light accent tint), tidy (1px lines), and
+   the accent when focused. Pages are paper, so fields keep light colours in
+   every theme. Inline background colours from the PDF stay underneath. */
+.annotationLayer {
+  color-scheme: light;
+  --mg-ink: #000;
+  --annotation-unfocused-field-background: linear-gradient(color-mix(in srgb, var(--accent) 12%, transparent), color-mix(in srgb, var(--accent) 12%, transparent));
+  --input-unfocused-border-color: color-mix(in srgb, var(--accent) 30%, transparent);
+  --input-hover-border-color: color-mix(in srgb, var(--accent) 75%, transparent);
+  --input-focus-border-color: var(--accent);
+  --input-focus-outline: none;
+}
+.annotationLayer .textWidgetAnnotation :is(input, textarea),
+.annotationLayer .choiceWidgetAnnotation select,
+.annotationLayer .buttonWidgetAnnotation:is(.checkBox, .radioButton) input,
+.annotationLayer .textWidgetAnnotation :is(input, textarea):is(:hover, :focus),
+.annotationLayer .choiceWidgetAnnotation select:is(:hover, :focus),
+.annotationLayer .buttonWidgetAnnotation:is(.checkBox, .radioButton) :is(input:hover, :focus) {
+  border-width: 1px; border-radius: 0;
+}
+.annotationLayer .buttonWidgetAnnotation.radioButton input,
+.annotationLayer .buttonWidgetAnnotation.radioButton input:is(:hover, :focus) { border-radius: 50%; }
+.annotationLayer .textWidgetAnnotation :is(input, textarea):focus,
+.annotationLayer .choiceWidgetAnnotation select:focus,
+.annotationLayer .buttonWidgetAnnotation:is(.checkBox, .radioButton) :focus {
+  background-image: linear-gradient(color-mix(in srgb, var(--accent) 6%, #fff), color-mix(in srgb, var(--accent) 6%, #fff));
+}
+.annotationLayer :is(.textWidgetAnnotation :is(input, textarea), .choiceWidgetAnnotation select, .buttonWidgetAnnotation:is(.checkBox, .radioButton) input):required {
+  outline: none; border-color: color-mix(in srgb, var(--danger) 60%, transparent);
+}
+.annotationLayer .textWidgetAnnotation [disabled]:is(input, textarea),
+.annotationLayer .choiceWidgetAnnotation select[disabled],
+.annotationLayer .buttonWidgetAnnotation:is(.checkBox, .radioButton) input[disabled] { border: 1px solid transparent; }
+/* Text, ticks and dots in ink, whatever the theme's text colour (the PDF's
+   own text colour, set inline, still wins). */
+.annotationLayer :is(input, textarea, select) { color: var(--mg-ink); }
+.annotationLayer .buttonWidgetAnnotation.checkBox input:checked::before,
+.annotationLayer .buttonWidgetAnnotation.checkBox input:checked::after,
+.annotationLayer .buttonWidgetAnnotation.radioButton input:checked::before { background-color: var(--mg-ink); }
+.annotationLayer :is(.linkAnnotation, .buttonWidgetAnnotation.pushButton):not(.hasBorder) > a:hover {
+  opacity: 1; box-shadow: none; background-color: color-mix(in srgb, var(--accent) 18%, transparent);
+}
+.annotationLayer .linkAnnotation.hasBorder:hover { background-color: color-mix(in srgb, var(--accent) 18%, transparent); }
+
+/* Sync state, shown in the toolbar only when the viewer is opened on its own
+   (inside the player view, the shell's info bar shows it). */
+.vtools .vsync { margin: 0 3px; text-transform: uppercase; }
+.vtools .vsync.mg-state { padding: 0 4px; }
+
+/* Short notes: an XFA form, an export done. Bottom left, clear of the toolbar. */
+.vnote {
+  position: fixed; z-index: 5; margin: 0;
+  left: max(10px, env(safe-area-inset-left)); bottom: max(10px, env(safe-area-inset-bottom));
+  max-width: min(440px, calc(100vw - 20px));
+  display: flex; align-items: center; gap: 8px; padding: 4px 4px 4px 10px;
+  font-size: var(--fs-body); color: var(--text);
+  background: var(--bg); border: 1px solid var(--accent);
+}
+.vnote[hidden] { display: none; }
+.vnote.err { border-color: var(--danger); }
+.vnote > .mg-i { flex: none; color: var(--accent); }
+.vnote.err > .mg-i { color: var(--danger); }
+.vnote #noteText { flex: 1; }
+
+/* Fit: centred and scaled down to the frame. Actual size: scroll around. */
+.img-wrap { position: absolute; inset: 0; overflow: auto; cursor: zoom-in; }
+.img-wrap img { position: absolute; inset: 0; margin: auto; max-width: 100%; max-height: 100%; background: #fff; }
+.img-wrap.actual { cursor: zoom-out; }
+.img-wrap.actual img { position: static; max-width: none; max-height: none; margin: 0; }
+
+.verror { position: relative; margin: 24px auto; padding: 12px 14px; max-width: 520px; border: 1px solid var(--danger); color: var(--text); background: var(--bg); }
+
+@media (max-width: 560px) {
+  .vtools { left: 50%; right: auto; transform: translateX(-50%); }
+  .pdfViewer .page::before { display: none; }
+  .standalone .vtools.pdf .vname { display: none; } /* room for the sync state */
+  /* Above the centred toolbar. */
+  .vnote { bottom: calc(max(10px, env(safe-area-inset-bottom)) + 40px); }
+}
