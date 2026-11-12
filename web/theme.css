@@ -553,3 +553,84 @@ textarea.mg-input { height: auto; min-height: 84px; padding: 6px 8px; line-heigh
 .mg-head .mg-btn.is-live, .mg-head .mg-btn.is-live:hover { color: var(--on-live); background: var(--live-fill); border-color: var(--live-fill); }
 .mg-head .mg-btn.mg-state.warn { border-color: var(--warn); background: none; }
 .mg-head .mg-btn.mg-state.err { border-color: var(--danger); background: none; }
+
+/* ---- the tutorial (tour.js) ----------------------------------------------------
+ * A full-screen layer in the top layer: the page is dimmed except for the part
+ * being explained, which is outlined in the accent. The card explains it; the
+ * timeline along the bottom shows every step, grouped by section.
+ */
+.mg-tour, .mg-tour[popover] {
+  position: fixed; inset: 0; z-index: 2000;
+  width: auto; height: auto; max-width: none; max-height: none;
+  margin: 0; padding: 0; border: 0; overflow: hidden;
+  background: transparent; color: var(--text);
+  font: 400 var(--fs-body)/1.5 var(--font); letter-spacing: var(--track);
+}
+.mg-tour.no-target { background: color-mix(in srgb, var(--deep, #11111b) 72%, transparent); }
+.mg-tour-spot {
+  position: absolute; pointer-events: none;
+  border: 1px solid var(--accent);
+  box-shadow: 0 0 0 1px var(--bg), 0 0 0 200vmax color-mix(in srgb, var(--deep, #11111b) 72%, transparent);
+  transition: left .18s ease, top .18s ease, width .18s ease, height .18s ease;
+}
+.mg-tour.no-target .mg-tour-spot { display: none; }
+
+.mg-tour-card {
+  position: absolute; display: flex; flex-direction: column;
+  width: min(380px, calc(100vw - 20px)); overflow: auto;
+  background: var(--bg); border: 1px solid var(--accent);
+  box-shadow: 3px 3px 0 color-mix(in srgb, var(--deep) 70%, transparent);
+  transition: left .18s ease, top .18s ease;
+}
+.mg-tour-card:focus { outline: none; }
+.mg-tour-head {
+  position: sticky; top: 0; z-index: 1;
+  display: flex; align-items: center; gap: 8px;
+  height: var(--bar-h); flex: none; padding: 0 4px 0 10px;
+  background: var(--bar); border-bottom: 1px solid var(--line);
+}
+.mg-tour-head .sec { display: inline-flex; align-items: center; gap: 6px; min-width: 0; color: var(--accent); font-size: var(--fs-small); font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
+.mg-tour-head .sec span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mg-tour-head .count { margin-left: auto; color: var(--muted); font-size: var(--fs-small); white-space: nowrap; }
+.mg-tour-body { padding: 10px 12px 2px; display: grid; gap: 6px; }
+.mg-tour-body h2 { color: var(--text); }
+.mg-tour-body .txt { display: grid; gap: 6px; }
+.mg-tour-body .txt ul { margin: 0; padding-left: 2ch; display: grid; gap: 2px; }
+.mg-tour-body .txt .players { color: var(--players-ink); }
+.mg-tour-body .txt .referee { color: var(--referee-ink); }
+.mg-tour-body .txt .mg-i { vertical-align: -3px; }
+.mg-tour-foot { display: flex; align-items: center; gap: 6px; padding: 10px 12px 12px; }
+
+/* The timeline: one segment per step, sections divided by wider gaps. */
+.mg-tour-line {
+  position: absolute; left: 0; right: 0; bottom: 0;
+  padding: 6px 12px calc(8px + env(safe-area-inset-bottom));
+  padding-left: max(12px, env(safe-area-inset-left)); padding-right: max(12px, env(safe-area-inset-right));
+  background: var(--bar); border-top: 1px solid var(--accent);
+}
+.mg-tour-line .where { display: flex; align-items: baseline; gap: 8px; font-size: var(--fs-small); margin-bottom: 5px; white-space: nowrap; }
+.mg-tour-line .now { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.mg-tour-line .now b { color: var(--accent); text-transform: uppercase; letter-spacing: .08em; }
+.mg-tour-line .of { color: var(--muted); }
+.mg-tour-line .secs { display: flex; gap: 8px; }
+.mg-tour-line .sec { display: grid; gap: 3px; min-width: 0; }
+.mg-tour-line .ticks { display: flex; gap: 2px; }
+.mg-tour-line .tick {
+  flex: 1 1 0; min-width: 4px; height: 14px; padding: 0; cursor: pointer;
+  background: var(--surface); border: 1px solid var(--line);
+}
+.mg-tour-line .tick:hover { border-color: var(--text); }
+.mg-tour-line .tick.done { background: color-mix(in srgb, var(--accent) 45%, var(--bg)); border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); }
+.mg-tour-line .tick.on { background: var(--accent); border-color: var(--accent); }
+.mg-tour-line .name {
+  font-size: var(--fs-small); color: var(--muted); line-height: 1.2;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.mg-tour-line .sec.done .name { color: var(--text); }
+.mg-tour-line .sec.on .name { color: var(--accent); font-weight: 700; }
+/* Narrow screens: the section names don't fit under their segments; the
+   current one is named above the bar. */
+@media (max-width: 700px) {
+  .mg-tour-line .name { display: none; }
+  .mg-tour-line .secs { gap: 5px; }
+}

@@ -4,5 +4,5 @@ package web
 
 import "embed"
 
-//go:embed theme.css prefs.js tips.js ui.js icons.svg icons-LICENSE.txt inject.js fonts admin shell viewer vendor
+//go:embed theme.css prefs.js tips.js ui.js tour.js icons.svg icons-LICENSE.txt inject.js fonts admin shell viewer vendor
 var FS embed.FS
