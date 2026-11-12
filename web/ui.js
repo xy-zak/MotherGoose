@@ -53,7 +53,7 @@ export const SCOPE = {
 };
 export const scopeTag = (scope) => '<span class="mg-tag ' + SCOPE[scope].cls + '" title="For the ' + SCOPE[scope].label + '">' + withIcon(SCOPE[scope].icon, SCOPE[scope].label) + '</span>';
 export const kindTag = (kind) => '<span class="mg-tag kind" title="' + KIND_NAME[kind] + '">' + withIcon('kind-' + kind, KIND_LABEL[kind]) + '</span>';
-export const gameTag = (gameType) => gameType ? '<span class="mg-game" title="Game / rules">' + ic('game') + '<span>' + esc(gameType) + '</span></span>' : '';
+export const gameTag = (gameType) => gameType ? '<span class="mg-game" title="Game / rules"><span>' + esc(gameType) + '</span></span>' : '';
 // "Live" is always shown the same way: LIVE:<port>, filled green.
 export const serverPort = () => location.port || (location.protocol === 'https:' ? '443' : '80');
 export const liveTag = (port) => '<span class="mg-live" title="The server is running and players can join">LIVE:' + esc(port || serverPort()) + '</span>';

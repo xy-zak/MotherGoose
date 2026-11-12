@@ -127,7 +127,7 @@ function welcome() {
       '<li>Add your players to the session\'s <b class="players">party</b>, and mark character sheets <b class="players">per player</b>: each player fills in their own copy.</li>' +
       '<li>Press <b>go live</b> to put a session on the players\' screens.</li>' +
     '</ul>' +
-    '<p class="mg-muted">New here? Press ' + ic('help') + ' help and choose <b>tutorial</b> for a guided tour of this page. ' +
+    '<p class="mg-muted">New here? Press ' + ic('help') + ' help and choose ' + ic('tutorial') + ' <b>referee tutorial</b> for a guided tour of this page. ' +
       'Press <kbd>?</kbd> for keyboard shortcuts, or ' + ic('settings') + ' display to change the theme, font and icons.</p></div>';
 }
 
@@ -530,9 +530,9 @@ async function helpOverlay() {
   ];
   const v = await overlay({
     title: 'Help', icon: 'help',
-    body: '<p><b>New here?</b> The tutorial walks you through every part of this dashboard, one step at a time, using an example session.</p>' +
+    body: '<p><b>New here?</b> The <b>referee tutorial</b> walks you through every part of this dashboard, one step at a time, using an example session.</p>' +
       '<hr class="mg-rule"><div class="mg-section-label">Keyboard shortcuts</div>' + kv(keys.map((k) => ['<kbd>' + k[0] + '</kbd>', k[1]])),
-    actions: [{ label: 'tutorial', value: 'tour', kind: 'primary', icon: 'help' }]
+    actions: [{ label: 'referee tutorial', value: 'tour', kind: 'primary', icon: 'tutorial' }]
   });
   if (v === 'tour') tutorial();
 }
@@ -642,7 +642,7 @@ function tourSteps() {
 
     { section: 'Done', title: 'That\'s the dashboard', target: 'header [data-act="help"]', text:
       '<p>When this tour ends, your own sessions come back. To get going: create a session, add pages and players, then press <b>go live</b>.</p>' +
-      '<p>Run this tour again any time from ' + ic('help') + ' <b>help</b>.</p>' }
+      '<p>Run it again any time: ' + ic('help') + ' <b>help</b>, then ' + ic('tutorial') + ' <b>referee tutorial</b>.</p>' }
   ];
 }
 
@@ -655,11 +655,13 @@ function tutorial() {
   renderLeft();
   renderRight();
   startTour({
+    name: 'Referee tutorial',
     steps: tourSteps(),
     scenes: {
-      join: () => { joinOverlay(); return lastDialog(); },
-      info: () => { fileOverlay('shared', 'tavern-rumours.html'); return lastDialog(); },
-      sheet: () => { fileOverlay('shared', 'character-sheet.html'); return lastDialog(); }
+      join: { label: 'Join Info', from: 'header [data-act="join"]', open: () => { joinOverlay(); return lastDialog(); } },
+      info: { label: 'Tavern rumours, info', from: ROW + ' [data-act="file-info"]', open: () => { fileOverlay('shared', 'tavern-rumours.html'); return lastDialog(); } },
+      sheet: { label: 'Character sheet, info', from: '.file[data-name="character-sheet.html"] [data-act="file-info"]',
+        open: () => { fileOverlay('shared', 'character-sheet.html'); return lastDialog(); } }
     },
     onEnd: route   // back to the session in the address, with fresh data
   });

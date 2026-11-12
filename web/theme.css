@@ -352,7 +352,6 @@ textarea.mg-input { height: auto; min-height: 84px; padding: 6px 8px; line-heigh
 .mg-tag .extra { font-weight: 500; letter-spacing: 0; color: var(--text); }
 /* The game or rules a session is for, shown next to its name. */
 .mg-game { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: var(--fs-small); font-weight: 500; white-space: nowrap; }
-.mg-game .mg-i { color: var(--ctp-teal); }
 /* Free-form page tags, written by the referee. */
 .mg-chips { display: inline-flex; flex-wrap: wrap; gap: 4px; }
 .mg-chip {
@@ -555,10 +554,21 @@ textarea.mg-input { height: auto; min-height: 84px; padding: 6px 8px; line-heigh
 .mg-head .mg-btn.mg-state.err { border-color: var(--danger); background: none; }
 
 /* ---- the tutorial (tour.js) ----------------------------------------------------
- * A full-screen layer in the top layer: the page is dimmed except for the part
- * being explained, which is outlined in the accent. The card explains it; the
- * timeline along the bottom shows every step, grouped by section.
+ * A full-screen layer in the top layer. The tutorial has a colour of its own,
+ * teal, that the app uses nowhere else for controls, so its card and outlines
+ * can't be mistaken for the page's. Everything outside the highlight is
+ * hatched out (the hatching has cut-outs, made with clip-path); a popup being
+ * toured is framed and hatched more lightly, and the button that opened it
+ * gets a dashed outline.
  */
+:root {
+  --tour: var(--ctp-teal);
+  /* Filled with text on it: darker on light themes, so the text keeps its contrast. */
+  --tour-fill: var(--ctp-teal);
+  --tour-fill: light-dark(color-mix(in srgb, var(--ctp-teal) 80%, #000), var(--ctp-teal));
+  --on-tour: var(--ctp-on-accent);
+  --tour-bg: color-mix(in srgb, var(--ctp-teal) 13%, var(--bg));
+}
 .mg-tour, .mg-tour[popover] {
   position: fixed; inset: 0; z-index: 2000;
   width: auto; height: auto; max-width: none; max-height: none;
@@ -566,33 +576,73 @@ textarea.mg-input { height: auto; min-height: 84px; padding: 6px 8px; line-heigh
   background: transparent; color: var(--text);
   font: 400 var(--fs-body)/1.5 var(--font); letter-spacing: var(--track);
 }
-.mg-tour.no-target { background: color-mix(in srgb, var(--deep, #11111b) 72%, transparent); }
+.mg-tour-shade {
+  position: absolute; inset: 0; pointer-events: none;
+  background-color: color-mix(in srgb, var(--deep, #11111b) 66%, transparent);
+  background-image: repeating-linear-gradient(-45deg,
+    color-mix(in srgb, var(--line-strong, #585b70) 70%, transparent) 0 1px, transparent 1px 7px);
+}
+.mg-tour-shade.soft {
+  background-color: color-mix(in srgb, var(--deep, #11111b) 30%, transparent);
+  background-image: repeating-linear-gradient(-45deg,
+    color-mix(in srgb, var(--line-strong, #585b70) 45%, transparent) 0 1px, transparent 1px 9px);
+}
+/* While the tour shows a popup, the tour does the hatching, not the popup. */
+.mg-dialog.mg-toured::backdrop { background: none; }
+
 .mg-tour-spot {
   position: absolute; pointer-events: none;
-  border: 1px solid var(--accent);
-  box-shadow: 0 0 0 1px var(--bg), 0 0 0 200vmax color-mix(in srgb, var(--deep, #11111b) 72%, transparent);
-  transition: left .18s ease, top .18s ease, width .18s ease, height .18s ease;
+  border: 2px solid var(--tour);
+  box-shadow: 0 0 0 1px var(--bg), 0 0 0 4px color-mix(in srgb, var(--tour) 35%, transparent);
+  transition: left .2s ease, top .2s ease, width .2s ease, height .2s ease;
 }
 .mg-tour.no-target .mg-tour-spot { display: none; }
 
+/* The popup being toured: framed, and named on its top border. */
+.mg-tour-frame { position: absolute; pointer-events: none; border: 1px dashed var(--tour); }
+.mg-tour-frame .tag, .mg-tour-from .tag {
+  position: absolute; display: inline-flex; align-items: center; gap: 5px; height: 20px; padding: 0 7px;
+  font-size: var(--fs-small); font-weight: 700; letter-spacing: .04em; white-space: nowrap;
+  background: var(--tour-fill); color: var(--on-tour);
+}
+/* A tab on the frame's top-left corner, or under it when the popup is at the top of the screen. */
+.mg-tour-frame .tag { top: -21px; left: -1px; max-width: calc(100% + 2px); }
+.mg-tour-frame.tab-below .tag { top: auto; bottom: -21px; }
+.mg-tour-frame .tag span { overflow: hidden; text-overflow: ellipsis; }
+.mg-tour-frame .tag .mg-i, .mg-tour-from .tag .mg-i { width: 13px; height: 13px; }
+/* The button that opened the popup. */
+.mg-tour-from .ring { position: absolute; pointer-events: none; border: 2px dashed var(--tour); }
+
+/* The card: teal from top to bottom, so it never looks like one of the app's own popups. */
 .mg-tour-card {
   position: absolute; display: flex; flex-direction: column;
   width: min(380px, calc(100vw - 20px)); overflow: auto;
-  background: var(--bg); border: 1px solid var(--accent);
-  box-shadow: 3px 3px 0 color-mix(in srgb, var(--deep) 70%, transparent);
-  transition: left .18s ease, top .18s ease;
+  background: var(--tour-bg); border: 2px solid var(--tour);
+  box-shadow: 4px 4px 0 color-mix(in srgb, var(--deep) 75%, transparent);
+  transition: left .2s ease, top .2s ease;
 }
 .mg-tour-card:focus { outline: none; }
 .mg-tour-head {
   position: sticky; top: 0; z-index: 1;
   display: flex; align-items: center; gap: 8px;
-  height: var(--bar-h); flex: none; padding: 0 4px 0 10px;
-  background: var(--bar); border-bottom: 1px solid var(--line);
+  height: var(--bar-h); flex: none; padding: 0 3px 0 10px;
+  background: var(--tour-fill); color: var(--on-tour);
 }
-.mg-tour-head .sec { display: inline-flex; align-items: center; gap: 6px; min-width: 0; color: var(--accent); font-size: var(--fs-small); font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
-.mg-tour-head .sec span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mg-tour-head .count { margin-left: auto; color: var(--muted); font-size: var(--fs-small); white-space: nowrap; }
+.mg-tour-head .name { display: inline-flex; align-items: center; gap: 6px; min-width: 0; font-size: var(--fs-small); font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
+.mg-tour-head .name span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mg-tour-head .count { margin-left: auto; font-size: var(--fs-small); font-weight: 700; white-space: nowrap; }
+.mg-tour-head .mg-btn { height: 20px; padding: 0 6px; background: transparent; color: var(--on-tour); border-color: color-mix(in srgb, var(--on-tour) 55%, transparent); }
+.mg-tour-head .mg-btn:hover { background: color-mix(in srgb, var(--on-tour) 15%, transparent); border-color: var(--on-tour); }
+.mg-tour-scene {
+  display: flex; align-items: flex-start; gap: 8px; margin: 10px 12px 0; padding: 6px 8px;
+  border: 1px dashed var(--tour); background: color-mix(in srgb, var(--tour) 10%, var(--bg));
+  font-size: var(--fs-small);
+}
+.mg-tour-scene .mg-i { color: var(--tour); width: 16px; height: 16px; margin-top: 1px; }
+.mg-tour-scene > span { display: grid; gap: 1px; }
+.mg-tour-scene .hint { color: var(--muted); }
 .mg-tour-body { padding: 10px 12px 2px; display: grid; gap: 6px; }
+.mg-tour-body .sec { font-size: var(--fs-small); font-weight: 700; color: var(--tour); text-transform: uppercase; letter-spacing: .08em; margin-bottom: -4px; }
 .mg-tour-body h2 { color: var(--text); }
 .mg-tour-body .txt { display: grid; gap: 6px; }
 .mg-tour-body .txt ul { margin: 0; padding-left: 2ch; display: grid; gap: 2px; }
@@ -600,34 +650,42 @@ textarea.mg-input { height: auto; min-height: 84px; padding: 6px 8px; line-heigh
 .mg-tour-body .txt .referee { color: var(--referee-ink); }
 .mg-tour-body .txt .mg-i { vertical-align: -3px; }
 .mg-tour-foot { display: flex; align-items: center; gap: 6px; padding: 10px 12px 12px; }
+.mg-tour-foot .mg-btn.go { background: var(--tour-fill); border-color: var(--tour-fill); color: var(--on-tour); font-weight: 700; }
+.mg-tour-foot .mg-btn.go:hover { filter: brightness(1.08); }
+.mg-tour .mg-btn:focus-visible { box-shadow: 0 0 0 1px var(--bg), 0 0 0 3px var(--tour); }
 
-/* The timeline: one segment per step, sections divided by wider gaps. */
+/* The timeline: one segment per step, sections divided by wider gaps.
+   Popup steps have dashed segments, like the popup's frame. */
 .mg-tour-line {
   position: absolute; left: 0; right: 0; bottom: 0;
   padding: 6px 12px calc(8px + env(safe-area-inset-bottom));
   padding-left: max(12px, env(safe-area-inset-left)); padding-right: max(12px, env(safe-area-inset-right));
-  background: var(--bar); border-top: 1px solid var(--accent);
+  background: var(--tour-bg); border-top: 2px solid var(--tour);
 }
 .mg-tour-line .where { display: flex; align-items: baseline; gap: 8px; font-size: var(--fs-small); margin-bottom: 5px; white-space: nowrap; }
 .mg-tour-line .now { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
-.mg-tour-line .now b { color: var(--accent); text-transform: uppercase; letter-spacing: .08em; }
+.mg-tour-line .now b { color: var(--tour); text-transform: uppercase; letter-spacing: .08em; }
+.mg-tour-line .pop { display: inline-flex; align-items: center; gap: 4px; padding: 0 5px; margin-left: 4px; border: 1px dashed var(--tour); color: var(--text); }
+.mg-tour-line .pop .mg-i, .mg-tour-line .name .mg-i { width: 12px; height: 12px; color: var(--tour); }
 .mg-tour-line .of { color: var(--muted); }
 .mg-tour-line .secs { display: flex; gap: 8px; }
 .mg-tour-line .sec { display: grid; gap: 3px; min-width: 0; }
 .mg-tour-line .ticks { display: flex; gap: 2px; }
 .mg-tour-line .tick {
   flex: 1 1 0; min-width: 4px; height: 14px; padding: 0; cursor: pointer;
-  background: var(--surface); border: 1px solid var(--line);
+  background: var(--bg); border: 1px solid var(--line-strong);
 }
+.mg-tour-line .tick.popup { border-style: dashed; border-color: var(--tour); }
 .mg-tour-line .tick:hover { border-color: var(--text); }
-.mg-tour-line .tick.done { background: color-mix(in srgb, var(--accent) 45%, var(--bg)); border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); }
-.mg-tour-line .tick.on { background: var(--accent); border-color: var(--accent); }
+.mg-tour-line .tick.done { background: color-mix(in srgb, var(--tour) 45%, var(--bg)); border-color: color-mix(in srgb, var(--tour) 60%, var(--line)); }
+.mg-tour-line .tick.on { background: var(--tour); border: 1px solid var(--tour); }
 .mg-tour-line .name {
+  display: flex; align-items: center; gap: 4px; min-width: 0;
   font-size: var(--fs-small); color: var(--muted); line-height: 1.2;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
+.mg-tour-line .name span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mg-tour-line .sec.done .name { color: var(--text); }
-.mg-tour-line .sec.on .name { color: var(--accent); font-weight: 700; }
+.mg-tour-line .sec.on .name { color: var(--tour); font-weight: 700; }
 /* Narrow screens: the section names don't fit under their segments; the
    current one is named above the bar. */
 @media (max-width: 700px) {

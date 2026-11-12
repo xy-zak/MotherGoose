@@ -16,8 +16,10 @@
   /* Row 1: information about the session and connection. */
   .info { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
   .info .session { font-weight: 700; max-width: 55vw; flex-shrink: 1; min-width: 0; gap: 10px; }
-  .info .session .label { color: var(--text); font-size: var(--fs-small); }
-  .info .session .mg-game { font-weight: 500; }
+  /* The session's name and game type: the same font, size and weight; the game is in the muted colour. */
+  .info .session .label, .info .session .mg-game { font-size: var(--fs-body); font-weight: 700; }
+  .info .session .label { color: var(--text); }
+  .info .session .mg-game::before { content: "·"; margin-right: 10px; }
 
   /* Row 2: navigation, on a lighter background than the info bar. */
   .tabbar {
@@ -144,7 +146,7 @@
     <span class="mg-actions">
       <a class="mg-btn referee" id="adminLink" href="/admin" hidden title="The referee's dashboard (this computer only)"><svg class="mg-i" aria-hidden="true"><use href="/_mg/icons.svg#view"></use></svg><span class="lbl">referee's dashboard</span></a>
       <button class="mg-btn" data-prefs type="button" title="Display settings: theme, font, icons"><svg class="mg-i" aria-hidden="true"><use href="/_mg/icons.svg#settings"></use></svg><span class="lbl hide-sm">display</span></button>
-      <button class="mg-btn" id="helpBtn" type="button" title="Help: the tutorial and keyboard shortcuts (?)"><svg class="mg-i" aria-hidden="true"><use href="/_mg/icons.svg#help"></use></svg><span class="lbl hide-sm">help</span></button>
+      <button class="mg-btn" id="helpBtn" type="button" title="Help: keyboard shortcuts and the player tutorial (?)"><svg class="mg-i" aria-hidden="true"><use href="/_mg/icons.svg#help"></use></svg><span class="lbl hide-sm">help</span></button>
     </span>
   </header>
   <nav class="tabbar" aria-label="Session pages">

@@ -24,12 +24,14 @@ ICONS = {
     "full": "expand", "shrink": "collapse", "zoom-in": "zoom-in", "zoom-out": "zoom-out",
     "prev": "nav-arrow-left", "next": "nav-arrow-right", "fit": "frame-simple",
     "tag": "label", "text": "align-left", "close": "xmark", "theme": "palette",
-    "font": "text-size", "game": "hexagon-dice", "data": "database", "server": "wifi",
+    "font": "text-size", "data": "database", "server": "wifi",
     "check": "check", "warning": "warning-triangle", "sessions": "book-stack",
     "labels": "text-square", "light": "sun-light", "dark": "half-moon",
     # per-player pages: one person, adding / removing one, switching who you are
     "player": "user", "add-player": "user-plus", "remove-player": "user-xmark",
     "switch": "refresh-double", "template": "page",
+    # the tutorial, and the popups it tours
+    "tutorial": "graduation-cap", "popup": "app-window",
 }
 
 def main(pkg: Path) -> None:

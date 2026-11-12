@@ -362,10 +362,10 @@ async function helpOverlay() {
   const v = await overlay({
     title: 'Help',
     icon: 'help',
-    body: '<p><b>New here?</b> The tutorial walks you through every part of this screen, one step at a time.</p>' +
+    body: '<p><b>New here?</b> The <b>player tutorial</b> walks you through every part of this screen, one step at a time.</p>' +
       '<hr class="mg-rule"><div class="mg-section-label">Keyboard shortcuts</div>' +
       '<dl class="mg-kv">' + keys.map((k) => '<dt><kbd>' + k[0] + '</kbd></dt><dd>' + k[1] + '</dd>').join('') + '</dl>' + SHORTCUTS_NOTE,
-    actions: [{ label: 'tutorial', value: 'tour', kind: 'primary', icon: 'help' }]
+    actions: [{ label: 'player tutorial', value: 'tour', kind: 'primary', icon: 'tutorial' }]
   });
   if (v === 'tour') tutorial();
 }
@@ -447,7 +447,7 @@ function tourSteps() {
       ' Keep this page open: it updates by itself when there is something to see.</p>', '#empty .mg-notice');
   }
 
-  add('Done', 'That\'s it', '<p>Run this tour again any time from ' + ic('help') + ' <b>help</b>.</p>' +
+  add('Done', 'That\'s it', '<p>Run it again any time: ' + ic('help') + ' <b>help</b>, then ' + ic('tutorial') + ' <b>player tutorial</b>.</p>' +
     (host ? '' : '<p>Have fun at the table.</p>'), '#helpBtn');
   return steps;
 }
@@ -458,9 +458,10 @@ function tutorial() {
   const wasFull = document.body.classList.contains('mg-full');
   if (wasFull) setFull(false);
   startTour({
+    name: 'Player tutorial',
     steps: tourSteps(),
     scenes: {
-      details: () => { detailsOverlay(); return lastDialog(); }
+      details: { label: 'Session details', from: ['#sessionBtn', '#syncBtn'], open: () => { detailsOverlay(); return lastDialog(); } }
     },
     onEnd: () => { if (wasFull) setFull(true, false); }
   });

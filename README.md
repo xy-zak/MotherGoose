@@ -93,7 +93,7 @@ The top of the player view has two slim rows:
 
 Press **⤢ full** (or `f`) for full screen. The browser goes full screen where it can, and MotherGoose hides everything except a thin row of tabs at the top. Press **⤡ shrink** at the top right, or `Esc`, to come back. On iPhones, which don't support browser full screen, you still get the full-screen layout.
 
-The help button (`?`) has a **tutorial**: a guided tour of whichever dashboard you are on, one part at a time. The referee's tour uses an example session, so nothing real changes.
+The help button (`?`) has a **referee tutorial** or **player tutorial**: a guided tour of the dashboard you are on, one part at a time. The referee's tour uses an example session, so nothing real changes.
 
 Keyboard shortcuts (press `?` to see them): `f` full screen, `1`–`9` jump to a tab, `[` `]` previous/next tab, `i` details. In the dashboard: `n` new session, `↑` `↓` move through sessions, `e` edit the session, `p` add a player to the party, `u` add players' files, `j` Join Info.
 
