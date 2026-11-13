@@ -258,7 +258,8 @@ button.mg-seg:hover { background: var(--surface); }
  *   .mg-btn.primary  primary   - solid accent, bold; one per area
  *   .mg-btn.quiet    quiet     - no frame; toolbar and secondary actions
  *   .mg-btn.danger   danger    - red frame; .solid inside confirm dialogs
- *   .mg-btn.warn     caution   - yellow frame (ending a live session)
+ *   .mg-btn.warn     caution   - yellow frame
+ *   .mg-btn.end-session  ending a live session - filled in the referee's orange
  */
 .mg-btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
@@ -279,6 +280,8 @@ button.mg-seg:hover { background: var(--surface); }
 .mg-btn.danger:hover, .mg-btn.danger.solid { background: var(--danger); color: var(--on-accent); }
 .mg-btn.warn { background: transparent; border-color: var(--warn); color: var(--warn-ink); }
 .mg-btn.warn:hover { background: var(--warn); color: var(--on-accent); }
+.mg-btn.end-session { background: var(--referee); border-color: var(--referee); color: var(--on-accent); }
+.mg-btn.end-session:hover { background: color-mix(in srgb, var(--referee) 85%, var(--text)); border-color: color-mix(in srgb, var(--referee) 85%, var(--text)); }
 /* Who-it's-for buttons: moving a page to the players or the referee. */
 .mg-btn.players { background: color-mix(in srgb, var(--players) 10%, var(--bg)); border-color: var(--players); color: var(--text); }
 .mg-btn.players .mg-i { color: var(--players-ink); }
@@ -451,6 +454,7 @@ textarea.mg-input { height: auto; min-height: 84px; padding: 6px 8px; line-heigh
 .mg-ui.referee { background: color-mix(in srgb, var(--referee) 12%, var(--bg)); border-color: var(--referee); }
 .mg-ui.referee .mg-i { color: var(--referee-ink); }
 .mg-ui.warn { background: transparent; border-color: var(--warn); color: var(--warn-ink); }
+.mg-ui.end-session { background: var(--referee); border-color: var(--referee); color: var(--on-accent); }
 .mg-ui.danger { background: transparent; border-color: var(--danger); color: var(--danger); }
 
 /* ---- right-click menus (e.g. on the player dashboard's tabs) ----------------- */

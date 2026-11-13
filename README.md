@@ -105,7 +105,7 @@ Keyboard shortcuts (press `?` to see them): `f` full screen, `1`–`9` jump to a
 
 ### Players and per-player sheets
 
-Each session has a **PARTY**: the players' names, added in the PARTY panel of the referee's dashboard. A roster belongs to one session, so each campaign has its own.
+Each session has a **PARTY**: the players' names, added under **PARTY** in the session panel of the referee's dashboard. A roster belongs to one session, so each campaign has its own.
 
 - **Who are you?** On a player's device, per-player tabs ask the player to pick their name from the roster. The device remembers it. **not you?** in the player dashboard header switches to another name.
 - **Per-player pages:** in a players' page's **info**, tick **per player** and **save**. That one file becomes a template: every player gets their own copy, with their own entries, saved and synced separately. HTML pages and fillable PDFs both work.

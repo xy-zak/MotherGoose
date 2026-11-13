@@ -28,7 +28,7 @@ export function renderPick(f, who) {
   el.innerHTML = '<span class="pick-label" title="' + PER_PLAYER_HINT + '">' + withIcon('player', 'whose copy') + '</span>' +
     btn('', withIcon('template', 'template'), 'The template: its entries are the starting values for each player\'s copy') +
     S.players.map((p) => btn(p.id, '<span>' + esc(p.name) + '</span>', p.name + '\'s copy')).join('') +
-    (S.players.length ? '' : '<span class="pick-note">No players yet. Add them in the referee\'s dashboard, in the PARTY panel.</span>');
+    (S.players.length ? '' : '<span class="pick-note">No players yet. Add them in the referee\'s dashboard, under PARTY in the session panel.</span>');
 }
 
 $('pick').addEventListener('click', (e) => {

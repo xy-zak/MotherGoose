@@ -87,12 +87,12 @@ function copiesList(s, f) {
   return '<div><div class="mg-section-label">' + ic('player') + ' Copies</div>' +
     '<ul class="copies">' + row('', 'template', 'starting values', f.hasState) +
       players.map((p) => row(p.id, p.name, '', !!(f.playerState && f.playerState[p.id]))).join('') + '</ul></div>' +
-    (players.length ? '' : '<p class="mg-muted">No players in the party yet: add them in the PARTY panel.</p>');
+    (players.length ? '' : '<p class="mg-muted">No players in the party yet: add them under PARTY in the session panel.</p>');
 }
 
 // The info popup is where a page is edited: name, description, tags and the
 // per-player switch are saved together with "save"; party changes (when the
-// page is per player) apply straight away, as in the PARTY panel.
+// page is per player) apply straight away, as in the session panel's party.
 export async function fileOverlay(scope, name) {
   const s = A.current;
   const f = (s.files[scope] || []).find((x) => x.name === name);

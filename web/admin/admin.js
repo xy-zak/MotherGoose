@@ -64,7 +64,6 @@ document.addEventListener('focusout', () => setTimeout(() => { if (A.refreshQueu
 // ---- left pane: what's live, and the sessions list ----------------------------------
 
 function renderLeft() {
-  const live = A.sessions.find((s) => s.active);
   const rows = A.sessions.map((s) => {
     const sh = (s.files.shared || []).length, gm = (s.files.gm || []).length;
     return '<a class="srow" href="#/s/' + enc(s.id) + '" data-id="' + esc(s.id) + '"' +
@@ -75,15 +74,6 @@ function renderLeft() {
   }).join('');
 
   left.innerHTML =
-    '<div class="mg-panel">' +
-      '<div class="mg-panel-title"><span class="t">' + ic('server') + 'Running</span>' +
-        (live ? '<span class="side">' + livePort() + '</span>' : '') + '</div>' +
-      (live
-        ? '<div class="head-row"><a href="#/s/' + enc(live.id) + '"><b>' + esc(live.name) + '</b></a>' + gameTag(live.gameType) + '</div>' +
-          '<div class="actions"><button class="mg-btn warn small" data-act="deactivate" title="End the live session">' + withIcon('end', 'end session') + '</button>' +
-          '<button class="mg-btn quiet small" data-act="join" title="Address and QR code for players">' + withIcon('join', 'Join Info') + '</button></div>'
-        : '<p class="mg-muted">Nothing is running. Players see a waiting screen.</p>') +
-    '</div>' +
     '<div class="mg-panel list">' +
       '<div class="mg-panel-title"><span class="t">' + ic('sessions') + 'Sessions</span><span class="side"><span class="count">' + A.sessions.length + '</span></span></div>' +
       '<form class="new-form" id="newForm">' +
@@ -134,7 +124,7 @@ function welcome() {
       feat('switch', 'Order', 'Drag a page up or down to reorder it: players\' tabs follow the same order. Drag it onto the other column to change who it\'s for.') +
       feat('tag', 'Details', 'Give each page a ' + term('description') + ' and ' + term('tags') + ' with ' + uiBtn('info', 'info') + ', so players know what they\'re looking at.') +
       feat('player', 'Party', 'Add your players to the session\'s ' + term('party', 'players') + '. Mark character sheets ' + term('per player', 'players') + ': each player fills in their own copy.') +
-      feat('live', 'Go live', uiBtn('live', 'go live', 'go-live') + ' puts a session on the players\' screens; ' + uiBtn('end', 'end session', 'warn') + ' takes it off again.') +
+      feat('live', 'Go live', uiBtn('live', 'go live', 'go-live') + ' puts a session on the players\' screens; ' + uiBtn('end', 'end session', 'end-session') + ' takes it off again.') +
       feat('join', 'Joining', uiBtn('join', 'Join Info') + ' shows the address and QR code players open to join.') +
       feat('export', 'Export', uiBtn('export', 'export filled') + ' downloads a page with every entry baked in, which works offline.') +
       feat('settings', 'Display', uiBtn('settings', 'display') + ' changes the theme, font, icons and animations, for this device.') +
@@ -199,14 +189,15 @@ function column(s, scope) {
     '</section>';
 }
 
-// The session's roster. Players pick their name from it on their own device;
-// per-player pages give each of them their own copy.
+// The session's roster, in the lower part of the session panel, below a
+// rule labelled like a panel title. Players pick their name from it on their
+// own device; per-player pages give each of them their own copy.
 function party(s) {
   const players = s.players || [];
   const full = players.length >= MAX_PLAYERS;
-  return '<section class="mg-panel players party">' +
-    '<div class="mg-panel-title"><span class="t">' + ic('players') + 'Party</span>' +
-      '<span class="side"><span class="count">' + players.length + '</span></span></div>' +
+  return '<section class="party" aria-label="Party">' +
+    '<div class="party-divider"><div class="mg-panel-title"><span class="t">' + ic('players') + 'Party</span>' +
+      '<span class="side"><span class="count">' + players.length + '</span></span></div></div>' +
     '<p class="mg-muted party-note">Players in this session only. Each player picks their name on their own device; per-player pages then show them their own copy.</p>' +
     '<div class="party-row">' +
       (players.length
@@ -230,25 +221,25 @@ function renderRight() {
   if (!s) { right.innerHTML = welcome(); return; }
   const sh = (s.files.shared || []).length, gm = (s.files.gm || []).length;
   right.innerHTML =
-    '<div class="mg-panel">' +
+    '<div class="mg-panel session">' +
       '<div class="mg-panel-title"><span class="t">Session</span>' +
         (s.active ? '<span class="side">' + livePort() + '</span>' : '') + '</div>' +
       '<div class="head-row"><h1>' + esc(s.name) + '</h1>' + (s.gameType ? gameTag(s.gameType) : '<span class="mg-muted" style="font-size: var(--fs-small)">no game type</span>') + '</div>' +
       '<div class="head-meta">' + sh + ' for players · ' + gm + ' for the referee · edited ' + esc(agoText(s.lastEdited)) + '</div>' +
       '<div class="actions">' +
         (s.active
-          ? '<button class="mg-btn warn" data-act="deactivate">' + withIcon('end', 'end session') + '</button>' +
-            '<a class="mg-btn players" href="/" target="_blank" rel="noopener" data-switch="players" title="The player dashboard: what players see">' + withIcon('view', 'player view') + '</a>'
+          ? '<a class="mg-btn players" href="/" target="_blank" rel="noopener" data-switch="players" title="The player dashboard: what players see">' + withIcon('view', 'player view') + '</a>'
           : '<button class="mg-btn go-live" data-act="activate" data-id="' + esc(s.id) + '">' + withIcon('live', 'go live') + '</button>') +
         '<span class="sep"></span>' +
         '<button class="mg-btn quiet" data-act="edit-session" title="Change the name or game type">' + withIcon('edit', 'edit') + '</button>' +
         '<button class="mg-btn quiet" data-act="reveal" title="Open this session\'s folder">' + withIcon('folder', 'open folder') + '</button>' +
         '<button class="mg-btn quiet" data-act="session-info" title="Session details">' + withIcon('info', 'info') + '</button>' +
         '<span class="mg-grow"></span>' +
+        (s.active ? '<button class="mg-btn end-session" data-act="deactivate" title="End the session: players go back to a waiting screen">' + withIcon('end', 'end session') + '</button>' : '') +
         '<button class="mg-btn danger" data-act="delete-session" title="Delete this session">' + withIcon('delete', 'delete') + '</button>' +
       '</div>' +
+      party(s) +
     '</div>' +
-    party(s) +
     '<div class="columns">' + column(s, 'shared') + column(s, 'gm') + '</div>';
 
   const input = document.querySelector('#addPlayer input');
@@ -382,7 +373,7 @@ document.addEventListener('keydown', attempt(async (e) => {
 // ---- live updates ------------------------------------------------------------------------
 
 // The header only speaks up when something is wrong: LIVE is shown in the
-// RUNNING and SESSION panels already.
+// sessions list and the SESSION panel already.
 function setServer(up) {
   const el = $('serverState');
   el.hidden = up;

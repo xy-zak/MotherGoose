@@ -14,7 +14,7 @@ from pathlib import Path
 
 # MotherGoose name -> Iconoir name
 ICONS = {
-    "live": "play", "end": "log-out", "view": "eye", "edit": "edit-pencil", "folder": "folder",
+    "live": "play", "end": "system-shut", "view": "eye", "edit": "edit-pencil", "folder": "folder",
     "info": "info-circle", "delete": "trash", "add": "plus", "more": "more-horiz",
     "to-referee": "arrow-right", "to-players": "arrow-left",
     "open": "open-new-window", "export": "download", "reset": "undo", "upload": "upload",

@@ -118,7 +118,19 @@ body { display: flex; flex-direction: column; min-height: 100dvh; }
 .drop b { color: var(--text); }
 .files-panel .none { padding: 6px 2px 0; color: var(--muted); font-size: var(--fs-body); }
 
-/* the party: the session's roster, as chips in the players' blue */
+/* the open session: one panel outlined in the accent purple, party included */
+.mg-panel.session { border-color: var(--accent); }
+.mg-panel.session > .mg-panel-title .t { color: var(--accent); }
+
+/* the party: the session's roster, as chips in the players' blue, in the
+   session panel below a full-width rule that carries its title */
+.party-divider {
+  position: relative;
+  margin: 22px -12px 14px;
+  border-top: 1px solid var(--accent);
+}
+.party-divider .mg-panel-title { top: -10px; }
+.party-divider .mg-panel-title .t { color: var(--accent); }
 .party-note { font-size: var(--fs-small); margin-bottom: 8px; }
 .party-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
 .party .roster { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; min-width: 0; }

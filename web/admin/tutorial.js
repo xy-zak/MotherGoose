@@ -2,7 +2,7 @@
 // page is there to show (a per-player page, a party, both columns) whatever
 // the real sessions hold. Nothing in it is saved: the real sessions come back
 // when the tour ends.
-import { esc, ic, lastDialog } from '/_mg/ui.js';
+import { esc, ic, lastDialog, liveTag } from '/_mg/ui.js';
 import { A, app } from './state.js';
 import { startTour, tourRunning } from '/_mg/tour.js';
 import { joinOverlay, fileOverlay } from './overlays.js';
@@ -54,24 +54,22 @@ function tourSteps() {
       '<p>Players open this address in a browser, or scan the code with a phone camera. They need to be on the same Wi-Fi or network as this computer.</p>' +
       '<p>If the first address doesn\'t work, try the others listed below it.</p>' },
 
-    { section: 'Sessions', title: 'Running', target: '#left > .mg-panel:first-child', text: () =>
-      '<p>Which session players see right now' + (live ? ': <b>' + esc(live.name) + '</b>' : '') + '. Only one session is live at a time.</p>' +
-      '<p>While one is live, <b>end session</b> sends players back to a waiting screen.' +
-      (live ? '' : ' Nothing is live at the moment, so players see the waiting screen.') + '</p>' },
-    { section: 'Sessions', title: 'Your sessions', target: '#left > .mg-panel.list', text:
+    { section: 'Sessions', title: 'Your sessions', target: '#left > .mg-panel.list', text: () =>
       '<p>Create a session with a name and, optionally, the <b>game type</b> (the game or rules being played). Shortcut: <kbd>n</kbd>.</p>' +
-      '<p>Below is every session, newest edit first; the example is selected. <b>3·2</b> counts the pages for players · for the referee, then how long since the last edit. <kbd>↑</kbd> <kbd>↓</kbd> and <kbd>enter</kbd> open one.</p>' },
+      '<p>Below is every session, newest edit first; the example is selected. <b>3·2</b> counts the pages for players · for the referee, then how long since the last edit. <kbd>↑</kbd> <kbd>↓</kbd> and <kbd>enter</kbd> open one.</p>' +
+      '<p>The one players see right now is marked ' + liveTag() + (live ? ': <b>' + esc(live.name) + '</b>' : '') + '. Only one session is live at a time.' +
+      (live ? '' : ' Nothing is live at the moment, so players see a waiting screen.') + '</p>' },
 
-    { section: 'Session', title: 'The open session', target: '#right > .mg-panel:first-child', text:
+    { section: 'Session', title: 'The open session', target: ['#right > .mg-panel:first-child > .head-row', '#right > .mg-panel:first-child > .head-meta', '#right > .mg-panel:first-child > .actions'], text:
       '<p>Its name, game type and page counts, with:</p>' +
-      '<ul><li>' + ic('live') + ' <b>go live</b>: put it on every player\'s screen. While live, it becomes <b>end session</b></li>' +
+      '<ul><li>' + ic('live') + ' <b>go live</b>: put it on every player\'s screen. While it\'s live, <b>end session</b> (next to <b>delete</b>) sends players back to a waiting screen</li>' +
       '<li>' + ic('edit') + ' <b>edit</b> the name or game type (<kbd>e</kbd>)</li>' +
       '<li>' + ic('folder') + ' <b>open folder</b> on this computer, to add files by hand</li>' +
       '<li>' + ic('info') + ' <b>info</b>: id, party, dates and where it\'s stored</li>' +
       '<li>' + ic('delete') + ' <b>delete</b> it with all its pages and entries (it asks first)</li></ul>' },
 
     { section: 'Party', title: 'The party', target: '.party', text:
-      '<p>The players in this session. Each player picks their name from this list on their own device, and <b class="players">per player</b> pages then show them their own copy.</p>' +
+      '<p>Below the line in the session panel: the players in this session. Each player picks their name from this list on their own device, and <b class="players">per player</b> pages then show them their own copy.</p>' +
       '<p>Click a name to rename it; ' + ic('close') + ' removes a player (you choose whether to keep their entries). Add players by name on the right (<kbd>p</kbd>), up to 24.</p>' },
 
     { section: 'Pages', title: 'Players and referee', target: '.columns', text:
