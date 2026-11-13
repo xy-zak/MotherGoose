@@ -4,6 +4,8 @@
  * Injected into every game page the server sends. It saves what people type
  * into inputs, textareas, selects and contenteditable elements, restores it
  * on load, and keeps every open copy of the page in sync over a WebSocket.
+ * The connection itself is createSync, from sync.js: the server serves the
+ * two as one script (see pages.go).
  *
  * In an exported ("filled") copy there is no server: the saved values are
  * restored from the embedded #mg-state block and nothing is sent anywhere.
@@ -34,10 +36,10 @@
   var keyOf = new WeakMap();
   var elsOf = {};          // key -> [elements]
   var seenEls = new WeakSet();
-  var outbox = {};         // keys with local changes not yet sent
   var deferred = {};       // keys with remote changes waiting for blur
   var listeners = {};
-  var ws = null, synced = false, retry = 0, gone = false, status = cfg ? 'connecting' : 'offline-copy';
+  var sync = null;         // the connection (none in an exported copy)
+  var status = cfg ? 'connecting' : 'offline-copy';
 
   // ---- which elements, and how they are keyed ------------------------------
 
@@ -261,10 +263,15 @@
     if (v === null || v === undefined) delete state[key]; else state[key] = v;
   }
 
-  // A change arriving from another device.
+  // A value from the server: another device's change, or the snapshot.
   function applyRemote(key, v) {
+    if (key.indexOf(CUSTOM) === 0) {
+      var was = JSON.stringify(state[key] === undefined ? null : state[key]);
+      setLocal(key, v);
+      if (was !== JSON.stringify(v)) emit(key.slice(CUSTOM.length), v);
+      return;
+    }
     setLocal(key, v);
-    if (key.indexOf(CUSTOM) === 0) { emit(key.slice(CUSTOM.length), v); return; }
     if (!elsOf[key]) index();
     if (isFocused(key)) { deferred[key] = true; return; } // don't yank the cursor
     writeValue(key, v);
@@ -292,23 +299,7 @@
     var key = keyOf.get(el);
     setLocal(key, readValue(key));
     delete deferred[key];
-    queueSend(key);
-  }
-
-  var sendTimer = null;
-  function queueSend(key) {
-    if (!cfg) return;
-    outbox[key] = true;
-    if (!sendTimer) sendTimer = setTimeout(flush, 200);
-  }
-
-  function flush() {
-    sendTimer = null;
-    if (!ws || ws.readyState !== 1 || !synced) return;
-    Object.keys(outbox).forEach(function (k) {
-      ws.send(JSON.stringify({ type: 'set', key: k, value: k in state ? state[k] : null }));
-    });
-    outbox = {};
+    if (sync) sync.changed(key);
   }
 
   // ---- connection -----------------------------------------------------------
@@ -339,47 +330,17 @@
     badgeEl.style.borderColor = s === 'live' ? '#40a02b' : s === 'connecting' ? '#df8e1d' : s === 'closed' ? '#d20f39' : '#8c8fa1';
   }
 
-  function applySnapshot(snap) {
-    index();
-    Object.keys(snap).forEach(function (k) {
-      if (outbox[k]) return; // our unsent edit wins
-      var before = JSON.stringify(state[k]);
-      if (before !== JSON.stringify(snap[k]) || k.indexOf(CUSTOM) !== 0) applyRemote(k, snap[k]);
-    });
-  }
-
   function connect() {
-    setStatus('connecting');
-    var q = 'session=' + encodeURIComponent(cfg.session) + '&scope=' + encodeURIComponent(cfg.scope) +
-      '&file=' + encodeURIComponent(cfg.file) +
-      // One player's copy of a per-player page has its own room and entries.
-      (cfg.player ? '&player=' + encodeURIComponent(cfg.player) : '');
-    ws = new WebSocket((location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + location.host + '/ws/file?' + q);
-    ws.onopen = function () { retry = 0; };
-    ws.onmessage = function (ev) {
-      var m;
-      try { m = JSON.parse(ev.data); } catch (e) { return; }
-      if (m.type === 'snapshot') {
-        synced = true;
-        applySnapshot(m.state || {});
-        setStatus('live');
-        flush();
-      } else if (m.type === 'set') {
-        applyRemote(m.key, m.value);
-      } else if (m.type === 'reload') {
-        location.reload();
-      } else if (m.type === 'gone') {
-        gone = true;
-        setStatus('closed');
-      }
-    };
-    ws.onclose = function () {
-      ws = null;
-      synced = false;
-      if (gone) return;
-      setStatus('offline');
-      setTimeout(connect, Math.min(5000, 500 * Math.pow(2, retry++)));
-    };
+    sync = createSync({
+      query: 'session=' + encodeURIComponent(cfg.session) + '&scope=' + encodeURIComponent(cfg.scope) +
+        '&file=' + encodeURIComponent(cfg.file) +
+        // One player's copy of a per-player page has its own room and entries.
+        (cfg.player ? '&player=' + encodeURIComponent(cfg.player) : ''),
+      accept: function () { return true; },
+      read: function (key) { return state[key]; },
+      apply: applyRemote,
+      onStatus: setStatus
+    });
   }
 
   // ---- start ----------------------------------------------------------------
@@ -413,7 +374,6 @@
     new MutationObserver(function () {
       if (!moTimer) moTimer = setTimeout(onMutate, 60);
     }).observe(document.body || document.documentElement, { childList: true, subtree: true });
-    window.addEventListener('pagehide', flush);
     // Pages that set themselves up on window load: let them see the values.
     window.addEventListener('load', function () {
       applying++;
@@ -432,7 +392,7 @@
     /** Save any JSON-serialisable value under a name; null deletes it. */
     set: function (name, v) {
       setLocal(CUSTOM + name, v);
-      queueSend(CUSTOM + name);
+      if (sync) sync.changed(CUSTOM + name);
     },
     /** Call fn(value) now (if saved) and whenever another device changes it. */
     on: function (name, fn) {

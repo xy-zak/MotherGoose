@@ -139,9 +139,6 @@ func (e *accessError) Error() string { return e.msg }
 // open the template (no player) or any rostered player's copy, while every
 // other device may open only the copy of the player it picked.
 func (s *Server) copyFor(r *http.Request, id string, sc store.Scope, name, player string) (string, error) {
-	if !store.CanBePerPlayer(sc, kind(name)) {
-		return "", nil
-	}
 	a, err := s.store.Access(id, sc, name)
 	if err != nil {
 		return "", err
@@ -165,11 +162,6 @@ func (s *Server) copyFor(r *http.Request, id string, sc store.Scope, name, playe
 		return "", &accessError{http.StatusForbidden, "Not your copy", "That is another player's copy. Players can only open their own."}
 	}
 	return me, nil
-}
-
-func kind(name string) store.Kind {
-	k, _ := store.KindOf(name)
-	return k
 }
 
 // accessFail reports an error from copyFor.

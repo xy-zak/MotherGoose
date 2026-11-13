@@ -224,18 +224,21 @@ How the code is organised:
 
 ```
 cmd/mothergoose/     entry point: flags, startup banner, browser launch
-internal/store/      sessions, files and saved state on disk
-internal/server/     HTTP routes, host-only checks, WebSocket sync, LAN addresses/QR
+internal/store/      everything on disk: sessions, pages, entries, the party
+internal/server/     HTTP routes, access checks, the API, WebSocket sync and events, LAN addresses/QR
 web/                 embedded UI, no build step:
-  admin/, shell/       the dashboard and the player view
+  admin/, shell/       the dashboard and the player view, one module per feature
   viewer/              the PDF and image viewers
-  ui.js, theme.css     shared UI pieces (overlays, events) and the Catppuccin theme
+  ui.js, theme.css     shared UI pieces (overlays, events, shortcuts) and the Catppuccin theme
   prefs.js             display settings: theme, font, icons/text
   icons.svg            Iconoir icon sprite (rebuild with scripts/icons.py)
-  inject.js            the save-and-sync script added to HTML pages
+  sync.js              the live-sync connection, shared by HTML pages and the PDF viewer
+  inject.js            the save-and-sync script added to HTML pages (served together with sync.js)
   vendor/              PDF.js (library, viewer component, scripting sandbox), bundled
 examples/            sample pages to try things out
 ```
+
+How it's put together, and the rules that keep it simple, are in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md). How the server, the dashboards and the pages talk to each other (endpoints, WebSocket messages, when things update) is in [docs/NETWORK.md](docs/NETWORK.md).
 
 The web UI is plain HTML, CSS and JS with no build step, and it is embedded in the binary. It uses JetBrains Mono, Atkinson Hyperlegible Mono, Atkinson Hyperlegible Next and OpenDyslexic, all bundled under the SIL Open Font License (see `web/fonts/`). Icons are [Iconoir](https://iconoir.com) 7.12.1 (MIT, `web/icons-LICENSE.txt`), built into `web/icons.svg` by `scripts/icons.py`. The fonts and icons came from the npm registry and were checked against the registry's published hashes.
 

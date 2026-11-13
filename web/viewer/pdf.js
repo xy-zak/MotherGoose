@@ -20,6 +20,7 @@
 // - src must be a file served by this MotherGoose (/s/…), never another site.
 // - Values from other devices only ever set a field's value or selection.
 import * as pdfjsLib from '/_mg/vendor/pdfjs-4.10.38/pdf.min.mjs';
+import { $, isTyping, serverPort } from '/_mg/ui.js';
 
 const LIB = '/_mg/vendor/pdfjs-4.10.38/';
 // pdf_viewer.mjs reads the core library from this global, so it must be set
@@ -27,7 +28,6 @@ const LIB = '/_mg/vendor/pdfjs-4.10.38/';
 globalThis.pdfjsLib = pdfjsLib;
 pdfjsLib.GlobalWorkerOptions.workerSrc = LIB + 'pdf.worker.min.mjs';
 
-const $ = (id) => document.getElementById(id);
 const pagesEl = $('pages');
 const ZOOMS = [0.5, 0.67, 0.8, 1, 1.25, 1.5, 2, 3, 4];
 const MAX_CANVAS_PIXELS = 16e6; // per page; larger canvases crash mobile Safari
@@ -93,6 +93,9 @@ const scaleNow = () => (zoom === 'fit' ? fitScale() : zoom);
 
 function applyZoom() {
   if (!viewer || !viewer.pagesCount) return;
+  // In a hidden tab nothing is laid out, and PDF.js can't scroll to the page.
+  // Showing the tab resizes the frame, and the resize handler zooms then.
+  if (!pagesEl.getClientRects().length) return;
   const s = scaleNow();
   if (Math.abs(viewer.currentScale * CSS_UNITS - s) > 1e-4) viewer.currentScale = s / CSS_UNITS;
   showZoom();
@@ -132,10 +135,9 @@ $('export').onclick = () => exportFilled();
 $('page').addEventListener('change', (e) => go(parseInt(e.target.value, 10) || 1));
 $('page').addEventListener('focus', (e) => e.target.select());
 
-const typing = (el) => !!el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName));
 document.addEventListener('keydown', (e) => {
   // Never while filling in a field, or in the page box.
-  if (typing(e.target) || e.ctrlKey || e.metaKey || e.altKey || !viewer || !viewer.pagesCount) return;
+  if (isTyping(e) || !viewer || !viewer.pagesCount) return;
   if (e.key === '+' || e.key === '=') stepZoom(1);
   else if (e.key === '-') stepZoom(-1);
   else if (e.key === '0') setZoom('fit');
@@ -166,9 +168,7 @@ let storage = null;
 let jsMode = false;             // the PDF has scripts, so its fields talk to the sandbox
 
 const known = {};               // key -> value as last read from the fields
-const lastSeen = {};            // key -> value last received from, or sent to, the server
 const deferred = {};            // key -> remote value waiting for the field to lose focus
-let outbox = new Set();         // keys changed here, not yet sent
 let applying = 0;               // >0 while writing remote values into the fields
 
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
@@ -259,7 +259,7 @@ function changed(key) {
   known[key] = v;
   if (applying) return;
   delete deferred[key];
-  queueSend(key);
+  if (sync) sync.changed(key);
 }
 
 function isFocused(f) {
@@ -389,8 +389,10 @@ function withStoredValues(objs) {
 }
 
 // ---- sync -------------------------------------------------------------------------
+// The connection is createSync, from /_mg/sync.js (loaded before this module):
+// the same as HTML pages use. This side reads and writes the fields.
 
-let ws = null, synced = false, retry = 0, gone = false;
+let sync = null;
 let firstSnapshot;
 const snapshotLoaded = new Promise((r) => { firstSnapshot = r; });
 let connectionTried;
@@ -406,7 +408,7 @@ function setStatus(s) {
   el.hidden = false;
   if (s === 'live') {
     el.className = 'vsync mg-live';
-    el.textContent = 'LIVE:' + (location.port || (location.protocol === 'https:' ? '443' : '80'));
+    el.textContent = 'LIVE:' + serverPort();
     el.title = 'Saved and synced live';
   } else {
     el.className = 'vsync mg-state ' + (s === 'connecting' ? 'warn' : 'err');
@@ -415,9 +417,8 @@ function setStatus(s) {
   }
 }
 
+// A value from the server: another device's change, or the snapshot.
 function applyRemote(key, v) {
-  if (v === undefined) v = null;
-  lastSeen[key] = v;
   const f = fields.get(key);
   if (!f) return;
   if (isFocused(f)) { deferred[key] = v; return; } // don't yank the cursor
@@ -439,73 +440,22 @@ function flushDeferred() {
   }
 }
 
-function applySnapshot(snap) {
-  for (const [key, v] of Object.entries(snap)) {
-    if (!key.startsWith(PREFIX)) continue;
-    if (outbox.has(key) && !same(known[key], v)) { lastSeen[key] = v; continue; } // our unsent edit wins
-    applyRemote(key, v);
-  }
-}
-
-let sendTimer = 0;
-function queueSend(key) {
-  if (!cfg) return;
-  outbox.add(key);
-  if (!sendTimer) sendTimer = setTimeout(flush, 200);
-}
-
-function flush() {
-  sendTimer = 0;
-  if (!ws || ws.readyState !== 1 || !synced) return;
-  for (const key of outbox) {
-    const v = known[key];
-    // Never echo what the server already has: devices running the same
-    // calculations would otherwise bounce results back and forth.
-    if (same(v, lastSeen[key])) continue;
-    lastSeen[key] = v;
-    ws.send(JSON.stringify({ type: 'set', key, value: v === undefined ? null : v }));
-  }
-  outbox = new Set();
-}
-
 function connect() {
-  setStatus('connecting');
   let q = 'session=' + encodeURIComponent(cfg.session) + '&scope=' + encodeURIComponent(cfg.scope) +
     '&file=' + encodeURIComponent(cfg.file);
   if (player) q += '&player=' + encodeURIComponent(player);
-  ws = new WebSocket((location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + location.host + '/ws/file?' + q);
-  ws.onopen = () => { retry = 0; };
-  ws.onmessage = (ev) => {
-    let m;
-    try { m = JSON.parse(ev.data); } catch (e) { return; }
-    if (m.type === 'snapshot') {
-      synced = true;
-      applySnapshot(m.state || {});
-      setStatus('live');
-      flush();
-      firstSnapshot();
-      connectionTried();
-    } else if (m.type === 'set') {
-      if (typeof m.key === 'string' && m.key.startsWith(PREFIX)) applyRemote(m.key, m.value);
-    } else if (m.type === 'reload') {
-      location.reload();
-    } else if (m.type === 'gone') {
-      gone = true;
-      setStatus('closed');
-    }
-  };
-  ws.onclose = () => {
-    ws = null;
-    synced = false;
-    connectionTried();
-    if (gone) return;
-    setStatus('offline');
-    setTimeout(connect, Math.min(5000, 500 * Math.pow(2, retry++)));
-  };
+  sync = window.createSync({
+    query: q,
+    accept: (key) => key.startsWith(PREFIX),
+    read: (key) => known[key],
+    apply: applyRemote,
+    onStatus: setStatus,
+    onSnapshot: () => { firstSnapshot(); connectionTried(); },
+    onClose: () => connectionTried()
+  });
 }
 
 document.addEventListener('focusout', () => setTimeout(flushDeferred, 0), true);
-addEventListener('pagehide', flush);
 
 // ---- export --------------------------------------------------------------------------
 

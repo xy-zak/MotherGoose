@@ -1,5 +1,9 @@
-// Shared pieces of the dashboard and player shell: formatting, the API
-// helper, toasts, overlays (on <dialog>) and the live-events connection.
+// Shared pieces of the dashboard, the player view and the PDF viewer:
+// formatting, the API helper, toasts, overlays (on <dialog>), keyboard
+// shortcuts and the live-events connection. Anything two pages need lives
+// here, not in a copy in each.
+
+export const $ = (id) => document.getElementById(id);
 
 export function esc(s) {
   return String(s == null ? '' : s).replace(/[&<>"']/g, (c) =>
@@ -35,6 +39,9 @@ export function size(n) {
   if (n < 1024 * 1024) return (n / 1024).toFixed(1) + ' KB';
   return (n / 1024 / 1024).toFixed(1) + ' MB';
 }
+
+/** titleOf is what a page is called: its <title>, or its file name without the type. */
+export const titleOf = (f) => f.title || f.name.replace(/\.[^.]+$/, '');
 
 export const KIND_LABEL = { html: 'page', pdf: 'pdf', image: 'img' };
 export const KIND_NAME = { html: 'HTML page', pdf: 'PDF', image: 'image' };
@@ -274,6 +281,20 @@ export function anyOverlayOpen() {
   return !!document.querySelector('dialog[open]');
 }
 
+/** lastDialog is the overlay on top, or null. */
+export const lastDialog = () => { const all = document.querySelectorAll('dialog[open]'); return all[all.length - 1] || null; };
+
+/** kv lays out [label, value] rows, both HTML, as a definition list. */
+export const kv = (rows) => '<dl class="mg-kv">' + rows.map((r) => '<dt>' + r[0] + '</dt><dd>' + r[1] + '</dd>').join('') + '</dl>';
+
+/** keysList is kv for keyboard shortcuts: [[key, what it does], …]. */
+export const keysList = (keys) => kv(keys.map((k) => ['<kbd>' + k[0] + '</kbd>', k[1]]));
+
+// The server sends {"type":"ping"} every 25 s. A socket silent for longer
+// than this is taken for dead (Wi-Fi dropped, laptop slept) and replaced,
+// rather than waiting minutes for the browser to notice.
+export const SILENT_MS = 60000;
+
 /**
  * listenEvents keeps a WebSocket open to /ws/events, reconnecting with
  * backoff. onEvent runs for each server event (and once on every connect),
@@ -283,12 +304,29 @@ export function listenEvents(onEvent, onState) {
   let retry = 0;
   (function connect() {
     const ws = new WebSocket((location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + location.host + '/ws/events');
-    ws.onopen = () => { retry = 0; onState(true); onEvent(); };
-    ws.onmessage = () => onEvent();
-    ws.onclose = () => {
+    let heard = Date.now(), done = false;
+    const watch = setInterval(() => { if (Date.now() - heard > SILENT_MS) drop(); }, 10000);
+    const closed = () => {
+      if (done) return;
+      done = true;
+      clearInterval(watch);
       onState(false);
       setTimeout(connect, Math.min(5000, 500 * Math.pow(2, retry++)));
     };
+    const drop = () => {
+      ws.onopen = ws.onmessage = ws.onclose = null;
+      try { ws.close(); } catch (e) { /* already closing */ }
+      closed();
+    };
+    ws.onopen = () => { retry = 0; heard = Date.now(); onState(true); onEvent(); };
+    ws.onmessage = (ev) => {
+      heard = Date.now();
+      let m = null;
+      try { m = JSON.parse(ev.data); } catch (e) { /* not ours */ }
+      if (m && m.type === 'ping') return;
+      onEvent();
+    };
+    ws.onclose = closed;
   })();
 }
 
@@ -298,5 +336,8 @@ export function isTyping(e) {
   return e.ctrlKey || e.metaKey || e.altKey ||
     (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)));
 }
+
+/** shortcutAllowed: a key press is the page's to handle, not a field's or an overlay's. */
+export const shortcutAllowed = (e) => !isTyping(e) && !anyOverlayOpen();
 
 export const SHORTCUTS_NOTE = '<p class="mg-muted">Shortcuts work when the page itself doesn\'t have focus: click this bar first.</p>';

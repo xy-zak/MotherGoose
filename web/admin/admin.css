@@ -1,0 +1,202 @@
+/* The referee dashboard's own styles. Everything shared is in /_mg/theme.css. */
+
+html, body { height: 100%; }
+body { display: flex; flex-direction: column; min-height: 100dvh; }
+.top { position: sticky; top: 0; z-index: 10; }
+
+/* Two panes: the sessions list, and the selected session. */
+.layout {
+  flex: 1; display: grid; grid-template-columns: minmax(250px, 320px) minmax(0, 1fr);
+  gap: 12px; padding: 12px; align-items: start; align-content: start;
+}
+.pane { display: grid; gap: 12px; min-width: 0; }
+
+/* sessions list: its own fill, so it's clear what's part of the list */
+.new-form { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; margin-bottom: 10px; }
+.new-form .game { grid-column: 1; }
+.new-form .mg-btn { grid-row: 1 / span 2; grid-column: 2; height: auto; }
+.slist { display: grid; margin: 0 -12px -12px; border-top: 1px solid var(--line); }
+.srow {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 2px 8px;
+  padding: 6px 12px; border-bottom: 1px solid var(--line);
+  color: var(--text); text-decoration: none; font-size: var(--fs-body);
+}
+.srow:last-child { border-bottom: 0; }
+.srow:hover { background: color-mix(in srgb, var(--surface) 70%, transparent); }
+/* Selected: shaded with the accent, not a thicker line. */
+.srow[aria-current="true"] { background: color-mix(in srgb, var(--accent) 22%, var(--bg)); }
+.srow[aria-current="true"] .name { color: var(--accent); }
+.srow .what { display: grid; min-width: 0; }
+.srow .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
+.srow .mg-game { font-size: var(--fs-small); overflow: hidden; }
+.srow .meta { color: var(--muted); font-size: var(--fs-small); white-space: nowrap; align-self: start; padding-top: 2px; display: grid; justify-items: end; gap: 3px; }
+.slist .empty { padding: 14px 12px; color: var(--muted); font-size: var(--fs-body); }
+
+/* session header */
+.head-row { display: flex; align-items: center; gap: 10px 14px; flex-wrap: wrap; }
+.head-row h1 { overflow-wrap: anywhere; }
+.head-meta { color: var(--muted); font-size: var(--fs-small); margin-top: 4px; }
+.actions { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 10px; }
+.actions .sep { width: 1px; background: var(--line); margin: 0 4px; }
+
+/* players / referee panels */
+.columns { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
+.files-panel { padding: 14px 0 0; }
+.files-panel.drag { border-style: dashed; --panel-bg: color-mix(in srgb, var(--accent) 14%, var(--bg)); }
+/* Each upload is its own outlined card, so it's clear where one ends. */
+.files { display: grid; gap: 6px; padding: 4px 10px 0; }
+.file {
+  --card-line: color-mix(in srgb, var(--players) 50%, var(--line));
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 2px 10px; align-items: start;
+  padding: 8px 10px; background: var(--bg);
+  border: 1px solid var(--card-line);
+}
+.files-panel.referee .file { --card-line: color-mix(in srgb, var(--referee) 50%, var(--line)); }
+.file:hover { background: color-mix(in srgb, var(--card-line) 14%, var(--bg)); }
+/* Cards are dragged to reorder them, or onto the other column: a dotted
+   grip down the left edge says so. */
+.files { position: relative; }
+.file[draggable="true"] { cursor: grab; position: relative; padding-left: 18px; }
+.file[draggable="true"]::before {
+  content: ""; position: absolute; left: 5px; top: 9px; bottom: 9px; width: 6px;
+  background: radial-gradient(circle, var(--line-strong) 1px, transparent 1.4px) 0 0 / 3px 4px;
+  opacity: .8;
+}
+.file[draggable="true"]:hover::before { background-image: radial-gradient(circle, var(--text) 1px, transparent 1.4px); }
+.file.dragging { opacity: .35; border-style: dashed; }
+/* Where a dragged page will land. */
+.drop-mark {
+  position: absolute; left: 6px; right: 6px; height: 3px; z-index: 2; pointer-events: none;
+  background: var(--accent); box-shadow: 0 0 0 1px var(--bg), 0 0 8px color-mix(in srgb, var(--accent) 60%, transparent);
+}
+.drop-mark::before, .drop-mark::after { content: ""; position: absolute; top: -3px; width: 3px; height: 9px; background: var(--accent); }
+.drop-mark::before { left: 0; } .drop-mark::after { right: 0; }
+.file .kindcol { padding-top: 2px; }
+.file .what { min-width: 0; display: grid; gap: 2px; }
+.file .title { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file .desc { font-size: var(--fs-small); color: var(--text); opacity: .85; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.file .sub { font-size: var(--fs-small); color: var(--muted); display: flex; gap: 6px; align-items: center; min-width: 0; white-space: nowrap; }
+.file .sub .fname { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.file .tagline { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin-top: 2px; }
+/* Per-player rows name each player; shaded once they've filled in their copy. */
+.pcs { display: inline-flex; flex-wrap: wrap; gap: 4px; }
+.pc {
+  display: inline-flex; align-items: center; gap: 4px; height: 18px; padding: 0 6px;
+  font-size: var(--fs-small); color: var(--text);
+  border: 1px solid color-mix(in srgb, var(--players) 55%, var(--line));
+}
+.pc .mg-i { width: 11px; height: 11px; color: var(--players-ink); }
+.pc.filled { background: color-mix(in srgb, var(--players) 28%, var(--bg)); font-weight: 700; }
+.pc-none { font-size: var(--fs-small); }
+
+/* The info popup: an editable page. */
+.finfo { display: grid; gap: 12px; }
+.fform { display: grid; gap: 10px; }
+.fname-row { display: flex; align-items: stretch; }
+.fname-row .mg-input { flex: 1; min-width: 0; border-right: 0; }
+.fname-row .ext { display: inline-flex; align-items: center; padding: 0 8px; color: var(--muted); background: var(--bar); border: 1px solid var(--line); }
+.pp-toggle {
+  display: flex; align-items: flex-start; gap: 10px; padding: 8px 10px; cursor: pointer;
+  border: 1px solid color-mix(in srgb, var(--players) 45%, var(--line));
+  background: color-mix(in srgb, var(--players) 6%, var(--bg));
+}
+.pp-toggle:has(input:checked) { background: color-mix(in srgb, var(--players) 20%, var(--bg)); }
+.pp-toggle input { margin-top: 3px; accent-color: var(--players); }
+.pp-toggle > span { display: grid; gap: 2px; }
+.pp-toggle b { display: inline-flex; align-items: center; gap: 6px; color: var(--players-ink); }
+.pp-toggle .hint { font-size: var(--fs-small); color: var(--muted); }
+.fparty { display: grid; gap: 6px; }
+.fparty .roster { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; }
+.fparty .pchip .pname { display: inline-flex; align-items: center; gap: 6px; padding: 0 8px; }
+.fparty .fnote { font-size: var(--fs-small); margin-top: -4px; }
+.file .row-actions { display: flex; gap: 3px; align-items: center; }
+.drop {
+  margin: 10px; padding: 10px;
+  border: 1px dashed var(--line-strong); color: var(--muted);
+  font-size: var(--fs-small); text-align: center;
+}
+.drop b { color: var(--text); }
+.files-panel .none { padding: 6px 2px 0; color: var(--muted); font-size: var(--fs-body); }
+
+/* the party: the session's roster, as chips in the players' blue */
+.party-note { font-size: var(--fs-small); margin-bottom: 8px; }
+.party-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
+.party .roster { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; min-width: 0; }
+.pchip {
+  display: inline-flex; align-items: stretch; height: 26px; min-width: 0;
+  background: var(--bg); border: 1px solid color-mix(in srgb, var(--players) 50%, var(--line));
+}
+.pchip button { display: inline-flex; align-items: center; gap: 6px; border: 0; background: none; color: var(--text); cursor: pointer; font: 500 var(--fs-body)/1 var(--font); letter-spacing: var(--track); }
+.pchip .pname { padding: 0 8px; min-width: 0; }
+.pchip .pname span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 24ch; }
+.pchip .pname .mg-i { color: var(--players-ink); }
+.pchip .pdel { padding: 0 5px; color: var(--muted); border-left: 1px solid var(--line); }
+.pchip button:hover { background: color-mix(in srgb, var(--players) 16%, var(--bg)); }
+.pchip .pdel:hover { color: var(--danger); background: color-mix(in srgb, var(--danger) 12%, var(--bg)); }
+.add-player { display: flex; gap: 6px; margin-left: auto; min-width: min(100%, 260px); }
+.add-player .mg-input { flex: 1; }
+
+/* per-player pages in the file overlay: the template and each copy */
+.copies { list-style: none; margin: 0; padding: 0; border: 1px solid color-mix(in srgb, var(--players) 45%, var(--line)); }
+.copy { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: 4px 10px; padding: 4px 4px 4px 8px; border-bottom: 1px solid var(--line); }
+.copy:last-child { border-bottom: 0; }
+.copy.template { background: var(--bar); }
+.copy .who { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.copy .who b { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.copy .who .mg-i { color: var(--players-ink); }
+.copy .who .mg-muted { font-size: var(--fs-small); }
+.copy .state { font-size: var(--fs-small); }
+.copy .acts { display: flex; gap: 2px; }
+.mg-section-label .mg-i { vertical-align: -2px; }
+
+/* Getting started: one thing per line, each row ruled off from the next. */
+.welcome { display: grid; gap: 14px; }
+.welcome .mg-section-label { margin: 4px 0 -6px; }
+.gs-lead { font-size: var(--fs-title); line-height: 1.55; }
+.gs-key {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px;
+  padding: 6px 10px; background: var(--bar); border: 1px dashed var(--line);
+  font-size: var(--fs-small);
+}
+.gs-key > span { display: inline-flex; align-items: center; gap: 6px; }
+.gs-list { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); background: var(--bg); }
+.gs-list li {
+  display: grid; grid-template-columns: 18px 13ch minmax(0, 1fr); gap: 4px 10px; align-items: baseline;
+  padding: 8px 10px; line-height: 1.75; border-bottom: 1px solid var(--line);
+}
+.gs-list li:nth-child(even) { background: color-mix(in srgb, var(--surface) 35%, var(--bg)); }
+.gs-list li:last-child { border-bottom: 0; }
+.gs-ic { align-self: start; padding-top: 3px; color: var(--accent); }
+.gs-name { color: var(--text); }
+.gs-steps li { grid-template-columns: 22px minmax(0, 1fr); }
+.gs-n {
+  align-self: start; margin-top: 2px; width: 20px; height: 20px; display: grid; place-items: center;
+  font-weight: 800; font-size: var(--fs-small); color: var(--on-accent); background: var(--accent);
+}
+.gs-learn { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* overlays */
+.join-url { font-size: var(--fs-title); font-weight: 700; color: var(--players-ink); word-break: break-all; text-decoration: none; }
+.qr { background: #fff; padding: 8px; justify-self: start; border: 1px solid var(--line); }
+.qr img { display: block; width: 200px; height: 200px; image-rendering: pixelated; }
+.tree { margin: 0; padding: 8px 10px; background: var(--deep); border: 1px solid var(--line); font-size: var(--fs-small); line-height: 1.5; overflow-x: auto; }
+.desc-full { white-space: pre-wrap; }
+
+@media (max-width: 900px) {
+  .layout { grid-template-columns: 1fr; }
+  .columns { grid-template-columns: 1fr; }
+}
+@media (max-width: 560px) {
+  .layout { padding: 8px; }
+  .hide-sm { display: none !important; }
+  :root[data-labels="text"] .mg-actions .lbl.hide-sm { display: inline !important; } /* text only: a button needs its word */
+  /* Narrow: actions go on their own line under the page's details. */
+  .file { grid-template-columns: auto minmax(0, 1fr); }
+  .file .row-actions { grid-column: 2; margin-top: 4px; }
+  .file .kindcol .lbl { display: none; }
+  .add-player { margin-left: 0; width: 100%; }
+  .gs-list li { grid-template-columns: 18px minmax(0, 1fr); }
+  .gs-list .gs-text { grid-column: 2; }
+  .copy { grid-template-columns: minmax(0, 1fr) auto; }
+  .copy .acts { grid-column: 1 / -1; }
+}

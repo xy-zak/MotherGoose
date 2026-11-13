@@ -35,9 +35,17 @@ func (c *client) close(code websocket.StatusCode, reason string) {
 	c.once.Do(func() { go c.conn.Close(code, reason) })
 }
 
+// heartbeatEvery is how often an idle socket hears from the server. The
+// WebSocket ping checks the connection from this end; the {"type":"ping"}
+// message lets the browser check it from its end, since pages can't see
+// WebSocket pings. Clients reconnect after about 60 s of silence.
+const heartbeatEvery = 25 * time.Second
+
+var heartbeat = []byte(`{"type":"ping"}`)
+
 // writeLoop drains the send queue and keeps the connection alive.
 func (c *client) writeLoop(ctx context.Context) {
-	ping := time.NewTicker(25 * time.Second)
+	ping := time.NewTicker(heartbeatEvery)
 	defer ping.Stop()
 	for {
 		select {
@@ -53,7 +61,10 @@ func (c *client) writeLoop(ctx context.Context) {
 			}
 		case <-ping.C:
 			pctx, cancel := context.WithTimeout(ctx, 10*time.Second)
-			err := c.conn.Ping(pctx)
+			err := c.conn.Write(pctx, websocket.MessageText, heartbeat)
+			if err == nil {
+				err = c.conn.Ping(pctx)
+			}
 			cancel()
 			if err != nil {
 				c.close(websocket.StatusGoingAway, "ping failed")

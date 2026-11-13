@@ -171,6 +171,8 @@ func (s *Store) RemovePlayer(id, player string, deleteEntries bool) error {
 	if err != nil {
 		return err
 	}
+	s.ioMu.Lock()
+	defer s.ioMu.Unlock()
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	prefix := id + "/players/" + player + "/"

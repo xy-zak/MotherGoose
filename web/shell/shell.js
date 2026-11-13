@@ -9,37 +9,24 @@
 // Tabs can be dragged into this device's own order, and shrunk (right-click,
 // or hold on a touch screen). When they don't all fit, the ones at the end
 // shrink by themselves, so the row never has to scroll.
+//
+// This module loads the session and draws the page, opens tabs and handles
+// the keyboard and full screen. state.js holds what's loaded; tabs.js, who.js
+// and tutorial.js are the rest.
 import {
-  esc, agoText, size, when, viewUrl, KIND_NAME, overlay, listenEvents, isTyping, anyOverlayOpen,
-  SHORTCUTS_NOTE, ic, withIcon, SCOPE, scopeTag, gameTag, chips, liveTag, serverPort,
-  api, attempt, perPlayerTag, playerName, PER_PLAYER_HINT
+  $, agoText, api, attempt, chips, esc, gameTag, ic,
+  keysList, KIND_NAME, kv, listenEvents, liveTag, overlay, PER_PLAYER_HINT, perPlayerTag,
+  playerName, SCOPE, scopeTag, serverPort, shortcutAllowed, SHORTCUTS_NOTE, size, titleOf,
+  viewUrl, when, withIcon
 } from '/_mg/ui.js';
-import { startTour, tourRunning } from '/_mg/tour.js';
-import { bootScreen, switchLinks, motion } from '/_mg/fx.js';
+import { tourRunning } from '/_mg/tour.js';
+import { bootScreen, switchLinks } from '/_mg/fx.js';
+import { activeFile, app, fileKey, frameKey, meName, S } from './state.js';
+import { arrange, fitTabs, tabPrefs, redrawWhenFree } from './tabs.js';
+import { renderWho, renderPick, renderAsk, pickName } from './who.js';
+import { tutorial } from './tutorial.js';
 
-const $ = (id) => document.getElementById(id);
-const S = {
-  session: null, files: [], isHost: false, serverUp: false,
-  serverFiles: [],     // the pages in the referee's order (files is in this device's)
-  loaded: false,       // after the first load, a session starting or ending is shown
-  players: [],         // the live session's roster: [{ id, name }]
-  me: null,            // this device's player id in it, or null
-  active: null,        // the open tab: fileKey
-  shown: null,         // the frame on screen: frameKey, or null (the "who are you?" panel)
-  pick: new Map(),     // referee only: fileKey -> whose copy is shown ('' = the template)
-  frames: new Map(),   // frameKey -> iframe
-  status: new Map(),   // frameKey -> sync status reported by the page or viewer
-  versions: new Map()  // frameKey -> modified time the frame was loaded with (PDFs, images)
-};
 const FULL_KEY = 'mg-full';
-
-const fileKey = (f) => f.scope + '/' + f.name;
-// A per-player page has one frame per copy: "shared/sheet.html#ana", and
-// "shared/sheet.html#" for the template.
-const frameKey = (f, who) => f.perPlayer ? fileKey(f) + '#' + who : fileKey(f);
-const label = (f) => f.title || f.name.replace(/\.[^.]+$/, '');
-const activeFile = () => S.files.find((f) => fileKey(f) === S.active);
-const meName = () => S.me ? playerName(S.players, S.me) : '';
 
 // Whose copy a tab shows: a player id, '' for the template (referee only), or
 // null when there is nothing to show yet (a player who hasn't picked a name).
@@ -72,10 +59,7 @@ function dropFrame(k) {
 
 async function load() {
   let d;
-  try {
-    const r = await fetch('/api/active', { cache: 'no-store' });
-    d = await r.json();
-  } catch (e) { return; }
+  try { d = await api('GET', '/api/active'); } catch (e) { return; }  // the event socket says when it's back
   const newId = d.session ? d.session.id : null;
   const oldId = S.session ? S.session.id : null;
   const was = S.session;
@@ -101,8 +85,7 @@ async function load() {
       fr.src = viewUrl(S.session.id, f, f.modified, fr.dataset.who);
     }
   });
-  if (tabDrag && tabDrag.active) renderLater = true;  // redrawn when the tab is dropped
-  else render();
+  redrawWhenFree();
   if (S.loaded && newId !== oldId && !tourRunning()) {
     if (newId) bootScreen(liveScreen());
     else bootScreen(endScreen(was));
@@ -128,21 +111,6 @@ function endScreen(was) {
     lines: [{ k: 'saving your entries', ok: 'OK' }, { k: 'closing "' + (was ? was.name : 'the session') + '"', ok: 'OK' }, { k: 'waiting for the referee' }],
     big: 'SESSION ENDED'
   };
-}
-
-// The blue "player dashboard" note says who this device is, with a way to
-// change it. The referee needs no name, and an empty roster has none to pick.
-function renderWho() {
-  const name = S.isHost ? '' : meName();  // the host may have picked one in the past
-  const ask = !S.isHost && S.players.length > 0;
-  $('meName').hidden = !name;
-  $('meName').innerHTML = '<span> · </span><b>' + esc(name) + '</b>';
-  const b = $('whoBtn');
-  b.hidden = !ask;
-  b.classList.toggle('ask', !name);
-  // Phones show the name in this button instead (see the page's CSS).
-  b.innerHTML = name ? withIcon('switch', 'not you?') + '<span class="sm-name">' + esc(name) + '</span>' : withIcon('player', 'who are you?');
-  b.title = name ? 'You are ' + name + ' on this device. Not you? Pick another name' : 'Pick your name, so per-player pages show your own copy';
 }
 
 function render() {
@@ -189,14 +157,13 @@ function render() {
     b.setAttribute('role', 'tab');
     b.dataset.key = fileKey(f);
     b.dataset.scope = f.scope;
-    b.title = label(f) + (f.description ? ': ' + f.description : '') + '  (' + SCOPE[f.scope].label + (i < 9 ? ', key ' + (i + 1) : '') + ')' +
+    b.title = titleOf(f) + (f.description ? ': ' + f.description : '') + '  (' + SCOPE[f.scope].label + (i < 9 ? ', key ' + (i + 1) : '') + ')' +
       (f.perPlayer ? '\n' + PER_PLAYER_HINT + (S.isHost ? '. Pick whose copy above the page.' : '.') : '') +
       '\nDrag to reorder. Right-click (or hold) to shrink it.';
     b.innerHTML = (i < 9 ? '<span class="n">' + (i + 1) + '</span>' : '') +
       (f.kind !== 'html' ? ic('kind-' + f.kind) : '') +
       (f.perPlayer ? ic('player', 'per') : '') +
-      '<span class="t">' + esc(label(f)) + '</span>';
-    b.addEventListener('click', () => show(fileKey(f)));
+      '<span class="t">' + esc(titleOf(f)) + '</span>';
     tabs.appendChild(b);
   });
 
@@ -220,7 +187,7 @@ function show(key, focusTab) {
   if (fk && !S.frames.has(fk)) {
     const fr = document.createElement('iframe');
     fr.src = viewUrl(S.session.id, f, f.kind !== 'html' ? f.modified : '', who);
-    fr.title = label(f) + (who ? ': ' + playerName(S.players, who) : f.perPlayer ? ': template' : '');
+    fr.title = titleOf(f) + (who ? ': ' + playerName(S.players, who) : f.perPlayer ? ': template' : '');
     if (f.kind !== 'html') fr.className = 'viewer';
     fr.setAttribute('allow', 'fullscreen');
     fr.dataset.file = fileKey(f);
@@ -250,322 +217,6 @@ function show(key, focusTab) {
   updateSync();
 }
 
-// ---- this device's tabs: their order and size -------------------------------------
-// Kept on this device, per session: { order: [fileKey…], small: [fileKey…] }.
-// Pages not in the order (added since) follow it, in the referee's order.
-
-const tabKey = () => 'mg-tabs:' + (S.session ? S.session.id : '');
-function tabPrefs() {
-  let v = null;
-  try { v = JSON.parse(localStorage.getItem(tabKey()) || 'null'); } catch (e) {}
-  return { order: v && Array.isArray(v.order) ? v.order : [], small: v && Array.isArray(v.small) ? v.small : [] };
-}
-function saveTabPrefs(p) {
-  try {
-    if (!p.order.length && !p.small.length) localStorage.removeItem(tabKey());
-    else localStorage.setItem(tabKey(), JSON.stringify(p));
-  } catch (e) {}
-}
-
-// The pages in tab order: players' pages, then the referee's, each group in
-// this device's order.
-function arrange(files) {
-  const order = tabPrefs().order;
-  const pos = new Map(order.map((k, i) => [k, i]));
-  const rank = (f, i) => [f.scope === 'gm' ? 1 : 0, pos.has(fileKey(f)) ? pos.get(fileKey(f)) : order.length + i];
-  return files.map((f, i) => ({ f, r: rank(f, i) }))
-    .sort((a, b) => a.r[0] - b.r[0] || a.r[1] - b.r[1]).map((x) => x.f);
-}
-
-function setOrder(keys) {
-  const p = tabPrefs();
-  // Back in the referee's order: nothing of this device's own to keep.
-  p.order = keys.join('\n') === defaultKeys().join('\n') ? [] : keys;
-  saveTabPrefs(p);
-  S.files = arrange(S.serverFiles);
-  render();
-}
-// The tab order with nothing of this device's own.
-const defaultKeys = () => S.serverFiles.map((f, i) => ({ f, i }))
-  .sort((a, b) => (a.f.scope === 'gm') - (b.f.scope === 'gm') || a.i - b.i).map((x) => fileKey(x.f));
-
-function setSmall(key, on) {
-  const p = tabPrefs();
-  p.small = p.small.filter((k) => k !== key);
-  if (on) p.small.push(key);
-  saveTabPrefs(p);
-  const b = document.querySelector('.tab[data-key="' + CSS.escape(key) + '"]');
-  if (b) b.classList.toggle('small', on);
-  fitTabs();
-}
-
-// Shrinks tabs from the end, other than the open one, until the row fits.
-// Group labels go down to their icons first. Only on a tiny screen does the
-// open tab shrink too, and after that the row scrolls.
-function fitTabs() {
-  if (tabDrag && tabDrag.active) return;
-  const box = $('tabs');
-  const tabs = Array.from(box.querySelectorAll('.tab'));
-  box.classList.remove('tight');
-  tabs.forEach((t) => t.classList.remove('auto-small'));
-  const over = () => box.scrollWidth > box.clientWidth + 1;
-  if (!over()) return;
-  box.classList.add('tight');
-  for (let i = tabs.length - 1; i >= 0 && over(); i--) {
-    const t = tabs[i];
-    if (!t.classList.contains('small') && t.getAttribute('aria-selected') !== 'true') t.classList.add('auto-small');
-  }
-  if (over()) { const sel = tabs.find((t) => t.getAttribute('aria-selected') === 'true'); if (sel) sel.classList.add('auto-small'); }
-}
-let fitFrame = 0;
-new ResizeObserver(() => { cancelAnimationFrame(fitFrame); fitFrame = requestAnimationFrame(fitTabs); }).observe($('tabs'));
-if (document.fonts) document.fonts.ready.then(fitTabs);
-
-// ---- the tab menu: right-click, the menu key, or hold on a touch screen ---------------
-
-let menu = null;
-function closeMenu(refocus) {
-  if (!menu) return;
-  const { el, tab } = menu;
-  menu = null;
-  // It switches off like the popups do, then goes.
-  const gone = () => { try { if (el.matches(':popover-open')) el.hidePopover(); } catch (e) {} el.remove(); };
-  if (motion() === 'off') gone();
-  else { el.classList.add('mg-closing'); setTimeout(gone, motion() === 'full' ? 150 : 120); }
-  removeEventListener('pointerdown', menuOutside, true);
-  removeEventListener('keydown', menuKey, true);
-  removeEventListener('resize', closeMenuNow);
-  if (refocus && tab.isConnected) tab.focus();
-}
-const closeMenuNow = () => closeMenu(false);
-const menuOutside = (e) => { if (menu && !menu.el.contains(e.target)) closeMenu(false); };
-function menuKey(e) {
-  if (!menu) return;
-  const items = Array.from(menu.el.querySelectorAll('button:not(:disabled)'));
-  const i = items.indexOf(document.activeElement);
-  if (e.key === 'Escape' || e.key === 'Tab') { e.preventDefault(); e.stopPropagation(); closeMenu(true); }
-  else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
-    e.preventDefault(); e.stopPropagation();
-    const n = items[(i + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length];
-    if (n) n.focus();
-  }
-}
-
-function openMenu(tab, x, y, byKey) {
-  closeMenu(false);
-  const key = tab.dataset.key;
-  const f = S.files.find((v) => fileKey(v) === key);
-  if (!f) return;
-  const p = tabPrefs();
-  const isSmall = p.small.includes(key);
-  const group = S.files.filter((v) => v.scope === f.scope);
-  const at = group.indexOf(f);
-  const item = (act, icon, text, disabled) => '<button type="button" role="menuitem" data-menu="' + act + '"' + (disabled ? ' disabled' : '') + '>' + ic(icon) + '<span>' + esc(text) + '</span></button>';
-  const el = document.createElement('div');
-  el.className = 'mg-menu';
-  el.setAttribute('role', 'menu');
-  el.setAttribute('aria-label', 'Tab: ' + label(f));
-  if (typeof el.showPopover === 'function') el.setAttribute('popover', 'manual');
-  el.innerHTML = '<div class="head">' + esc(label(f)) + '</div>' +
-    (isSmall ? item('expand', 'full', 'expand tab') : item('shrink', 'shrink', 'shrink tab')) +
-    item('left', 'prev', 'move left', at <= 0) +
-    item('right', 'next', 'move right', at >= group.length - 1) +
-    '<hr>' +
-    item('expand-all', 'full', 'expand all tabs', !p.small.length) +
-    item('reset', 'reset', 'reset tab order', !p.order.length);
-  document.body.appendChild(el);
-  try { if (el.showPopover) el.showPopover(); } catch (e) {}
-  const r = el.getBoundingClientRect();
-  el.style.left = Math.max(4, Math.min(x, innerWidth - r.width - 4)) + 'px';
-  el.style.top = Math.max(4, Math.min(y, innerHeight - r.height - 4)) + 'px';
-  menu = { el, tab };
-  addEventListener('pointerdown', menuOutside, true);
-  addEventListener('keydown', menuKey, true);
-  addEventListener('resize', closeMenuNow);
-  el.addEventListener('click', (e) => {
-    const b = e.target.closest('[data-menu]');
-    if (!b || b.disabled) return;
-    const act = b.dataset.menu;
-    closeMenu(false);
-    const keys = S.files.map(fileKey);
-    const i = keys.indexOf(key);
-    if (act === 'shrink' || act === 'expand') setSmall(key, act === 'shrink');
-    else if (act === 'left' || act === 'right') {
-      const j = i + (act === 'left' ? -1 : 1);
-      [keys[i], keys[j]] = [keys[j], keys[i]];
-      setOrder(keys);
-    } else if (act === 'expand-all') { const q = tabPrefs(); q.small = []; saveTabPrefs(q); render(); }
-    else if (act === 'reset') { const q = tabPrefs(); q.order = []; saveTabPrefs(q); S.files = arrange(S.serverFiles); render(); }
-    const again = document.querySelector('.tab[data-key="' + CSS.escape(key) + '"]');
-    if (again && byKey) again.focus();
-  });
-  const first = el.querySelector('button:not(:disabled)');
-  if (first && byKey) first.focus();
-}
-
-// ---- dragging tabs into another order -------------------------------------------------
-// A mouse drags straight away; a finger holds a moment first (so swiping
-// still scrolls), and holding without moving opens the tab menu instead.
-// Tabs only move within their own group (players' or referee's pages).
-
-const tabsEl = $('tabs');
-let tabDrag = null;      // { tab, x, y, touch, active, held, moved, timer }
-let renderLater = false; // a reload came in mid-drag
-let eatClick = false;    // the click that ends a drag doesn't also open the tab
-
-function beginTabDrag() {
-  const d = tabDrag;
-  if (!d || d.active) return;
-  d.active = true;
-  closeMenu(false);
-  d.tab.classList.add('dragging');
-  tabsEl.classList.add('dragging');
-  if (d.touch && navigator.vibrate) try { navigator.vibrate(8); } catch (e) {}
-}
-
-tabsEl.addEventListener('pointerdown', (e) => {
-  const tab = e.target.closest('.tab');
-  if (!tab || e.button !== 0 || !e.isPrimary) return;
-  tabDrag = { tab, x: e.clientX, y: e.clientY, touch: e.pointerType === 'touch', active: false, held: false, moved: false, timer: 0 };
-  if (tabDrag.touch) {
-    const d = tabDrag;
-    d.timer = setTimeout(() => { if (tabDrag === d) { d.held = true; beginTabDrag(); } }, 420);
-  }
-});
-addEventListener('pointermove', (e) => {
-  const d = tabDrag;
-  if (!d || !e.isPrimary) return;
-  const dx = e.clientX - d.x, dy = e.clientY - d.y;
-  if (!d.active) {
-    if (d.touch) { if (Math.hypot(dx, dy) > 10) { clearTimeout(d.timer); tabDrag = null; } return; }  // a swipe
-    if (Math.abs(dx) < 6) return;
-    beginTabDrag();
-  }
-  if (Math.abs(dx) > 4) d.moved = true;
-  const peers = Array.from(tabsEl.querySelectorAll('.tab')).filter((t) => t.dataset.scope === d.tab.dataset.scope);
-  const me = peers.indexOf(d.tab);
-  let target = null, after = false;
-  peers.forEach((t, i) => {
-    if (i === me) return;
-    const b = t.getBoundingClientRect(), mid = (b.left + b.right) / 2;
-    if (i < me && e.clientX < mid && !target) { target = t; after = false; }
-    if (i > me && e.clientX > mid) { target = t; after = true; }
-  });
-  if (target) { if (after) target.after(d.tab); else target.before(d.tab); }
-  // Near either end of a row that scrolls: scroll it along.
-  const box = tabsEl.getBoundingClientRect();
-  if (e.clientX < box.left + 24) tabsEl.scrollLeft -= 12;
-  else if (e.clientX > box.right - 24) tabsEl.scrollLeft += 12;
-});
-function endTabDrag(drop) {
-  const d = tabDrag;
-  if (!d) return;
-  tabDrag = null;
-  clearTimeout(d.timer);
-  if (!d.active) return;   // a plain click: the tab opens as usual
-  d.tab.classList.remove('dragging');
-  tabsEl.classList.remove('dragging');
-  eatClick = true;
-  setTimeout(() => { eatClick = false; }, 400);
-  if (drop && d.held && !d.moved) {
-    renderLater = false;
-    render();
-    const again = document.querySelector('.tab[data-key="' + CSS.escape(d.tab.dataset.key) + '"]') || d.tab;
-    const r = again.getBoundingClientRect();
-    openMenu(again, r.left, r.bottom + 2, false);
-    return;
-  }
-  renderLater = false;
-  if (drop && d.moved) setOrder(Array.from(tabsEl.querySelectorAll('.tab')).map((t) => t.dataset.key));
-  else render();   // cancelled: back as they were
-}
-addEventListener('pointerup', () => endTabDrag(true));
-addEventListener('pointercancel', () => endTabDrag(false));
-// While a finger drags a tab, the row mustn't scroll under it.
-tabsEl.addEventListener('touchmove', (e) => { if (tabDrag && tabDrag.active) e.preventDefault(); }, { passive: false });
-tabsEl.addEventListener('click', (e) => {
-  if (eatClick && e.target.closest('.tab')) { e.stopPropagation(); e.preventDefault(); eatClick = false; }
-}, true);
-tabsEl.addEventListener('contextmenu', (e) => {
-  const tab = e.target.closest('.tab');
-  if (!tab) return;
-  e.preventDefault();
-  if (tabDrag && tabDrag.touch) return;   // the hold opens it, when the finger lifts
-  const byKey = e.clientX === 0 && e.clientY === 0;   // the menu key or Shift+F10
-  const r = tab.getBoundingClientRect();
-  openMenu(tab, byKey ? r.left : e.clientX, byKey ? r.bottom + 2 : e.clientY, byKey);
-});
-tabsEl.addEventListener('scroll', closeMenuNow);
-
-// The referee's strip above a per-player page: template · Ana · Ben …
-function renderPick(f, who) {
-  const el = $('pick');
-  el.hidden = !(S.isHost && f.perPlayer);
-  if (el.hidden) { el.textContent = ''; return; }
-  const btn = (id, html, title) => '<button type="button" class="pick-btn" role="tab" data-who="' + esc(id) + '" aria-selected="' + (id === who) + '" title="' + esc(title) + '">' + html + '</button>';
-  el.innerHTML = '<span class="pick-label" title="' + PER_PLAYER_HINT + '">' + withIcon('player', 'whose copy') + '</span>' +
-    btn('', withIcon('template', 'template'), 'The template: its entries are the starting values for each player\'s copy') +
-    S.players.map((p) => btn(p.id, '<span>' + esc(p.name) + '</span>', p.name + '\'s copy')).join('') +
-    (S.players.length ? '' : '<span class="pick-note">No players yet. Add them in the referee\'s dashboard, in the PARTY panel.</span>');
-}
-
-$('pick').addEventListener('click', (e) => {
-  const b = e.target.closest('[data-who]');
-  const f = activeFile();
-  if (!b || !f) return;
-  S.pick.set(fileKey(f), b.dataset.who);
-  show(fileKey(f));
-});
-
-const rosterButtons = () => '<div class="roster">' + S.players.map((p) =>
-  '<button type="button" class="mg-btn players" data-player="' + esc(p.id) + '" aria-pressed="' + (p.id === S.me) + '">' + ic('player', 'deco') + '<span>' + esc(p.name) + '</span></button>').join('') + '</div>';
-
-// In the stage, for a player with no copy to show yet.
-function renderAsk(f) {
-  const none = !S.players.length;
-  $('whoEyebrow').textContent = label(f);
-  $('whoTitle').textContent = none ? 'The referee hasn\'t added players yet.' : 'Who are you?';
-  $('whoText').textContent = none
-    ? 'Each player gets their own copy of this page. It appears here once the referee adds you to the party.'
-    : 'Each player fills in their own copy of this page, seen only by them and the referee. Pick your name:';
-  $('whoRoster').innerHTML = none ? '' : rosterButtons() + '<p class="mg-muted">Not on the list? Ask the referee to add you.</p>';
-}
-
-const setMe = attempt(async (id) => {
-  await api('POST', '/api/me', { player: id });
-  await load();
-});
-
-$('whoRoster').addEventListener('click', (e) => {
-  const b = e.target.closest('[data-player]');
-  if (b) setMe(b.dataset.player);
-});
-
-async function pickName() {
-  if (!S.players.length) return;
-  const body = document.createElement('div');
-  body.className = 'who-pick';
-  body.innerHTML = '<p>' + (S.me ? 'This device is <b>' + esc(meName()) + '</b>. Pick another name' : 'Pick your name') +
-    ' to see your own copy of per-player pages.</p>' + rosterButtons() +
-    '<p class="mg-muted">Not on the list? Ask the referee to add you.</p>';
-  let chosen;  // undefined: closed without a choice
-  const v = await overlay({
-    title: S.me ? 'Not you?' : 'Who are you?',
-    icon: 'player',
-    body,
-    actions: S.me ? [{ label: 'forget my name', value: 'clear', kind: 'quiet', icon: 'close' }] : [],
-    onOpen: (d) => {
-      body.addEventListener('click', (e) => {
-        const b = e.target.closest('[data-player]');
-        if (b) { chosen = b.dataset.player; d.close(); }
-      });
-      const mine = body.querySelector('[aria-pressed="true"]') || body.querySelector('[data-player]');
-      if (mine) mine.focus();
-    }
-  });
-  if (v === 'clear') chosen = null;
-  if (chosen !== undefined && chosen !== S.me) await setMe(chosen);
-}
 
 function step(delta) {
   const i = S.files.findIndex((f) => fileKey(f) === S.active);
@@ -619,7 +270,7 @@ function detailsOverlay() {
   if (f) {
     const who = copyFor(f);
     rows.push(
-      ['page', '<b>' + esc(label(f)) + '</b>'],
+      ['page', '<b>' + esc(titleOf(f)) + '</b>'],
       ['about', f.description ? '<span class="desc">' + esc(f.description) + '</span>' : '<span class="mg-muted">no description</span>'],
       ['tags', chips(f.tags) || '<span class="mg-muted">none</span>'],
       ['for', scopeTag(f.scope) + (f.perPlayer ? ' ' + perPlayerTag() : '')]
@@ -638,8 +289,7 @@ function detailsOverlay() {
         : st === 'live' ? 'saved and syncing' : esc(STATUS_TEXT[st] || st)]
     );
   }
-  const body = '<dl class="mg-kv">' + rows.map((r) => '<dt>' + r[0] + '</dt><dd>' + r[1] + '</dd>').join('') + '</dl>';
-  overlay({ title: 'Session details', icon: 'info', wide: true, body });
+  overlay({ title: 'Session details', icon: 'info', wide: true, body: kv(rows) });
 }
 
 async function helpOverlay() {
@@ -656,110 +306,13 @@ async function helpOverlay() {
     icon: 'help',
     body: '<p><b>New here?</b> The <b>player tutorial</b> walks you through every part of this screen, one step at a time.</p>' +
       '<hr class="mg-rule"><div class="mg-section-label">Keyboard shortcuts</div>' +
-      '<dl class="mg-kv">' + keys.map((k) => '<dt><kbd>' + k[0] + '</kbd></dt><dd>' + k[1] + '</dd>').join('') + '</dl>' + SHORTCUTS_NOTE +
-      '<hr class="mg-rule"><div class="mg-section-label">Tabs</div>' +
-      '<dl class="mg-kv">' + mouse.map((k) => '<dt>' + k[0] + '</dt><dd>' + k[1] + '</dd>').join('') + '</dl>',
+      keysList(keys) + SHORTCUTS_NOTE +
+      '<hr class="mg-rule"><div class="mg-section-label">Tabs</div>' + kv(mouse),
     actions: [{ label: 'player tutorial', value: 'tour', kind: 'primary', icon: 'tutorial' }]
   });
   if (v === 'tour') tutorial();
 }
 
-// ---- the tutorial -------------------------------------------------------------------
-// It tours this screen as it is right now: parts that aren't showing (no
-// session yet, no party) are explained without a highlight, or left out.
-
-const shown = (el) => !!el && !el.hidden && el.getClientRects().length > 0;
-const lastDialog = () => { const all = document.querySelectorAll('dialog[open]'); return all[all.length - 1] || null; };
-
-function tourSteps() {
-  const has = !!S.session && S.files.length > 0;
-  const f = activeFile();
-  const host = S.isHost;
-  const steps = [];
-  const add = (section, title, text, target, extra) => steps.push(Object.assign({ section, title, text, target }, extra));
-
-  add('Welcome', host ? 'The player dashboard, on the host' : 'The player dashboard',
-    (host
-      ? '<p>This is what players see, as it looks on the host computer: here it also shows the <b class="referee">referee</b> pages, which players never get.</p>'
-      : '<p>This is where the referee\'s pages for the game appear: character sheets, handouts, maps and rules.</p>') +
-    '<p>This tour shows every part of the screen, one at a time. Use <b>next</b> and <b>back</b> (or <kbd>←</kbd> <kbd>→</kbd>), or click the timeline at the bottom to jump. <kbd>esc</kbd> ends the tour.</p>');
-
-  add('Top bar', 'Where you are', () =>
-    '<p>The <span class="players">blue</span> label says this is the <b class="players">player dashboard</b>' + (meName() ? ', and who you are on this device: <b>' + esc(meName()) + '</b>' : '') + '.</p>' +
-    (S.players.length || host ? '' : '<p>When the referee adds players to the party, a <b>who are you?</b> button appears next to it, to pick your name.</p>'),
-    ['#info .mg-brand', '#where']);
-  if (shown($('whoBtn'))) {
-    add('Top bar', S.me ? 'Not you?' : 'Who are you?', () =>
-      '<p>' + (S.me ? 'This device is <b>' + esc(meName()) + '</b>. Tap here to pick another name, or to forget it.' : 'Pick your name from the referee\'s party.') + '</p>' +
-      '<p>Pages marked <b class="players">per player</b>, like character sheets, then show you your own copy: only you and the referee see what you type in it.</p>', '#whoBtn');
-  }
-  add('Top bar', 'The session', () =>
-    '<p>' + (S.session ? 'The session that is live: <b>' + esc(S.session.name) + '</b>' + (S.session.gameType ? ', playing ' + esc(S.session.gameType) : '') + '.' : 'The live session\'s name shows here once the referee starts one.') + '</p>' +
-    '<p>Click it for the session details (shortcut <kbd>i</kbd>).</p>', '#sessionBtn', { optional: true });
-  add('Top bar', 'Connection', '<p>Whether this device is connected and syncing:</p>' +
-    '<ul><li><span class="mg-live">LIVE:' + esc(serverPort()) + '</span> connected: what you type is saved and shared</li>' +
-    '<li><b style="color: var(--warn-ink)">connecting</b> / <b style="color: var(--warn-ink)">reconnecting</b>: hold on, it catches up by itself</li>' +
-    '<li><b style="color: var(--danger)">OFFLINE</b>: the referee\'s computer can\'t be reached</li></ul>' +
-    '<p>Click it for the session details' + (shown($('sessionBtn')) ? '' : ': the session, who you are and the open page') + '.</p>', '#syncBtn');
-  if (shown($('adminLink'))) {
-    add('Top bar', 'Referee\'s dashboard', '<p>Back to the <b class="referee">referee\'s dashboard</b>, where sessions, pages and the party are managed. It only opens on this computer.</p>', '#adminLink');
-  }
-  add('Top bar', 'Display and help', '<p>' + ic('settings') + ' <b>display</b>: colour theme, font (including fonts for low vision and dyslexia), and whether buttons show icons, text or both. Settings belong to this device only.</p>' +
-    '<p>' + ic('help') + ' <b>help</b>: keyboard shortcuts, and this tutorial (<kbd>?</kbd>).</p>', ['#info [data-prefs]', '#helpBtn']);
-
-  add('Session details', 'Session details', '<p>Opened from the session name or the connection button: the session, the game, who this device is, and the server it is connected to.</p>' +
-    (f ? '<p>Then the page in the open tab: its description and tags, who it is for, ' + (f.perPlayer ? 'whose copy is shown, ' : '') +
-      'its type and size, when it last changed, and whether it is saving and syncing.</p>' : ''),
-    (d) => d && d.querySelector('.mg-kv'), { scene: 'details' });
-  add('Pages', 'Tabs', has
-    ? '<p>Each page of the session has a tab. Click one to open it: every tab keeps its place when you switch.</p>' +
-      '<ul><li>the number is its key: <kbd>1</kbd> – <kbd>9</kbd> jump straight to it, <kbd>[</kbd> <kbd>]</kbd> step through</li>' +
-      '<li>' + ic('kind-pdf') + ' PDFs and ' + ic('kind-image') + ' images have an icon</li>' +
-      '<li>' + ic('player') + ' marks a <b class="players">per-player</b> page: you get your own copy</li></ul>' +
-      '<p>Hover a tab to read its description. Drag tabs into your own order; right-click one (or hold it) to <b>shrink</b> it. When they don\'t all fit, the last ones shrink by themselves.</p>'
-    : '<p>The session\'s pages appear here as tabs, as soon as the referee adds them. You don\'t need to reload.</p>',
-    has ? '#tabs' : '.tabbar');
-  if (document.querySelector('.tab-group')) {
-    add('Pages', 'Players and referee', '<p>On the host, tabs come in two groups: <b class="players">players</b> pages, which every player has, and <b class="referee">referee</b> pages, which open only on this computer.</p>', '.tab-group');
-  }
-  add('Pages', 'Full screen', '<p>Hides the top bar so the page gets the whole screen, leaving only a slim row of tabs. Press it again, or <kbd>esc</kbd>, to get the bar back.</p>' +
-    '<p>Shortcut: <kbd>f</kbd>.</p>', '#fullBtn');
-
-  if (shown($('pick'))) {
-    add('The page', 'Whose copy', '<p>This page is per player. Pick which copy to see: the <b>template</b> (the starting values for each new copy) or any player\'s own copy.</p>' +
-      '<p>What you type into a player\'s copy goes straight to them.</p>', '#pick');
-  }
-  if (has && shown($('who'))) {
-    add('The page', 'Your own copy', '<p>This page is per player, so each player has their own copy. Pick your name here and it opens.</p>' +
-      '<p>Not on the list? Ask the referee to add you to the party.</p>', '#who .mg-notice');
-  } else if (has) {
-    add('The page', 'The page', '<p>The open page. Anything typed into a page or a PDF form is saved and synced live to everyone viewing it' +
-      (f && f.perPlayer ? ' (for a per-player page: you and the referee)' : '') + '.</p>' +
-      '<p>PDFs and images open in a viewer, with its own controls to zoom and turn pages.</p>', '#frames');
-  } else {
-    add('The page', 'Waiting', '<p>' + (S.session ? 'The referee is still setting things up.' : 'No session is running yet.') +
-      ' Keep this page open: it updates by itself when there is something to see.</p>', '#empty .mg-notice');
-  }
-
-  add('Done', 'That\'s it', '<p>Run it again any time: ' + ic('help') + ' <b>help</b>, then ' + ic('tutorial') + ' <b>player tutorial</b>.</p>' +
-    (host ? '' : '<p>Have fun at the table.</p>'), '#helpBtn');
-  return steps;
-}
-
-function tutorial() {
-  if (tourRunning()) return;
-  // The top bar is part of the tour: bring it back if full screen hid it.
-  const wasFull = document.body.classList.contains('mg-full');
-  if (wasFull) setFull(false);
-  startTour({
-    name: 'Player tutorial',
-    steps: tourSteps(),
-    scenes: {
-      details: { label: 'Session details', from: ['#sessionBtn', '#syncBtn'], open: () => { detailsOverlay(); return lastDialog(); } }
-    },
-    onEnd: () => { if (wasFull) setFull(true, false); }
-  });
-}
 
 $('sessionBtn').addEventListener('click', detailsOverlay);
 $('syncBtn').addEventListener('click', detailsOverlay);
@@ -812,7 +365,7 @@ if (wasFull) setFull(true, false);
 // ---- keyboard ----------------------------------------------------------------------
 
 document.addEventListener('keydown', (e) => {
-  if (isTyping(e) || anyOverlayOpen()) return;
+  if (!shortcutAllowed(e)) return;
   const k = e.key;
   if (k === 'f') { setFull(!document.body.classList.contains('mg-full')); }
   else if (k === 'Escape' && document.body.classList.contains('mg-full')) { setFull(false); }
@@ -832,6 +385,12 @@ document.addEventListener('keydown', (e) => {
 // once the page is in and has switched on.
 const wantTour = new URLSearchParams(location.search).has('tour');
 if (wantTour) history.replaceState(null, '', location.pathname + location.hash);
+
+app.render = render;
+app.show = show;
+app.load = load;
+app.setFull = setFull;
+app.detailsOverlay = detailsOverlay;
 
 switchLinks();
 listenEvents(load, (up) => { S.serverUp = up; updateSync(); });

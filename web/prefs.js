@@ -75,7 +75,8 @@
     apply();
   }
 
-  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
+  // The same as esc() in ui.js, which this classic script can't import.
+  function esc(s) { return String(s).replace(/[&<>"']/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]; }); }
   function icon(n) { return '<svg class="mg-i" aria-hidden="true"><use href="' + ICONS + n + '"></use></svg>'; }
 
   // A theme option previewed in that theme's own colours.
