@@ -5,9 +5,10 @@ import {
   esc, enc, ago, agoText, when, size, viewUrl, KIND_NAME, toast, api, attempt,
   overlay, confirmDialog, formOverlay, anyOverlayOpen, listenEvents, isTyping,
   ic, withIcon, SCOPE, scopeTag, kindTag, gameTag, chips, parseTags, liveTag,
-  filledUrl, canPerPlayer, hasEntries, perPlayerTag, playerName
+  filledUrl, canPerPlayer, hasEntries, perPlayerTag, playerName, term, ftype, uiBtn
 } from '/_mg/ui.js';
 import { startTour, tourRunning } from '/_mg/tour.js';
+import { bootScreen, switchLinks } from '/_mg/fx.js';
 
 const $ = (id) => document.getElementById(id);
 const left = $('left'), right = $('right'), picker = $('picker');
@@ -17,6 +18,7 @@ let current = null;       // the selected session, or null
 let selectedId = null;    // from the URL: #/s/<id>
 let pickScope = 'shared';
 let refreshQueued = false;
+let holdRefresh = false;  // a dragged page is being put in its place: the redraw waits
 
 const livePort = () => liveTag(info ? String(info.port) : '');
 const fileCount = (s) => (s.files.shared || []).length + (s.files.gm || []).length;
@@ -45,7 +47,7 @@ async function refresh() {
     return;
   }
   // The tutorial shows an example session: live updates wait until it's over.
-  if (tourRunning()) { refreshQueued = true; return; }
+  if (tourRunning() || holdRefresh) { refreshQueued = true; return; }
   refreshQueued = false;
   try {
     if (!info) info = await api('GET', '/api/info');
@@ -115,24 +117,55 @@ function renderLeft() {
 
 // ---- right pane: the selected session -------------------------------------------------
 
+// The start page, with no session open: what MotherGoose does, one thing per
+// line, and buttons to learn more. Terms, file types and buttons each have
+// their own look (the key at the top says which is which).
 function welcome() {
+  const types = ftype('.html') + ' ' + ftype('.pdf') + ' ' + ftype('.png') + ' ' + ftype('.jpg');
+  const feat = (icon, name, text) =>
+    '<li><span class="gs-ic">' + ic(icon) + '</span><b class="gs-name">' + esc(name) + '</b><span class="gs-text">' + text + '</span></li>';
+  const stepRow = (n, text) => '<li><span class="gs-n">' + n + '</span><span class="gs-text">' + text + '</span></li>';
   return '<div class="mg-panel welcome">' +
     '<div class="mg-panel-title"><span class="t">' + ic('info') + 'Getting started</span></div>' +
-    '<p>Pick a session on the left, or create one. Give it a <b>game type</b>, the game or rules being played, so you can tell sessions apart.</p>' +
-    '<ul>' +
-      '<li><b>.html</b> pages (character sheets, handouts): anything typed into them is saved and synced live.</li>' +
-      '<li><b>.pdf</b>, <b>.png</b> and <b>.jpg</b> files show rulebooks, maps and art.</li>' +
-      '<li><b class="players">Players</b> pages go to every player. <b class="referee">Referee</b> pages open only on this computer.</li>' +
-      '<li>Give pages a description and tags with ' + ic('info') + ' so players know what they\'re looking at.</li>' +
-      '<li>Add your players to the session\'s <b class="players">party</b>, and mark character sheets <b class="players">per player</b>: each player fills in their own copy.</li>' +
-      '<li>Press <b>go live</b> to put a session on the players\' screens.</li>' +
+    '<p class="gs-lead">MotherGoose shares your game\'s pages with the players\' phones, tablets and laptops, over this computer\'s Wi-Fi or network. No internet or accounts needed.</p>' +
+    '<p class="gs-key"><span class="mg-muted">Key:</span>' +
+      '<span>' + term('term') + ' <span class="mg-muted">an idea in MotherGoose</span></span>' +
+      '<span>' + ftype('.html') + ' <span class="mg-muted">a file type</span></span>' +
+      '<span>' + uiBtn('live', 'button') + ' <span class="mg-muted">a button on screen</span></span></p>' +
+
+    '<div class="mg-section-label">What you can do</div>' +
+    '<ul class="gs-list">' +
+      feat('sessions', 'Sessions', 'Keep one ' + term('session') + ' per game night or campaign. Give it a ' + term('game type') + ' (the game or rules being played) to tell sessions apart.') +
+      feat('kind-html', 'Pages', 'Add ' + types + ' files with ' + uiBtn('add', 'add') + ', or drop them on a column.') +
+      feat('check', 'Live entries', 'Anything typed into an ' + ftype('.html') + ' page, or into a ' + ftype('.pdf') + ' form, is saved and synced live to everyone viewing it.') +
+      feat('players', 'Who sees what', term('Players', 'players') + ' pages go to every player. ' + term('Referee', 'referee') + ' pages only open on this computer.') +
+      feat('switch', 'Order', 'Drag a page up or down to reorder it: players\' tabs follow the same order. Drag it onto the other column to change who it\'s for.') +
+      feat('tag', 'Details', 'Give each page a ' + term('description') + ' and ' + term('tags') + ' with ' + uiBtn('info', 'info') + ', so players know what they\'re looking at.') +
+      feat('player', 'Party', 'Add your players to the session\'s ' + term('party', 'players') + '. Mark character sheets ' + term('per player', 'players') + ': each player fills in their own copy.') +
+      feat('live', 'Go live', uiBtn('live', 'go live', 'go-live') + ' puts a session on the players\' screens; ' + uiBtn('end', 'end session', 'warn') + ' takes it off again.') +
+      feat('join', 'Joining', uiBtn('join', 'Join Info') + ' shows the address and QR code players open to join.') +
+      feat('export', 'Export', uiBtn('export', 'export filled') + ' downloads a page with every entry baked in, which works offline.') +
+      feat('settings', 'Display', uiBtn('settings', 'display') + ' changes the theme, font, icons and animations, for this device.') +
     '</ul>' +
-    '<p class="mg-muted">New here? Press ' + ic('help') + ' help and choose ' + ic('tutorial') + ' <b>referee tutorial</b> for a guided tour of this page. ' +
-      'Press <kbd>?</kbd> for keyboard shortcuts, or ' + ic('settings') + ' display to change the theme, font and icons.</p></div>';
+
+    '<div class="mg-section-label">Your first session</div>' +
+    '<ol class="gs-list gs-steps">' +
+      stepRow(1, 'Type a name, and a ' + term('game type') + ', under ' + term('Sessions') + ' on the left, then press ' + uiBtn('add', 'new', 'primary') + '.') +
+      stepRow(2, 'Drop ' + types + ' files on the ' + term('Players', 'players') + ' or ' + term('Referee', 'referee') + ' column.') +
+      stepRow(3, 'Add each player\'s name to the ' + term('party', 'players') + '.') +
+      stepRow(4, 'Press ' + uiBtn('live', 'go live', 'go-live') + ', then show the table ' + uiBtn('join', 'Join Info') + '.') +
+    '</ol>' +
+
+    '<div class="mg-section-label">Learn more</div>' +
+    '<div class="gs-learn">' +
+      '<button type="button" class="mg-btn primary" data-act="tour" title="A guided tour of this page, using an example session">' + withIcon('tutorial', 'referee tutorial') + '</button>' +
+      '<a class="mg-btn players" href="/?tour=1" target="_blank" rel="noopener" data-switch="players" title="Opens the player dashboard in a new tab and starts its tour">' + withIcon('tutorial', 'player tutorial') + '</a>' +
+      '<button type="button" class="mg-btn" data-act="help" title="Keyboard shortcuts (?)">' + withIcon('help', 'keyboard shortcuts') + '</button>' +
+      '<button type="button" class="mg-btn" data-prefs title="Theme, font, icons and animations">' + withIcon('settings', 'display settings') + '</button>' +
+    '</div></div>';
 }
 
 function fileRow(s, f) {
-  const to = other(f.scope);
   return '<div class="file" draggable="true" data-scope="' + f.scope + '" data-name="' + esc(f.name) + '">' +
     '<span class="kindcol">' + kindTag(f.kind) + '</span>' +
     '<div class="what"><div class="title">' + esc(titleOf(f)) + '</div>' +
@@ -145,8 +178,6 @@ function fileRow(s, f) {
         : '') + '</div>' +
     '<div class="row-actions">' +
       '<a class="mg-btn small compact" href="' + viewUrl(s.id, f) + '" target="_blank" rel="noopener" title="' + (f.perPlayer ? 'Open the template on its own (players\' copies are under info)' : 'Open on its own') + '">' + withIcon('open', 'open') + '</a>' +
-      '<button class="mg-btn small ' + SCOPE[to].cls + '" data-act="move" data-to="' + to + '" title="Move to the ' + SCOPE[to].label + ' pages">' +
-        (to === 'gm' ? withIcon('to-referee', 'to referee') : withIcon('to-players', 'to players')) + '</button>' +
       '<button class="mg-btn small compact" data-act="file-info" title="Info: rename, description, tags, per player, export, delete">' + withIcon('info', 'info') + '</button>' +
     '</div></div>';
 }
@@ -171,7 +202,8 @@ function column(s, scope) {
       '<span class="side"><span class="count">' + files.length + '</span>' +
       '<button class="mg-btn small ' + sc.cls + '" data-act="pick" data-scope="' + scope + '" title="Add files for the ' + sc.label + (scope === 'shared' ? ' (u)' : '') + '">' + withIcon('add', 'add') + '</button></span></div>' +
     '<div class="files">' + (files.length ? files.map((f) => fileRow(s, f)).join('') : '<p class="none">No pages yet.</p>') + '</div>' +
-    '<div class="drop">' + ic('upload') + ' drop <b>.html .pdf .png .jpg</b> here' + (scope === 'gm' ? ': only this computer sees them' : ': every player sees them') + '</div>' +
+    '<div class="drop">' + ic('upload') + ' drop <b>.html .pdf .png .jpg</b> here' + (scope === 'gm' ? ': only this computer sees them' : ': every player sees them') +
+      (files.length ? '<br><span class="mg-muted">drag pages to reorder them, or onto the other column</span>' : '') + '</div>' +
     '</section>';
 }
 
@@ -214,7 +246,7 @@ function renderRight() {
       '<div class="actions">' +
         (s.active
           ? '<button class="mg-btn warn" data-act="deactivate">' + withIcon('end', 'end session') + '</button>' +
-            '<a class="mg-btn players" href="/" target="_blank" rel="noopener" title="The player dashboard: what players see">' + withIcon('view', 'player view') + '</a>'
+            '<a class="mg-btn players" href="/" target="_blank" rel="noopener" data-switch="players" title="The player dashboard: what players see">' + withIcon('view', 'player view') + '</a>'
           : '<button class="mg-btn go-live" data-act="activate" data-id="' + esc(s.id) + '">' + withIcon('live', 'go live') + '</button>') +
         '<span class="sep"></span>' +
         '<button class="mg-btn quiet" data-act="edit-session" title="Change the name or game type">' + withIcon('edit', 'edit') + '</button>' +
@@ -426,6 +458,8 @@ async function fileOverlay(scope, name) {
   if (!per) actions.push({ label: 'open', href: viewUrl(s.id, f), kind: 'quiet', icon: 'open' });
   if (!per && hasEntries(f)) actions.push({ label: 'export filled', href: filledUrl(s.id, f), download: f.kind === 'html', icon: 'export', kind: 'quiet' });
   if (!per && f.hasState) actions.push({ label: 'reset entries', value: 'reset', kind: 'danger', icon: 'reset' });
+  const to = other(scope);
+  actions.push({ label: 'move to ' + SCOPE[to].label, value: 'move', kind: SCOPE[to].cls, icon: to === 'gm' ? 'to-referee' : 'to-players' });
   actions.push({ label: 'delete', value: 'delete', kind: 'danger', icon: 'delete' });
   actions.push({ label: 'save', value: 'save', kind: 'primary', icon: 'check' });
 
@@ -481,6 +515,9 @@ async function fileOverlay(scope, name) {
   } else if (v === 'reset' && await confirmDialog('Reset entries', 'Clear everything typed into "' + f.name + '"? Every device viewing it reloads empty.', 'clear entries')) {
     await api('DELETE', base + '/state');
     toast('Entries cleared');
+  } else if (v === 'move') {
+    await move(scope, name, to);
+    return;
   } else if (v === 'delete' && await confirmDialog('Delete file', 'Delete "' + f.name + '"' + (per ? ' and every player\'s copy of it' : f.hasState ? ' and everything typed into it' : '') + '? This can\'t be undone.', 'delete file')) {
     await api('DELETE', base);
     toast('Deleted ' + f.name);
@@ -612,12 +649,12 @@ function tourSteps() {
 
     { section: 'Pages', title: 'Players and referee', target: '.columns', text:
       '<p><b class="players">Players</b> pages go to every player while the session is live. <b class="referee">Referee</b> pages only open on this computer.</p>' +
-      '<p>Add <b>.html</b> pages (anything typed in is saved and synced live), <b>.pdf</b> files (form fields sync too) or <b>.png</b> / <b>.jpg</b> images with ' + ic('add') + ' <b>add</b> (<kbd>u</kbd>), or drop them on a column. Drag a page across to change who it\'s for.</p>' },
+      '<p>Add <b>.html</b> pages (anything typed in is saved and synced live), <b>.pdf</b> files (form fields sync too) or <b>.png</b> / <b>.jpg</b> images with ' + ic('add') + ' <b>add</b> (<kbd>u</kbd>), or drop them on a column. Drag pages to reorder them, or across to change who they\'re for.</p>' },
     { section: 'Pages', title: 'A page', target: ROW, text:
       '<p>Each page is a card: type, title, description, file name, size and last change. <span class="mg-tag filled">filled in</span> means someone has typed into it.</p>' +
       '<ul><li>' + ic('open') + ' <b>open</b> it on its own, in a new tab</li>' +
-      '<li>' + ic('to-referee') + ' <b>to referee</b> / <b>to players</b>: move it to the other column</li>' +
-      '<li>' + ic('info') + ' <b>info</b>: its details, where it is edited (next)</li></ul>' },
+      '<li>' + ic('info') + ' <b>info</b>: its details, where it is edited (next)</li></ul>' +
+      '<p>Drag a card up or down to reorder the pages (players\' tabs follow), or onto the other column to change who it\'s for.</p>' },
     { section: 'Pages', title: 'A per-player page', target: '.file[data-name="character-sheet.html"] .tagline', text:
       '<p><b class="players">Per player</b>: every player fills in their own copy, seen only by them and you. Each name gets a ' + ic('check') + ' once that player has filled in their copy.</p>' },
 
@@ -633,6 +670,7 @@ function tourSteps() {
     { section: 'Page info', title: 'Details and actions', scene: 'info', target: ['.finfo > .mg-kv', '.mg-dialog-foot'], text:
       '<p>Who it\'s for, type, size, last change and entries. Then:</p>' +
       '<ul><li>' + ic('export') + ' <b>export filled</b>: a copy with every entry baked in, which works offline</li>' +
+      '<li>' + ic('to-referee') + ' <b>move to referee</b> / <b>players</b>: the same as dragging it onto the other column</li>' +
       '<li>' + ic('reset') + ' <b>reset entries</b> or ' + ic('delete') + ' <b>delete</b> the page (both ask first)</li>' +
       '<li>' + ic('check') + ' <b>save</b> your changes</li></ul>' },
 
@@ -697,14 +735,20 @@ document.addEventListener('click', attempt(async (e) => {
   if (act === 'join') joinOverlay();
   else if (act === 'data') dataOverlay();
   else if (act === 'help') await helpOverlay();
+  else if (act === 'tour') tutorial();
   else if (act === 'activate') {
+    const s = sessions.find((x) => x.id === btn.dataset.id) || current;
+    const was = sessions.find((x) => x.active && x.id !== s.id);
     await api('POST', '/api/admin/sessions/' + enc(btn.dataset.id) + '/activate');
+    refresh();
+    await bootScreen(startScreen(s, was));
     toast('Session is live');
-    refresh();
   } else if (act === 'deactivate') {
+    const s = sessions.find((x) => x.active);
     await api('DELETE', '/api/admin/active');
-    toast('Session ended. Players are back on the waiting screen.');
     refresh();
+    if (s) await bootScreen(endScreen(s));
+    toast('Session ended. Players are back on the waiting screen.');
   } else if (act === 'edit-session') {
     await editSession();
   } else if (act === 'reveal') {
@@ -722,8 +766,6 @@ document.addEventListener('click', attempt(async (e) => {
     pickScope = btn.dataset.scope;
     picker.value = '';
     picker.click();
-  } else if (act === 'move') {
-    await move(row.dataset.scope, row.dataset.name, btn.dataset.to);
   } else if (act === 'file-info') {
     await fileOverlay(row.dataset.scope, row.dataset.name);
   } else if (act === 'rename-player') {
@@ -734,6 +776,29 @@ document.addEventListener('click', attempt(async (e) => {
 }));
 
 picker.addEventListener('change', attempt(() => upload(pickScope, picker.files)));
+
+// What the boot and shutdown screens say (fx.js types them out).
+const plural = (n, one) => n + ' ' + one + (n === 1 ? '' : 's');
+function startScreen(s, was) {
+  const sh = (s.files.shared || []).length, gm = (s.files.gm || []).length, np = (s.players || []).length;
+  return {
+    lines: [].concat(
+      was ? [{ k: 'closing "' + was.name + '"', ok: 'OK' }] : [],
+      [{ k: 'opening "' + s.name + '"', ok: 'OK' }],
+      s.gameType ? [{ k: 'game: ' + s.gameType }] : [],
+      [{ k: plural(sh, 'page') + ' for players · ' + gm + ' for the referee' },
+       { k: plural(np, 'player') + ' in the party' },
+       { k: 'broadcasting on port ' + (info ? info.port : location.port), ok: 'OK' }]),
+    big: 'SESSION LIVE'
+  };
+}
+function endScreen(s) {
+  return {
+    end: true,
+    lines: [{ k: 'saving everyone\'s entries', ok: 'OK' }, { k: 'closing "' + s.name + '"', ok: 'OK' }, { k: 'players: back to the waiting screen', ok: 'OK' }],
+    big: 'SESSION ENDED'
+  };
+}
 
 // ---- keyboard ----------------------------------------------------------------------
 
@@ -757,41 +822,118 @@ document.addEventListener('keydown', attempt(async (e) => {
   e.preventDefault();
 }));
 
-// ---- drag and drop: OS files into a panel, or file rows between panels -------------------
+// ---- drag and drop: OS files into a panel; pages up and down, or across --------------
+// A page dragged within its column is put where the marker shows; dragged to
+// the other column, it is moved there and put in that place. Files dropped
+// from the computer are added to the column.
 
 const MG_TYPE = 'application/x-mothergoose-file';
 const panelAt = (e) => e.target.closest && e.target.closest('.files-panel');
+let dragged = null;   // { scope, name, row } while a page is dragged
+const isPageDrag = (e) => !!dragged || Array.from(e.dataTransfer.types || []).includes(MG_TYPE);
+
+// Where in a column's list a drop at y lands: the index among the other pages,
+// and the y (in the list's own box) to draw the marker at.
+function dropSpot(col, y) {
+  const list = col.querySelector('.files');
+  const rows = Array.from(list.querySelectorAll('.file')).filter((r) => r !== (dragged && dragged.row));
+  const top = list.getBoundingClientRect().top;
+  let i = rows.findIndex((r) => { const b = r.getBoundingClientRect(); return y < b.top + b.height / 2; });
+  if (i < 0) i = rows.length;
+  let at;
+  if (!rows.length) at = 2;
+  else if (i < rows.length) at = rows[i].getBoundingClientRect().top - top - 4;
+  else at = rows[rows.length - 1].getBoundingClientRect().bottom - top + 2;
+  return { index: i, rows, at, list };
+}
+
+function clearMarks() {
+  document.querySelectorAll('.drop-mark').forEach((m) => m.remove());
+  document.querySelectorAll('.files-panel.drag').forEach((c) => c.classList.remove('drag'));
+}
+
 right.addEventListener('dragstart', (e) => {
   const row = e.target.closest && e.target.closest('.file');
   if (!row) return;
+  dragged = { scope: row.dataset.scope, name: row.dataset.name, row };
   e.dataTransfer.setData(MG_TYPE, JSON.stringify({ scope: row.dataset.scope, name: row.dataset.name }));
   e.dataTransfer.effectAllowed = 'move';
+  requestAnimationFrame(() => row.classList.add('dragging'));   // after the drag image is taken
+});
+right.addEventListener('dragend', () => {
+  if (dragged) dragged.row.classList.remove('dragging');
+  dragged = null;
+  clearMarks();
 });
 right.addEventListener('dragover', (e) => {
   const col = panelAt(e);
   if (!col) return;
   e.preventDefault();
   document.querySelectorAll('.files-panel.drag').forEach((c) => { if (c !== col) c.classList.remove('drag'); });
-  col.classList.add('drag');
+  document.querySelectorAll('.drop-mark').forEach((m) => { if (!col.contains(m)) m.remove(); });
+  const page = isPageDrag(e);
+  // The column is shaded for files from the computer and for pages coming
+  // across; a page moving within its own column only gets the marker.
+  col.classList.toggle('drag', !page || !dragged || dragged.scope !== col.dataset.scope);
+  if (!page) return;
+  e.dataTransfer.dropEffect = 'move';
+  const spot = dropSpot(col, e.clientY);
+  let mark = spot.list.querySelector('.drop-mark');
+  if (!mark) {
+    mark = document.createElement('div');
+    mark.className = 'drop-mark';
+    mark.setAttribute('aria-hidden', 'true');
+    spot.list.appendChild(mark);
+  }
+  mark.style.top = spot.at + 'px';
 });
 right.addEventListener('dragleave', (e) => {
   const col = panelAt(e);
-  if (col && !col.contains(e.relatedTarget)) col.classList.remove('drag');
+  if (col && !col.contains(e.relatedTarget)) {
+    col.classList.remove('drag');
+    col.querySelectorAll('.drop-mark').forEach((m) => m.remove());
+  }
 });
 right.addEventListener('drop', attempt(async (e) => {
   const col = panelAt(e);
   if (!col) return;
   e.preventDefault();
-  col.classList.remove('drag');
   const scope = col.dataset.scope;
-  const moved = e.dataTransfer.getData(MG_TYPE);
-  if (moved) {
-    const f = JSON.parse(moved);
-    if (f.scope !== scope) await move(f.scope, f.name, scope);
-    return;
-  }
-  await upload(scope, e.dataTransfer.files);
+  const raw = e.dataTransfer.getData(MG_TYPE);
+  if (!raw) { clearMarks(); await upload(scope, e.dataTransfer.files); return; }
+  const f = JSON.parse(raw);
+  const spot = dropSpot(col, e.clientY);
+  clearMarks();
+  const names = spot.rows.map((r) => r.dataset.name);
+  names.splice(spot.index, 0, f.name);
+  const before = Array.from(col.querySelectorAll('.file')).map((r) => r.dataset.name);
+  if (f.scope === scope && names.join('/') === before.join('/')) return;   // put back where it was
+  await placePage(f.scope, f.name, scope, names, spot);
 }));
+
+// Moves (if need be) and orders a dropped page. The row goes to its new place
+// at once; the redraw waits until the server has both changes.
+async function placePage(fromScope, name, scope, names, spot) {
+  const row = right.querySelector('.file[data-scope="' + fromScope + '"][data-name="' + CSS.escape(name) + '"]');
+  if (row) {
+    const none = spot.list.querySelector('.none');
+    if (none) none.remove();
+    spot.list.insertBefore(row, spot.rows[spot.index] || null);
+    row.dataset.scope = scope;
+  }
+  holdRefresh = true;
+  try {
+    if (fromScope !== scope) {
+      await api('PATCH', fileBase(current, fromScope, name), { scope });
+      toast('Moved ' + name + ' to the ' + SCOPE[scope].label);
+    }
+    await api('PUT', '/api/admin/sessions/' + enc(current.id) + '/order', { scope, names });
+  } finally {
+    holdRefresh = false;
+    refresh();
+  }
+}
+
 // Dropping a file outside a panel shouldn't navigate away from the dashboard.
 window.addEventListener('dragover', (e) => e.preventDefault());
 window.addEventListener('drop', (e) => e.preventDefault());
@@ -807,6 +949,7 @@ function setServer(up) {
 }
 
 window.addEventListener('hashchange', route);
+switchLinks();
 setInterval(() => { if (!document.hidden) refresh(); }, 60000); // keep "edited 2m" fresh
 route();
 listenEvents(refresh, setServer);

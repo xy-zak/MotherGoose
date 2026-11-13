@@ -5,16 +5,23 @@
 // Per-player pages: each player picks their name from the session's roster
 // (kept by a cookie the server sets) and sees their own copy. The referee
 // sees the template or any player's copy, chosen in a strip above the page.
+//
+// Tabs can be dragged into this device's own order, and shrunk (right-click,
+// or hold on a touch screen). When they don't all fit, the ones at the end
+// shrink by themselves, so the row never has to scroll.
 import {
   esc, agoText, size, when, viewUrl, KIND_NAME, overlay, listenEvents, isTyping, anyOverlayOpen,
   SHORTCUTS_NOTE, ic, withIcon, SCOPE, scopeTag, gameTag, chips, liveTag, serverPort,
   api, attempt, perPlayerTag, playerName, PER_PLAYER_HINT
 } from '/_mg/ui.js';
 import { startTour, tourRunning } from '/_mg/tour.js';
+import { bootScreen, switchLinks, motion } from '/_mg/fx.js';
 
 const $ = (id) => document.getElementById(id);
 const S = {
   session: null, files: [], isHost: false, serverUp: false,
+  serverFiles: [],     // the pages in the referee's order (files is in this device's)
+  loaded: false,       // after the first load, a session starting or ending is shown
   players: [],         // the live session's roster: [{ id, name }]
   me: null,            // this device's player id in it, or null
   active: null,        // the open tab: fileKey
@@ -71,13 +78,15 @@ async function load() {
   } catch (e) { return; }
   const newId = d.session ? d.session.id : null;
   const oldId = S.session ? S.session.id : null;
+  const was = S.session;
   if (newId !== oldId) {
     Array.from(S.frames.keys()).forEach(dropFrame);
     S.pick.clear();
     if (oldId !== null) S.active = null;
   }
   S.session = d.session;
-  S.files = d.files || [];
+  S.serverFiles = d.files || [];
+  S.files = arrange(S.serverFiles);
   S.isHost = !!d.isHost;
   S.players = d.players || [];
   S.me = d.me || null;
@@ -92,7 +101,33 @@ async function load() {
       fr.src = viewUrl(S.session.id, f, f.modified, fr.dataset.who);
     }
   });
-  render();
+  if (tabDrag && tabDrag.active) renderLater = true;  // redrawn when the tab is dropped
+  else render();
+  if (S.loaded && newId !== oldId && !tourRunning()) {
+    if (newId) bootScreen(liveScreen());
+    else bootScreen(endScreen(was));
+  }
+  S.loaded = true;
+}
+
+// What the boot and shutdown screens say (fx.js types them out).
+function liveScreen() {
+  const n = S.files.length;
+  return {
+    lines: [].concat(
+      [{ k: S.isHost ? 'opening the player dashboard' : 'connecting to the referee', ok: 'OK' },
+       { k: 'loading "' + S.session.name + '"', ok: 'OK' }],
+      S.session.gameType ? [{ k: 'game: ' + S.session.gameType }] : [],
+      [{ k: n + ' page' + (n === 1 ? '' : 's') + (meName() ? ' · you are ' + meName() : '') }]),
+    big: 'SESSION LIVE'
+  };
+}
+function endScreen(was) {
+  return {
+    end: true,
+    lines: [{ k: 'saving your entries', ok: 'OK' }, { k: 'closing "' + (was ? was.name : 'the session') + '"', ok: 'OK' }, { k: 'waiting for the referee' }],
+    big: 'SESSION ENDED'
+  };
 }
 
 // The blue "player dashboard" note says who this device is, with a way to
@@ -137,6 +172,7 @@ function render() {
   // When both audiences are present (the referee on the host), each group of
   // tabs starts with a label in its colour.
   const grouped = S.files.some((f) => f.scope === 'gm');
+  const small = new Set(tabPrefs().small);
   let lastScope = null;
   S.files.forEach((f, i) => {
     if (grouped && lastScope !== f.scope) {
@@ -149,15 +185,17 @@ function render() {
     lastScope = f.scope;
     const b = document.createElement('button');
     b.type = 'button';
-    b.className = 'tab ' + SCOPE[f.scope].cls;
+    b.className = 'tab ' + SCOPE[f.scope].cls + (small.has(fileKey(f)) ? ' small' : '');
     b.setAttribute('role', 'tab');
     b.dataset.key = fileKey(f);
+    b.dataset.scope = f.scope;
     b.title = label(f) + (f.description ? ': ' + f.description : '') + '  (' + SCOPE[f.scope].label + (i < 9 ? ', key ' + (i + 1) : '') + ')' +
-      (f.perPlayer ? '\n' + PER_PLAYER_HINT + (S.isHost ? '. Pick whose copy above the page.' : '.') : '');
+      (f.perPlayer ? '\n' + PER_PLAYER_HINT + (S.isHost ? '. Pick whose copy above the page.' : '.') : '') +
+      '\nDrag to reorder. Right-click (or hold) to shrink it.';
     b.innerHTML = (i < 9 ? '<span class="n">' + (i + 1) + '</span>' : '') +
       (f.kind !== 'html' ? ic('kind-' + f.kind) : '') +
       (f.perPlayer ? ic('player', 'per') : '') +
-      '<span>' + esc(label(f)) + '</span>';
+      '<span class="t">' + esc(label(f)) + '</span>';
     b.addEventListener('click', () => show(fileKey(f)));
     tabs.appendChild(b);
   });
@@ -197,17 +235,267 @@ function show(key, focusTab) {
   S.frames.forEach((fr, k) => { fr.hidden = k !== fk; });
   $('who').hidden = !!fk;
   if (!fk) renderAsk(f);
+  let on = null;
   document.querySelectorAll('.tab').forEach((b) => {
-    const on = b.dataset.key === key;
-    b.setAttribute('aria-selected', on ? 'true' : 'false');
-    b.tabIndex = on ? 0 : -1; // roving focus: arrow keys move within the tab list
-    if (on) {
-      b.scrollIntoView({ block: 'nearest', inline: 'nearest' });
-      if (focusTab) b.focus();
-    }
+    const is = b.dataset.key === key;
+    b.setAttribute('aria-selected', is ? 'true' : 'false');
+    b.tabIndex = is ? 0 : -1; // roving focus: arrow keys move within the tab list
+    if (is) on = b;
   });
+  fitTabs();   // the open tab is never one of those shrunk to fit
+  if (on) {
+    on.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    if (focusTab) on.focus();
+  }
   updateSync();
 }
+
+// ---- this device's tabs: their order and size -------------------------------------
+// Kept on this device, per session: { order: [fileKey…], small: [fileKey…] }.
+// Pages not in the order (added since) follow it, in the referee's order.
+
+const tabKey = () => 'mg-tabs:' + (S.session ? S.session.id : '');
+function tabPrefs() {
+  let v = null;
+  try { v = JSON.parse(localStorage.getItem(tabKey()) || 'null'); } catch (e) {}
+  return { order: v && Array.isArray(v.order) ? v.order : [], small: v && Array.isArray(v.small) ? v.small : [] };
+}
+function saveTabPrefs(p) {
+  try {
+    if (!p.order.length && !p.small.length) localStorage.removeItem(tabKey());
+    else localStorage.setItem(tabKey(), JSON.stringify(p));
+  } catch (e) {}
+}
+
+// The pages in tab order: players' pages, then the referee's, each group in
+// this device's order.
+function arrange(files) {
+  const order = tabPrefs().order;
+  const pos = new Map(order.map((k, i) => [k, i]));
+  const rank = (f, i) => [f.scope === 'gm' ? 1 : 0, pos.has(fileKey(f)) ? pos.get(fileKey(f)) : order.length + i];
+  return files.map((f, i) => ({ f, r: rank(f, i) }))
+    .sort((a, b) => a.r[0] - b.r[0] || a.r[1] - b.r[1]).map((x) => x.f);
+}
+
+function setOrder(keys) {
+  const p = tabPrefs();
+  // Back in the referee's order: nothing of this device's own to keep.
+  p.order = keys.join('\n') === defaultKeys().join('\n') ? [] : keys;
+  saveTabPrefs(p);
+  S.files = arrange(S.serverFiles);
+  render();
+}
+// The tab order with nothing of this device's own.
+const defaultKeys = () => S.serverFiles.map((f, i) => ({ f, i }))
+  .sort((a, b) => (a.f.scope === 'gm') - (b.f.scope === 'gm') || a.i - b.i).map((x) => fileKey(x.f));
+
+function setSmall(key, on) {
+  const p = tabPrefs();
+  p.small = p.small.filter((k) => k !== key);
+  if (on) p.small.push(key);
+  saveTabPrefs(p);
+  const b = document.querySelector('.tab[data-key="' + CSS.escape(key) + '"]');
+  if (b) b.classList.toggle('small', on);
+  fitTabs();
+}
+
+// Shrinks tabs from the end, other than the open one, until the row fits.
+// Group labels go down to their icons first. Only on a tiny screen does the
+// open tab shrink too, and after that the row scrolls.
+function fitTabs() {
+  if (tabDrag && tabDrag.active) return;
+  const box = $('tabs');
+  const tabs = Array.from(box.querySelectorAll('.tab'));
+  box.classList.remove('tight');
+  tabs.forEach((t) => t.classList.remove('auto-small'));
+  const over = () => box.scrollWidth > box.clientWidth + 1;
+  if (!over()) return;
+  box.classList.add('tight');
+  for (let i = tabs.length - 1; i >= 0 && over(); i--) {
+    const t = tabs[i];
+    if (!t.classList.contains('small') && t.getAttribute('aria-selected') !== 'true') t.classList.add('auto-small');
+  }
+  if (over()) { const sel = tabs.find((t) => t.getAttribute('aria-selected') === 'true'); if (sel) sel.classList.add('auto-small'); }
+}
+let fitFrame = 0;
+new ResizeObserver(() => { cancelAnimationFrame(fitFrame); fitFrame = requestAnimationFrame(fitTabs); }).observe($('tabs'));
+if (document.fonts) document.fonts.ready.then(fitTabs);
+
+// ---- the tab menu: right-click, the menu key, or hold on a touch screen ---------------
+
+let menu = null;
+function closeMenu(refocus) {
+  if (!menu) return;
+  const { el, tab } = menu;
+  menu = null;
+  // It switches off like the popups do, then goes.
+  const gone = () => { try { if (el.matches(':popover-open')) el.hidePopover(); } catch (e) {} el.remove(); };
+  if (motion() === 'off') gone();
+  else { el.classList.add('mg-closing'); setTimeout(gone, motion() === 'full' ? 150 : 120); }
+  removeEventListener('pointerdown', menuOutside, true);
+  removeEventListener('keydown', menuKey, true);
+  removeEventListener('resize', closeMenuNow);
+  if (refocus && tab.isConnected) tab.focus();
+}
+const closeMenuNow = () => closeMenu(false);
+const menuOutside = (e) => { if (menu && !menu.el.contains(e.target)) closeMenu(false); };
+function menuKey(e) {
+  if (!menu) return;
+  const items = Array.from(menu.el.querySelectorAll('button:not(:disabled)'));
+  const i = items.indexOf(document.activeElement);
+  if (e.key === 'Escape' || e.key === 'Tab') { e.preventDefault(); e.stopPropagation(); closeMenu(true); }
+  else if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+    e.preventDefault(); e.stopPropagation();
+    const n = items[(i + (e.key === 'ArrowDown' ? 1 : -1) + items.length) % items.length];
+    if (n) n.focus();
+  }
+}
+
+function openMenu(tab, x, y, byKey) {
+  closeMenu(false);
+  const key = tab.dataset.key;
+  const f = S.files.find((v) => fileKey(v) === key);
+  if (!f) return;
+  const p = tabPrefs();
+  const isSmall = p.small.includes(key);
+  const group = S.files.filter((v) => v.scope === f.scope);
+  const at = group.indexOf(f);
+  const item = (act, icon, text, disabled) => '<button type="button" role="menuitem" data-menu="' + act + '"' + (disabled ? ' disabled' : '') + '>' + ic(icon) + '<span>' + esc(text) + '</span></button>';
+  const el = document.createElement('div');
+  el.className = 'mg-menu';
+  el.setAttribute('role', 'menu');
+  el.setAttribute('aria-label', 'Tab: ' + label(f));
+  if (typeof el.showPopover === 'function') el.setAttribute('popover', 'manual');
+  el.innerHTML = '<div class="head">' + esc(label(f)) + '</div>' +
+    (isSmall ? item('expand', 'full', 'expand tab') : item('shrink', 'shrink', 'shrink tab')) +
+    item('left', 'prev', 'move left', at <= 0) +
+    item('right', 'next', 'move right', at >= group.length - 1) +
+    '<hr>' +
+    item('expand-all', 'full', 'expand all tabs', !p.small.length) +
+    item('reset', 'reset', 'reset tab order', !p.order.length);
+  document.body.appendChild(el);
+  try { if (el.showPopover) el.showPopover(); } catch (e) {}
+  const r = el.getBoundingClientRect();
+  el.style.left = Math.max(4, Math.min(x, innerWidth - r.width - 4)) + 'px';
+  el.style.top = Math.max(4, Math.min(y, innerHeight - r.height - 4)) + 'px';
+  menu = { el, tab };
+  addEventListener('pointerdown', menuOutside, true);
+  addEventListener('keydown', menuKey, true);
+  addEventListener('resize', closeMenuNow);
+  el.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-menu]');
+    if (!b || b.disabled) return;
+    const act = b.dataset.menu;
+    closeMenu(false);
+    const keys = S.files.map(fileKey);
+    const i = keys.indexOf(key);
+    if (act === 'shrink' || act === 'expand') setSmall(key, act === 'shrink');
+    else if (act === 'left' || act === 'right') {
+      const j = i + (act === 'left' ? -1 : 1);
+      [keys[i], keys[j]] = [keys[j], keys[i]];
+      setOrder(keys);
+    } else if (act === 'expand-all') { const q = tabPrefs(); q.small = []; saveTabPrefs(q); render(); }
+    else if (act === 'reset') { const q = tabPrefs(); q.order = []; saveTabPrefs(q); S.files = arrange(S.serverFiles); render(); }
+    const again = document.querySelector('.tab[data-key="' + CSS.escape(key) + '"]');
+    if (again && byKey) again.focus();
+  });
+  const first = el.querySelector('button:not(:disabled)');
+  if (first && byKey) first.focus();
+}
+
+// ---- dragging tabs into another order -------------------------------------------------
+// A mouse drags straight away; a finger holds a moment first (so swiping
+// still scrolls), and holding without moving opens the tab menu instead.
+// Tabs only move within their own group (players' or referee's pages).
+
+const tabsEl = $('tabs');
+let tabDrag = null;      // { tab, x, y, touch, active, held, moved, timer }
+let renderLater = false; // a reload came in mid-drag
+let eatClick = false;    // the click that ends a drag doesn't also open the tab
+
+function beginTabDrag() {
+  const d = tabDrag;
+  if (!d || d.active) return;
+  d.active = true;
+  closeMenu(false);
+  d.tab.classList.add('dragging');
+  tabsEl.classList.add('dragging');
+  if (d.touch && navigator.vibrate) try { navigator.vibrate(8); } catch (e) {}
+}
+
+tabsEl.addEventListener('pointerdown', (e) => {
+  const tab = e.target.closest('.tab');
+  if (!tab || e.button !== 0 || !e.isPrimary) return;
+  tabDrag = { tab, x: e.clientX, y: e.clientY, touch: e.pointerType === 'touch', active: false, held: false, moved: false, timer: 0 };
+  if (tabDrag.touch) {
+    const d = tabDrag;
+    d.timer = setTimeout(() => { if (tabDrag === d) { d.held = true; beginTabDrag(); } }, 420);
+  }
+});
+addEventListener('pointermove', (e) => {
+  const d = tabDrag;
+  if (!d || !e.isPrimary) return;
+  const dx = e.clientX - d.x, dy = e.clientY - d.y;
+  if (!d.active) {
+    if (d.touch) { if (Math.hypot(dx, dy) > 10) { clearTimeout(d.timer); tabDrag = null; } return; }  // a swipe
+    if (Math.abs(dx) < 6) return;
+    beginTabDrag();
+  }
+  if (Math.abs(dx) > 4) d.moved = true;
+  const peers = Array.from(tabsEl.querySelectorAll('.tab')).filter((t) => t.dataset.scope === d.tab.dataset.scope);
+  const me = peers.indexOf(d.tab);
+  let target = null, after = false;
+  peers.forEach((t, i) => {
+    if (i === me) return;
+    const b = t.getBoundingClientRect(), mid = (b.left + b.right) / 2;
+    if (i < me && e.clientX < mid && !target) { target = t; after = false; }
+    if (i > me && e.clientX > mid) { target = t; after = true; }
+  });
+  if (target) { if (after) target.after(d.tab); else target.before(d.tab); }
+  // Near either end of a row that scrolls: scroll it along.
+  const box = tabsEl.getBoundingClientRect();
+  if (e.clientX < box.left + 24) tabsEl.scrollLeft -= 12;
+  else if (e.clientX > box.right - 24) tabsEl.scrollLeft += 12;
+});
+function endTabDrag(drop) {
+  const d = tabDrag;
+  if (!d) return;
+  tabDrag = null;
+  clearTimeout(d.timer);
+  if (!d.active) return;   // a plain click: the tab opens as usual
+  d.tab.classList.remove('dragging');
+  tabsEl.classList.remove('dragging');
+  eatClick = true;
+  setTimeout(() => { eatClick = false; }, 400);
+  if (drop && d.held && !d.moved) {
+    renderLater = false;
+    render();
+    const again = document.querySelector('.tab[data-key="' + CSS.escape(d.tab.dataset.key) + '"]') || d.tab;
+    const r = again.getBoundingClientRect();
+    openMenu(again, r.left, r.bottom + 2, false);
+    return;
+  }
+  renderLater = false;
+  if (drop && d.moved) setOrder(Array.from(tabsEl.querySelectorAll('.tab')).map((t) => t.dataset.key));
+  else render();   // cancelled: back as they were
+}
+addEventListener('pointerup', () => endTabDrag(true));
+addEventListener('pointercancel', () => endTabDrag(false));
+// While a finger drags a tab, the row mustn't scroll under it.
+tabsEl.addEventListener('touchmove', (e) => { if (tabDrag && tabDrag.active) e.preventDefault(); }, { passive: false });
+tabsEl.addEventListener('click', (e) => {
+  if (eatClick && e.target.closest('.tab')) { e.stopPropagation(); e.preventDefault(); eatClick = false; }
+}, true);
+tabsEl.addEventListener('contextmenu', (e) => {
+  const tab = e.target.closest('.tab');
+  if (!tab) return;
+  e.preventDefault();
+  if (tabDrag && tabDrag.touch) return;   // the hold opens it, when the finger lifts
+  const byKey = e.clientX === 0 && e.clientY === 0;   // the menu key or Shift+F10
+  const r = tab.getBoundingClientRect();
+  openMenu(tab, byKey ? r.left : e.clientX, byKey ? r.bottom + 2 : e.clientY, byKey);
+});
+tabsEl.addEventListener('scroll', closeMenuNow);
 
 // The referee's strip above a per-player page: template · Ana · Ben …
 function renderPick(f, who) {
@@ -359,12 +647,18 @@ async function helpOverlay() {
     ['f', 'full screen on / off'], ['esc', 'leave full screen'], ['1 – 9', 'jump to a tab'],
     ['[  ]', 'previous / next tab'], ['← →', 'move between tabs (when a tab has focus)'], ['i', 'session details'], ['?', 'this help']
   ];
+  const mouse = [
+    ['drag a tab', 'put the tabs in your own order (on this device)'],
+    ['right-click a tab', 'shrink it, move it, or reset the order. On a touch screen, hold the tab']
+  ];
   const v = await overlay({
     title: 'Help',
     icon: 'help',
     body: '<p><b>New here?</b> The <b>player tutorial</b> walks you through every part of this screen, one step at a time.</p>' +
       '<hr class="mg-rule"><div class="mg-section-label">Keyboard shortcuts</div>' +
-      '<dl class="mg-kv">' + keys.map((k) => '<dt><kbd>' + k[0] + '</kbd></dt><dd>' + k[1] + '</dd>').join('') + '</dl>' + SHORTCUTS_NOTE,
+      '<dl class="mg-kv">' + keys.map((k) => '<dt><kbd>' + k[0] + '</kbd></dt><dd>' + k[1] + '</dd>').join('') + '</dl>' + SHORTCUTS_NOTE +
+      '<hr class="mg-rule"><div class="mg-section-label">Tabs</div>' +
+      '<dl class="mg-kv">' + mouse.map((k) => '<dt>' + k[0] + '</dt><dd>' + k[1] + '</dd>').join('') + '</dl>',
     actions: [{ label: 'player tutorial', value: 'tour', kind: 'primary', icon: 'tutorial' }]
   });
   if (v === 'tour') tutorial();
@@ -422,7 +716,7 @@ function tourSteps() {
       '<ul><li>the number is its key: <kbd>1</kbd> – <kbd>9</kbd> jump straight to it, <kbd>[</kbd> <kbd>]</kbd> step through</li>' +
       '<li>' + ic('kind-pdf') + ' PDFs and ' + ic('kind-image') + ' images have an icon</li>' +
       '<li>' + ic('player') + ' marks a <b class="players">per-player</b> page: you get your own copy</li></ul>' +
-      '<p>Hover a tab to read its description.</p>'
+      '<p>Hover a tab to read its description. Drag tabs into your own order; right-click one (or hold it) to <b>shrink</b> it. When they don\'t all fit, the last ones shrink by themselves.</p>'
     : '<p>The session\'s pages appear here as tabs, as soon as the referee adds them. You don\'t need to reload.</p>',
     has ? '#tabs' : '.tabbar');
   if (document.querySelector('.tab-group')) {
@@ -488,6 +782,7 @@ function setFull(on, browserToo = true) {
   b.innerHTML = on ? withIcon('shrink', 'shrink') : withIcon('full', 'full screen');
   b.title = on ? 'Shrink: show the app bar again (f or esc)' : 'Full screen (f)';
   b.setAttribute('aria-pressed', String(on));
+  fitTabs();
   if (on && browserToo && !fsElement()) {
     const req = root.requestFullscreen || root.webkitRequestFullscreen;
     if (req) {
@@ -533,5 +828,15 @@ document.addEventListener('keydown', (e) => {
 
 // ---- live updates ---------------------------------------------------------------------
 
+// Opened by "player tutorial" on the referee's start page: start the tour
+// once the page is in and has switched on.
+const wantTour = new URLSearchParams(location.search).has('tour');
+if (wantTour) history.replaceState(null, '', location.pathname + location.hash);
+
+switchLinks();
 listenEvents(load, (up) => { S.serverUp = up; updateSync(); });
-load();
+load().then(async () => {
+  if (!wantTour) return;
+  for (let i = 0; i < 20 && document.documentElement.classList.contains('mg-arrive'); i++) await new Promise((r) => setTimeout(r, 100));
+  tutorial();
+});

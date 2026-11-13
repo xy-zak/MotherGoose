@@ -416,9 +416,200 @@ textarea.mg-input { height: auto; min-height: 84px; padding: 6px 8px; line-heigh
 .mg-notice { max-width: 520px; display: grid; gap: 12px; padding: 18px 16px 16px; border: 1px solid var(--line); position: relative; }
 .mg-eyebrow { font-size: var(--fs-title); font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--accent); }
 
-@media (prefers-reduced-motion: reduce) {
-  * { animation: none !important; transition: none !important; }
+/* ---- words in help text -----------------------------------------------------
+ * Three kinds of word, each drawn its own way so they're told apart at once:
+ *   .mg-term   an idea the app has a name for (game type, party, per player):
+ *              bold, in the accent colour, with a dotted underline
+ *   .mg-ftype  a file type (.html, .pdf): code-style, in a dark box
+ *   .mg-ui     a button on screen (go live, info): drawn like a small button,
+ *              with its icon, so it can be spotted on the page
+ */
+.mg-term { font-weight: 700; color: var(--accent); text-decoration: underline dotted; text-underline-offset: 3px; text-decoration-thickness: 1px; white-space: nowrap; }
+.mg-term.players { color: var(--players-ink); }
+.mg-term.referee { color: var(--referee-ink); }
+.mg-ftype {
+  display: inline-block; padding: 0 4px; line-height: 17px;
+  font: 700 var(--fs-small)/17px var(--font);
+  color: var(--ctp-pink);
+  color: light-dark(color-mix(in srgb, var(--ctp-pink) 70%, #000), var(--ctp-pink));  /* darker on light themes, for contrast */
+  background: color-mix(in srgb, var(--ctp-pink) 8%, var(--deep)); border: 1px solid color-mix(in srgb, var(--ctp-pink) 45%, var(--line));
+  white-space: nowrap;
 }
+.mg-ui {
+  display: inline-flex; align-items: center; gap: 4px; vertical-align: 1px;
+  height: 19px; padding: 0 5px;
+  font: 700 var(--fs-small)/1 var(--font); letter-spacing: .02em; color: var(--text);
+  background: var(--surface); border: 1px solid var(--line-strong);
+  box-shadow: 0 2px 0 -1px var(--line-strong);   /* a little depth: it's something to press */
+  white-space: nowrap;
+}
+.mg-ui .mg-i { width: 12px; height: 12px; stroke-width: 2; }
+.mg-ui.go-live { background: var(--live-fill); border-color: var(--live-fill); color: var(--on-live); }
+.mg-ui.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.mg-ui.players { background: color-mix(in srgb, var(--players) 12%, var(--bg)); border-color: var(--players); }
+.mg-ui.players .mg-i { color: var(--players-ink); }
+.mg-ui.referee { background: color-mix(in srgb, var(--referee) 12%, var(--bg)); border-color: var(--referee); }
+.mg-ui.referee .mg-i { color: var(--referee-ink); }
+.mg-ui.warn { background: transparent; border-color: var(--warn); color: var(--warn-ink); }
+.mg-ui.danger { background: transparent; border-color: var(--danger); color: var(--danger); }
+
+/* ---- right-click menus (e.g. on the player dashboard's tabs) ----------------- */
+
+.mg-menu, .mg-menu[popover] {
+  position: fixed; inset: auto; margin: 0; z-index: 1500;
+  min-width: 190px; padding: 3px 0;
+  color: var(--text); background: var(--bar);
+  border: 1px solid var(--accent);
+  box-shadow: 4px 4px 0 color-mix(in srgb, var(--deep) 70%, transparent);
+  font: 400 var(--fs-body)/1.5 var(--font); letter-spacing: var(--track);
+}
+.mg-menu .head { padding: 2px 10px 4px; font-size: var(--fs-small); color: var(--muted); border-bottom: 1px solid var(--line); margin-bottom: 3px; max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mg-menu button {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 4px 10px; border: 0; background: none; color: var(--text);
+  font: 500 var(--fs-body)/1.4 var(--font); text-align: left; cursor: pointer;
+}
+.mg-menu button:hover, .mg-menu button:focus-visible { background: color-mix(in srgb, var(--accent) 20%, var(--bar)); box-shadow: none; }
+.mg-menu button:disabled { opacity: .45; cursor: default; background: none; }
+.mg-menu button kbd { margin-left: auto; }
+.mg-menu hr { border: 0; border-top: 1px solid var(--line); margin: 3px 0; }
+
+/* ---- motion ------------------------------------------------------------------
+ * prefs.js sets data-anim on <html>: "full" (retro CRT effects), "reduced"
+ * (short fades only) or "off". Display settings choose; "auto" is full unless
+ * the device asks for less motion.
+ *
+ *   popups        switch on like an old CRT: a bright line that opens up
+ *   dashboards    switching between the player and referee dashboards turns
+ *                 the screen off (line, dot, static) and the next one on
+ *   sessions      going live or ending shows a terminal boot / shutdown
+ *                 screen (fx.js), on the referee's and players' screens
+ */
+:root[data-anim="off"] *, :root[data-anim="off"] *::before, :root[data-anim="off"] *::after, :root[data-anim="off"] ::backdrop,
+:root[data-anim="reduced"] *, :root[data-anim="reduced"] *::before, :root[data-anim="reduced"] *::after, :root[data-anim="reduced"] ::backdrop {
+  animation: none !important; transition: none !important;
+}
+@keyframes mg-fade-in { from { opacity: 0; } }
+@keyframes mg-fade-out { to { opacity: 0; } }
+
+/* Popups: a thin bright line that opens to full height, then a flicker. */
+@keyframes mg-crt-pop {
+  0%   { transform: scale(.7, .008); filter: brightness(3.2) saturate(.4); opacity: .6; }
+  30%  { transform: scale(1, .008); filter: brightness(3.2) saturate(.4); opacity: 1; }
+  62%  { transform: scale(1, 1.015); filter: brightness(1.5); }
+  74%  { filter: brightness(.8); }
+  86%  { filter: brightness(1.15); }
+  100% { transform: none; filter: none; }
+}
+/* Closing: the reverse, down to a line and then to nothing. */
+@keyframes mg-crt-pop-off {
+  0%   { transform: none; filter: none; }
+  20%  { filter: brightness(1.4); }
+  55%  { transform: scale(1, .008); filter: brightness(3.2) saturate(.4); opacity: 1; }
+  100% { transform: scale(0, .008); filter: brightness(4) saturate(0); opacity: 0; }
+}
+/* Scanlines over a popup while it warms up. */
+@keyframes mg-crt-lines { 0%, 55% { opacity: .9; } 100% { opacity: 0; } }
+:root[data-anim="full"] .mg-dialog[open]:not(.mg-toured) { animation: mg-crt-pop 280ms cubic-bezier(.2, .7, .3, 1) both; }
+:root[data-anim="full"] .mg-dialog[open]:not(.mg-toured)::before {
+  content: ""; position: absolute; inset: 0; z-index: 5; pointer-events: none;
+  background: repeating-linear-gradient(0deg, color-mix(in srgb, var(--deep) 55%, transparent) 0 1px, transparent 1px 3px);
+  animation: mg-crt-lines 340ms linear both;
+}
+:root[data-anim="full"] .mg-dialog[open]::backdrop { animation: mg-fade-in 220ms ease-out both; }
+/* prefs.js holds a closing popup open (.mg-closing) until this has played. */
+:root[data-anim="full"] .mg-dialog[open].mg-closing:not(.mg-toured) { animation: mg-crt-pop-off 230ms cubic-bezier(.6, 0, .8, .4) both !important; pointer-events: none; }
+:root[data-anim="full"] .mg-dialog[open].mg-closing:not(.mg-toured)::before { animation: mg-fade-in 120ms linear both !important; }
+:root[data-anim="full"] .mg-dialog[open].mg-closing:not(.mg-toured)::backdrop { animation: mg-fade-out 230ms ease-in both !important; }
+:root[data-anim="full"] .mg-menu.mg-closing { animation: mg-crt-pop-off 150ms cubic-bezier(.6, 0, .8, .4) both !important; pointer-events: none; }
+:root[data-anim="full"] .mg-menu:popover-open, :root[data-anim="full"] .mg-menu.fx-on { animation: mg-crt-pop 170ms cubic-bezier(.2, .7, .3, 1) both; transform-origin: top left; }
+:root[data-anim="full"] .mg-tour-card.fx-on { animation: mg-crt-pop 300ms cubic-bezier(.2, .7, .3, 1) both; }
+:root[data-anim="full"] .mg-toast:not([hidden]) { animation: mg-crt-pop 200ms cubic-bezier(.2, .7, .3, 1) both; }
+:root[data-anim="reduced"] .mg-dialog[open]:not(.mg-toured), :root[data-anim="reduced"] .mg-dialog[open]::backdrop,
+:root[data-anim="reduced"] .mg-menu:popover-open, :root[data-anim="reduced"] .mg-toast:not([hidden]) {
+  animation: mg-fade-in 140ms ease-out both !important;
+}
+:root[data-anim="reduced"] .mg-dialog[open].mg-closing:not(.mg-toured), :root[data-anim="reduced"] .mg-dialog[open].mg-closing:not(.mg-toured)::backdrop, :root[data-anim="reduced"] .mg-menu.mg-closing {
+  animation: mg-fade-out 120ms ease-in both !important; pointer-events: none;
+}
+
+/* Switching dashboards: this screen switches off (to a line, then a dot),
+   and the next one comes on from a line, through a burst of static. */
+@keyframes mg-crt-off {
+  0%   { transform: none; filter: none; }
+  45%  { transform: scale(1, .006); filter: brightness(4) saturate(.3); }
+  80%  { transform: scale(.004, .006); filter: brightness(6) saturate(0); opacity: 1; }
+  100% { transform: scale(0, 0); filter: brightness(6); opacity: 0; }
+}
+@keyframes mg-crt-on {
+  0%, 22% { transform: scale(0, .006); filter: brightness(6) saturate(0); }
+  38%  { transform: scale(1, .006); filter: brightness(4) saturate(.3); }
+  66%  { transform: scale(1, 1.01); filter: brightness(1.6) contrast(1.1); }
+  76%  { filter: brightness(.75); }
+  88%  { filter: brightness(1.2); }
+  100% { transform: none; filter: none; }
+}
+@keyframes mg-static { 0% { background-position: 0 0; } 25% { background-position: -37px 23px; } 50% { background-position: 61px -11px; } 75% { background-position: -13px -47px; } 100% { background-position: 29px 41px; } }
+:root.mg-leave, :root.mg-arrive { background: #050608; overflow: hidden; }
+:root[data-anim="full"].mg-leave body { animation: mg-crt-off 340ms cubic-bezier(.6, 0, .8, .4) both; pointer-events: none; }
+:root[data-anim="full"].mg-arrive body { animation: mg-crt-on 620ms cubic-bezier(.2, .7, .3, 1) both; }
+:root[data-anim="reduced"].mg-leave body { animation: mg-fade-out 140ms ease-in both !important; }
+:root[data-anim="reduced"].mg-arrive body { animation: mg-fade-in 180ms ease-out both !important; }
+/* Static: grey noise drawn by an SVG filter, jumping about. */
+.mg-static {
+  position: fixed; inset: 0; z-index: 3000; pointer-events: none;
+  background-color: #050608;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .8 0 0 0 0 .82 0 0 0 0 .86 0 0 0 1.6 -.35'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E"),
+    repeating-linear-gradient(0deg, rgba(0, 0, 0, .45) 0 1px, transparent 1px 3px);
+  background-size: 160px 160px, auto;
+  animation: mg-static 140ms steps(1) infinite;
+}
+:root.mg-arrive .mg-static { animation: mg-static 140ms steps(1) infinite, mg-fade-out 160ms 80ms ease-in both; }
+
+/* Going live / ending: a screen over everything, in the app's own colours
+   and text sizes, that types itself out like a terminal (see fx.js). Green
+   for going live, the warning yellow for ending. */
+.mg-boot, .mg-boot[popover] {
+  --b-ink: var(--live); --b-fill: var(--live-fill); --b-on: var(--on-live);
+  position: fixed; inset: 0; z-index: 2500;
+  width: auto; height: auto; max-width: none; max-height: none; margin: 0; border: 0;
+  display: grid; place-items: center; padding: 24px 16px; overflow: hidden;
+  background: var(--deep); color: var(--text);
+  font: 400 var(--fs-body)/1.5 var(--font); letter-spacing: var(--track);
+  cursor: pointer;
+}
+.mg-boot.end { --b-ink: var(--warn-ink); --b-fill: var(--warn); --b-on: #232634; }  /* the yellow is light in every flavour: dark text on it */
+.mg-boot .scr {
+  width: min(560px, 100%); display: grid; gap: 2px; padding: 0 14px 14px;
+  background: var(--bg); border: 1px solid var(--b-ink);
+}
+.mg-boot .brand {
+  display: flex; align-items: center; height: var(--bar-h); margin: 0 -14px 10px; padding: 0 12px;
+  background: var(--bar); border-bottom: 1px solid var(--line);
+  color: var(--accent); font-size: var(--fs-body); font-weight: 800; letter-spacing: .08em;
+}
+.mg-boot .ln { display: flex; gap: 8px; min-width: 0; white-space: nowrap; }
+.mg-boot .ln .k { overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.mg-boot .ln .k::before { content: "> "; color: var(--muted); }
+.mg-boot .ln .dots { flex: 1; min-width: 2ch; overflow: hidden; color: var(--line-strong); }
+.mg-boot .ln .dots::before { content: "................................................................................................"; }
+.mg-boot .ln .ok { font-weight: 700; color: var(--b-ink); }
+/* The last line: filled like the app's LIVE tag. */
+.mg-boot .ln.big {
+  justify-self: start; align-items: center; margin-top: 10px; padding: 2px 8px;
+  font-size: var(--fs-title); font-weight: 700; letter-spacing: .06em;
+  background: var(--b-fill); color: var(--b-on);
+}
+.mg-boot .ln.big .k::before { content: ""; }
+.mg-boot .cur { display: inline-block; width: .6em; height: 1em; vertical-align: -2px; background: var(--accent); animation: mg-blink .8s steps(1) infinite; }
+.mg-boot .ln.big .cur { background: currentColor; }
+.mg-boot .skip { position: absolute; bottom: 14px; right: 16px; font-size: var(--fs-small); color: var(--muted); }
+@keyframes mg-blink { 50% { opacity: 0; } }
+:root[data-anim="full"] .mg-boot.on { animation: mg-crt-on 420ms cubic-bezier(.2, .7, .3, 1) both; }
+:root[data-anim="full"] .mg-boot.off { animation: mg-crt-off 360ms cubic-bezier(.6, 0, .8, .4) both; }
+:root[data-anim="reduced"] .mg-boot.on { animation: mg-fade-in 160ms ease-out both !important; }
+:root[data-anim="reduced"] .mg-boot.off { animation: mg-fade-out 200ms ease-in both !important; }
+:root[data-anim="reduced"] .mg-boot .cur { animation: none !important; }
 
 /* ---- icons (Iconoir, from /_mg/icons.svg) -----------------------------------
  * <svg class="mg-i"><use href="/_mg/icons.svg#NAME"></use></svg>, usually

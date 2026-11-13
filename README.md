@@ -68,15 +68,18 @@ mothergoose --no-browser       # don't open the dashboard on start
 ## Running a session
 
 1. In the dashboard (`/admin`), create a session. Give it a name and, optionally, a game type.
-2. Drag `.html`, `.pdf`, `.png` or `.jpg` files into **Players** or **Referee**, or use **+ add**. Use **to referee** / **to players**, or drag a file between the panels, to change which side it's on.
-3. Click **▶ go live**. Only one session is live at a time, and players see its shared pages as tabs.
-4. Click **■ end session** when you're done. Players return to a waiting screen, and every entry is kept for next time.
+2. Drag `.html`, `.pdf`, `.png` or `.jpg` files into **Players** or **Referee**, or use **+ add**. Drag a page up or down to reorder it (players' tabs follow the same order), or onto the other panel to change which side it's on.
+3. Click **▶ go live**. Only one session is live at a time, and players see its shared pages as tabs. A short boot screen plays on the referee's and the players' screens.
+4. Click **■ end session** when you're done. Players see a shutdown screen and return to a waiting screen, and every entry is kept for next time.
 
-The dashboard has two panes. The sessions list is on the left and the selected session is on the right. Each file row has **open ↗**, a move button and **info**. **info** opens the page's details, where you can edit it and reach the less common actions:
+With no session open, the dashboard shows **Getting started**: everything the app does, one line each, with buttons for both tutorials.
+
+The dashboard has two panes. The sessions list is on the left and the selected session is on the right. Each file row has **open ↗** and **info**. **info** opens the page's details, where you can edit it and reach the less common actions:
 
 - **Edit the page**: change its file name (the type stays the same), description, tags and, for players' pages, **per player**. **save** applies them together.
 - **Party** (per-player pages): add or remove players right there. This changes the session's party and applies straight away.
 - **Export filled** (HTML pages and fillable PDFs): download a copy with every entry filled in. An HTML copy works offline; a PDF copy is a normal filled-in PDF you can open anywhere. Archive it or send it to a player.
+- **Move to referee / players**: the same as dragging it onto the other panel.
 - **Reset entries** (HTML pages and fillable PDFs): clear everything typed into the page.
 - **Delete**: remove the file.
 
@@ -90,10 +93,13 @@ The top of the player view has two slim rows:
 
 - **Info bar:** session name, connection status, theme. Click the session name or the status for details.
 - **Tab bar:** one tab per page, numbered, with PDF and image pages marked by an icon. The open tab is tinted blue for players' pages and orange for the referee's.
+  - **Drag tabs** to put them in your own order. It's kept on that device only; **reset tab order** goes back to the referee's.
+  - **Right-click a tab** (or hold it on a touch screen) to **shrink** it, move it left or right, or reset the order.
+  - When the tabs don't all fit, the ones at the end shrink by themselves so the row never needs scrolling. The open tab stays full size.
 
 Press **⤢ full** (or `f`) for full screen. The browser goes full screen where it can, and MotherGoose hides everything except a thin row of tabs at the top. Press **⤡ shrink** at the top right, or `Esc`, to come back. On iPhones, which don't support browser full screen, you still get the full-screen layout.
 
-The help button (`?`) has a **referee tutorial** or **player tutorial**: a guided tour of the dashboard you are on, one part at a time. The referee's tour uses an example session, so nothing real changes.
+The help button (`?`) and the dashboard's Getting started have a **referee tutorial** or **player tutorial**: a guided tour of the dashboard you are on, one part at a time. The referee's tour uses an example session, so nothing real changes.
 
 Keyboard shortcuts (press `?` to see them): `f` full screen, `1`–`9` jump to a tab, `[` `]` previous/next tab, `i` details. In the dashboard: `n` new session, `↑` `↓` move through sessions, `e` edit the session, `p` add a player to the party, `u` add players' files, `j` Join Info.
 
@@ -112,11 +118,12 @@ Choosing a name is an honour system, not a login: anyone can pick any name. It k
 
 ### Display settings
 
-The UI is a terminal-style layout in the [Catppuccin](https://catppuccin.com) palette. **display** (the gear icon) in the top bar sets three things, and each device remembers its own choice:
+The UI is a terminal-style layout in the [Catppuccin](https://catppuccin.com) palette. **display** (the gear icon) in the top bar sets four things, and each device remembers its own choice:
 
 - **Colour theme:** **Auto** (Latte when the device is in light mode, Mocha in dark mode), **Latte**, **Frappé**, **Macchiato** or **Mocha**.
 - **Font:** JetBrains Mono (the default), **Atkinson Hyperlegible Mono** or **Atkinson Hyperlegible**, both designed for readers with low vision, **OpenDyslexic** for dyslexic readers, or the device's own font.
 - **Buttons show:** icons and text, icons only (names appear on hover and are read out by screen readers), or text only.
+- **Animations:** retro CRT effects (popups switch on like an old monitor, switching between the player and referee dashboards changes channel, and sessions boot up and shut down), **Reduced** (quick fades) or **Off**. **Auto**, the default, uses Reduced when the device asks for less motion.
 
 These change MotherGoose itself. Pages you add keep their own fonts and colours.
 

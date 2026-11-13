@@ -39,6 +39,22 @@
     cursor: pointer; white-space: nowrap;
   }
   .tab.referee { --scope: var(--referee); }
+  .tabs { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
+  .tab .t { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  /* Shrunk tabs (by hand from the tab menu, or by themselves when the row is
+     full) keep their number, icon and the start of their name. */
+  .tab.small, .tab.auto-small { padding: 0 6px; gap: 4px; }
+  .tab.small .t, .tab.auto-small .t { max-width: 3ch; text-overflow: clip; }
+  .tab.small .per, .tab.auto-small .per { display: none; }
+  .tab.small::after { content: ""; width: 3px; height: 3px; margin-left: -1px; background: var(--muted); align-self: flex-end; margin-bottom: 6px; } /* shrunk by hand */
+  .tabs.tight .tab-group .lbl { display: none; }
+  .tabs.tight .tab-group { padding: 0 6px; }
+  /* A tab being dragged into a new place. */
+  .tabs.dragging, .tabs.dragging .tab { cursor: grabbing; }
+  .tab.dragging {
+    color: var(--text); background: color-mix(in srgb, var(--accent) 22%, var(--bg));
+    outline: 1px dashed var(--accent); outline-offset: -3px;
+  }
   .tab .n { color: var(--ctp-overlay1); font-weight: 400; }
   .tab .who { color: var(--scope); }
   .tab:hover { color: var(--text); background: var(--surface); }
@@ -144,7 +160,7 @@
     <button class="mg-btn mg-state warn" id="syncBtn" type="button" title="Connection details (i)"><span id="syncLabel">connecting</span></button>
     <span class="mg-grow"></span>
     <span class="mg-actions">
-      <a class="mg-btn referee" id="adminLink" href="/admin" hidden title="The referee's dashboard (this computer only)"><svg class="mg-i" aria-hidden="true"><use href="/_mg/icons.svg#view"></use></svg><span class="lbl">referee's dashboard</span></a>
+      <a class="mg-btn referee" id="adminLink" href="/admin" data-switch="referee" hidden title="The referee's dashboard (this computer only)"><svg class="mg-i" aria-hidden="true"><use href="/_mg/icons.svg#view"></use></svg><span class="lbl">referee's dashboard</span></a>
       <button class="mg-btn" data-prefs type="button" title="Display settings: theme, font, icons"><svg class="mg-i" aria-hidden="true"><use href="/_mg/icons.svg#settings"></use></svg><span class="lbl hide-sm">display</span></button>
       <button class="mg-btn" id="helpBtn" type="button" title="Help: keyboard shortcuts and the player tutorial (?)"><svg class="mg-i" aria-hidden="true"><use href="/_mg/icons.svg#help"></use></svg><span class="lbl hide-sm">help</span></button>
     </span>

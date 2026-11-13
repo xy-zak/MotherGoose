@@ -89,6 +89,7 @@ func (s *Server) routes() *http.ServeMux {
 	m.HandleFunc("DELETE /api/admin/active", s.hostOnly(s.apiDeactivate))
 	m.HandleFunc("POST /api/admin/sessions/{id}/reveal", s.hostOnly(s.apiReveal))
 	m.HandleFunc("POST /api/admin/sessions/{id}/files", s.hostOnly(s.apiUpload))
+	m.HandleFunc("PUT /api/admin/sessions/{id}/order", s.hostOnly(s.apiSetOrder))
 	m.HandleFunc("POST /api/admin/sessions/{id}/players", s.hostOnly(s.apiAddPlayer))
 	m.HandleFunc("PATCH /api/admin/sessions/{id}/players/{player}", s.hostOnly(s.apiRenamePlayer))
 	m.HandleFunc("DELETE /api/admin/sessions/{id}/players/{player}", s.hostOnly(s.apiRemovePlayer))
@@ -675,6 +676,29 @@ func (s *Server) apiResetState(w http.ResponseWriter, r *http.Request) {
 	} else {
 		// Copies nobody has written to yet show the template, so they change too.
 		s.hub.toFile(id, string(sc), name, reload)
+	}
+	s.changed()
+	w.WriteHeader(http.StatusNoContent)
+}
+
+// apiSetOrder sets the order of one scope's pages: the dashboard's columns
+// and the players' tabs follow it.
+func (s *Server) apiSetOrder(w http.ResponseWriter, r *http.Request) {
+	var body struct {
+		Scope string   `json:"scope"`
+		Names []string `json:"names"`
+	}
+	if err := decodeBody(w, r, &body); err != nil {
+		bodyError(w, err, `{"scope": "shared" | "gm", "names": ["..."]}`)
+		return
+	}
+	sc, err := store.ParseScope(body.Scope)
+	if err == nil {
+		err = s.store.SetOrder(r.PathValue("id"), sc, body.Names)
+	}
+	if err != nil {
+		storeError(w, err)
+		return
 	}
 	s.changed()
 	w.WriteHeader(http.StatusNoContent)

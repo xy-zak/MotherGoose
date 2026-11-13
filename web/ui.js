@@ -45,6 +45,12 @@ export const KIND_NAME = { html: 'HTML page', pdf: 'PDF', image: 'image' };
 export const ic = (name, cls) => '<svg class="mg-i' + (cls ? ' ' + cls : '') + '" aria-hidden="true"><use href="/_mg/icons.svg#' + name + '"></use></svg>';
 export const withIcon = (name, text) => ic(name) + '<span class="lbl">' + esc(text) + '</span>';
 
+// ---- words in help text ------------------------------------------------------------
+// Terms, file types and on-screen buttons each look different (see theme.css).
+export const term = (text, cls) => '<span class="mg-term' + (cls ? ' ' + cls : '') + '">' + esc(text) + '</span>';
+export const ftype = (ext) => '<span class="mg-ftype">' + esc(ext) + '</span>';
+export const uiBtn = (icon, text, cls) => '<span class="mg-ui' + (cls ? ' ' + cls : '') + '">' + (icon ? ic(icon) : '') + esc(text) + '</span>';
+
 // ---- who a page is for -------------------------------------------------------------
 // The folders on disk are shared/ and gm/; people see "players" and "referee".
 export const SCOPE = {

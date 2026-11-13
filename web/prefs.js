@@ -1,7 +1,12 @@
-// Display settings, per device: colour theme (Catppuccin flavour), font, and
-// whether buttons show icons, text or both. Applied before first paint so
-// nothing flashes, and kept in step across tabs and frames on this device.
-// Any [data-prefs] button opens the settings overlay.
+// Display settings, per device: colour theme (Catppuccin flavour), font,
+// whether buttons show icons, text or both, and how much animation there is.
+// Applied before first paint so nothing flashes, and kept in step across tabs
+// and frames on this device. Any [data-prefs] button opens the settings overlay.
+//
+// Animation: data-anim on <html> is the level in effect, "full", "reduced" or
+// "off" ("auto" follows the device's reduce-motion setting). This also plays
+// the screen switching on when this page was opened from the other dashboard
+// (fx.js switches the old one off and leaves a note in mg-switch).
 (function () {
   'use strict';
   var ICONS = '/_mg/icons.svg#';
@@ -35,8 +40,18 @@
         { id: 'icons', name: 'Icons only', hint: 'names appear on hover', icon: 'settings' },
         { id: 'text', name: 'Text only', icon: 'text' }
       ]
+    },
+    motion: {
+      key: 'mg-motion', attr: 'data-motion', def: 'auto', title: 'Animations',
+      opts: [
+        { id: 'auto', name: 'Auto', hint: 'retro, unless this device asks for less motion' },
+        { id: 'on', name: 'Retro', hint: 'CRT effects, always' },
+        { id: 'reduced', name: 'Reduced', hint: 'quick fades only' },
+        { id: 'off', name: 'Off', hint: 'no animation' }
+      ]
     }
   };
+  var lessMotion = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
 
   function get(p) {
     var v;
@@ -51,6 +66,9 @@
       var p = PREFS[k], v = get(p);
       if (v === p.def) root.removeAttribute(p.attr); else root.setAttribute(p.attr, v);
     });
+    var m = get(PREFS.motion);
+    root.setAttribute('data-anim', m === 'off' ? 'off' : m === 'reduced' ? 'reduced' : m === 'on' ? 'full'
+      : lessMotion && lessMotion.matches ? 'reduced' : 'full');
   }
   function save(p, v) {
     try { localStorage.setItem(p.key, v); } catch (e) {}
@@ -85,7 +103,7 @@
         lead + '<span style="display:grid;gap:1px">' + name + (o.hint ? '<span class="hint">' + esc(o.hint) + '</span>' : '') + '</span></button>';
     }).join('');
     return '<div><div class="mg-section-label">' + p.title + '</div>' +
-      '<div class="mg-opts ' + (k === 'labels' ? 'row' : 'grid') + '" role="radiogroup" aria-label="' + p.title + '">' + opts + '</div></div>';
+      '<div class="mg-opts ' + (k === 'labels' || k === 'motion' ? 'row' : 'grid') + '" role="radiogroup" aria-label="' + p.title + '">' + opts + '</div></div>';
   }
 
   function open(from) {
@@ -94,7 +112,7 @@
     d.style.width = 'min(640px, calc(100vw - 24px))';
     d.innerHTML = '<div class="mg-dialog-head">' + icon('settings') + '<span class="t">Display settings</span>' +
       '<button type="button" class="mg-btn quiet small" data-close aria-label="Close">esc</button></div>' +
-      '<div class="mg-dialog-body mg-prefs">' + section('theme') + section('font') + section('labels') +
+      '<div class="mg-dialog-body mg-prefs">' + section('theme') + section('font') + section('labels') + section('motion') +
       '<p class="mg-muted" style="font-size: var(--fs-small)">Saved on this device only. Pages added to a session keep their own fonts and colours.</p></div>' +
       '<div style="height:10px"></div>';
     document.body.appendChild(d);
@@ -114,12 +132,74 @@
   }
 
   apply();
+  if (lessMotion && lessMotion.addEventListener) lessMotion.addEventListener('change', apply);
+  arrive();
+  animateClosing();
   document.addEventListener('click', function (e) {
     var b = e.target.closest && e.target.closest('[data-prefs]');
     if (b) open(b);
   });
   // Changed in another tab or frame (e.g. a viewer inside the player view).
   window.addEventListener('storage', function (e) {
-    if (!e.key || /^mg-(theme|font|labels)$/.test(e.key)) apply();
+    if (!e.key || /^mg-(theme|font|labels|motion)$/.test(e.key)) apply();
   });
+
+  // Popups switch off as they close: a .mg-dialog stays open with .mg-closing
+  // while the CSS plays (theme.css, "motion"), then really closes, so its
+  // "close" event (and whoever waits on it) comes once it has gone. Escape is
+  // routed the same way. Popups the tutorial is showing close at once, so the
+  // tour never measures one that's shrinking.
+  function animateClosing() {
+    if (typeof HTMLDialogElement === 'undefined') return;
+    var proto = HTMLDialogElement.prototype, close = proto.close;
+    proto.close = function (value) {
+      var d = this, args = arguments;
+      if (d.classList.contains('mg-closing')) return;   // already on its way
+      var anim = document.documentElement.getAttribute('data-anim');
+      if (!d.open || !d.classList.contains('mg-dialog') || d.classList.contains('mg-toured') || anim === 'off') return close.apply(d, args);
+      d.classList.add('mg-closing');
+      var done = false;
+      var finish = function () {
+        if (done) return;
+        done = true;
+        d.removeEventListener('animationend', onEnd);
+        d.classList.remove('mg-closing');
+        if (d.open) close.apply(d, args);
+      };
+      var onEnd = function (e) { if (e.target === d && !e.pseudoElement && /off|fade-out/.test(e.animationName)) finish(); };
+      d.addEventListener('animationend', onEnd);
+      setTimeout(finish, 400);   // in case the animation never runs
+    };
+    document.addEventListener('cancel', function (e) {
+      var d = e.target;
+      if (!(d instanceof HTMLDialogElement) || !d.classList.contains('mg-dialog')) return;
+      e.preventDefault();
+      d.close();
+    }, true);
+  }
+
+  // Opened from the other dashboard a moment ago (in this tab or a new one):
+  // this screen switches on. Only the dashboards themselves, not their frames.
+  function arrive() {
+    var here = location.pathname === '/' ? 'players' : /^\/admin(\/|$)/.test(location.pathname) ? 'referee' : '';
+    if (!here || window.top !== window) return;
+    var note = null;
+    try { note = JSON.parse(localStorage.getItem('mg-switch') || 'null'); } catch (e) {}
+    if (!note || note.to !== here || !(Date.now() - note.at < 4000)) return;
+    try { localStorage.removeItem('mg-switch'); } catch (e) {}
+    var root = document.documentElement, anim = root.getAttribute('data-anim');
+    if (anim === 'off') return;
+    root.classList.add('mg-arrive');
+    var done = function () { root.classList.remove('mg-arrive'); var st = document.querySelector('.mg-static'); if (st) st.remove(); };
+    document.addEventListener('DOMContentLoaded', function () {
+      if (anim === 'full') {
+        var st = document.createElement('div');
+        st.className = 'mg-static';
+        st.setAttribute('aria-hidden', 'true');
+        root.appendChild(st);   // beside <body>, which is still switched off
+      }
+      document.body.addEventListener('animationend', function (e) { if (e.target === document.body) done(); });
+    });
+    setTimeout(done, 1200);   // in case the animation never runs (a background tab)
+  }
 })();

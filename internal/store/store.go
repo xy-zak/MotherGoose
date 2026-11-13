@@ -132,6 +132,9 @@ type Session struct {
 	// Pages holds descriptions, tags and the per-player switch, keyed
 	// "shared/intro.html".
 	Pages map[string]PageMeta `json:"pages,omitempty"`
+	// Order is the order the referee dragged each scope's pages into. Pages
+	// not listed (added later, or by hand) follow the listed ones, by name.
+	Order map[Scope][]string `json:"order,omitempty"`
 }
 
 // FileInfo describes one page (HTML, PDF or image) in a session.
@@ -424,6 +427,7 @@ func (s *Store) GetSession(id string) (Summary, error) {
 				}
 			}
 		}
+		sortByOrder(files, meta.Order[sc])
 		sum.Files[sc] = files
 		for _, f := range files {
 			if f.Modified.After(sum.LastEdited) {

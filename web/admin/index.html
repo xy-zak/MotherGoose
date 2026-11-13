@@ -63,7 +63,24 @@
   }
   .files-panel.referee .file { --card-line: color-mix(in srgb, var(--referee) 50%, var(--line)); }
   .file:hover { background: color-mix(in srgb, var(--card-line) 14%, var(--bg)); }
-  .file[draggable="true"] { cursor: grab; }
+  /* Cards are dragged to reorder them, or onto the other column: a dotted
+     grip down the left edge says so. */
+  .files { position: relative; }
+  .file[draggable="true"] { cursor: grab; position: relative; padding-left: 18px; }
+  .file[draggable="true"]::before {
+    content: ""; position: absolute; left: 5px; top: 9px; bottom: 9px; width: 6px;
+    background: radial-gradient(circle, var(--line-strong) 1px, transparent 1.4px) 0 0 / 3px 4px;
+    opacity: .8;
+  }
+  .file[draggable="true"]:hover::before { background-image: radial-gradient(circle, var(--text) 1px, transparent 1.4px); }
+  .file.dragging { opacity: .35; border-style: dashed; }
+  /* Where a dragged page will land. */
+  .drop-mark {
+    position: absolute; left: 6px; right: 6px; height: 3px; z-index: 2; pointer-events: none;
+    background: var(--accent); box-shadow: 0 0 0 1px var(--bg), 0 0 8px color-mix(in srgb, var(--accent) 60%, transparent);
+  }
+  .drop-mark::before, .drop-mark::after { content: ""; position: absolute; top: -3px; width: 3px; height: 9px; background: var(--accent); }
+  .drop-mark::before { left: 0; } .drop-mark::after { right: 0; }
   .file .kindcol { padding-top: 2px; }
   .file .what { min-width: 0; display: grid; gap: 2px; }
   .file .title { font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -142,10 +159,31 @@
   .copy .acts { display: flex; gap: 2px; }
   .mg-section-label .mg-i { vertical-align: -2px; }
 
-  .welcome p + p { margin-top: 8px; }
-  .welcome ul { margin: 8px 0 0; padding-left: 2ch; }
-  .welcome .players { color: var(--players-ink); }
-  .welcome .referee { color: var(--referee-ink); }
+  /* Getting started: one thing per line, each row ruled off from the next. */
+  .welcome { display: grid; gap: 14px; }
+  .welcome .mg-section-label { margin: 4px 0 -6px; }
+  .gs-lead { font-size: var(--fs-title); line-height: 1.55; }
+  .gs-key {
+    display: flex; flex-wrap: wrap; align-items: center; gap: 6px 16px;
+    padding: 6px 10px; background: var(--bar); border: 1px dashed var(--line);
+    font-size: var(--fs-small);
+  }
+  .gs-key > span { display: inline-flex; align-items: center; gap: 6px; }
+  .gs-list { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); background: var(--bg); }
+  .gs-list li {
+    display: grid; grid-template-columns: 18px 13ch minmax(0, 1fr); gap: 4px 10px; align-items: baseline;
+    padding: 8px 10px; line-height: 1.75; border-bottom: 1px solid var(--line);
+  }
+  .gs-list li:nth-child(even) { background: color-mix(in srgb, var(--surface) 35%, var(--bg)); }
+  .gs-list li:last-child { border-bottom: 0; }
+  .gs-ic { align-self: start; padding-top: 3px; color: var(--accent); }
+  .gs-name { color: var(--text); }
+  .gs-steps li { grid-template-columns: 22px minmax(0, 1fr); }
+  .gs-n {
+    align-self: start; margin-top: 2px; width: 20px; height: 20px; display: grid; place-items: center;
+    font-weight: 800; font-size: var(--fs-small); color: var(--on-accent); background: var(--accent);
+  }
+  .gs-learn { display: flex; flex-wrap: wrap; gap: 8px; }
 
   /* overlays */
   .join-url { font-size: var(--fs-title); font-weight: 700; color: var(--players-ink); word-break: break-all; text-decoration: none; }
@@ -167,6 +205,8 @@
     .file .row-actions { grid-column: 2; margin-top: 4px; }
     .file .kindcol .lbl { display: none; }
     .add-player { margin-left: 0; width: 100%; }
+    .gs-list li { grid-template-columns: 18px minmax(0, 1fr); }
+    .gs-list .gs-text { grid-column: 2; }
     .copy { grid-template-columns: minmax(0, 1fr) auto; }
     .copy .acts { grid-column: 1 / -1; }
   }
@@ -181,7 +221,7 @@
     <span class="mg-actions">
       <button class="mg-btn" type="button" data-act="join" title="Address and QR code for players (j)"><svg class="mg-i" aria-hidden="true"><use href="/_mg/icons.svg#join"></use></svg><span class="lbl">Join Info</span></button>
       <button class="mg-btn hide-sm" type="button" data-act="data" title="Where everything is stored"><svg class="mg-i" aria-hidden="true"><use href="/_mg/icons.svg#data"></use></svg><span class="lbl">data folder</span></button>
-      <a class="mg-btn players" href="/" target="_blank" rel="noopener" title="The player dashboard: what players see (opens a new tab)"><svg class="mg-i" aria-hidden="true"><use href="/_mg/icons.svg#view"></use></svg><span class="lbl">player view</span></a>
+      <a class="mg-btn players" href="/" target="_blank" rel="noopener" data-switch="players" title="The player dashboard: what players see (opens a new tab)"><svg class="mg-i" aria-hidden="true"><use href="/_mg/icons.svg#view"></use></svg><span class="lbl">player view</span></a>
       <button class="mg-btn" data-prefs type="button" title="Display settings: theme, font, icons"><svg class="mg-i" aria-hidden="true"><use href="/_mg/icons.svg#settings"></use></svg><span class="lbl hide-sm">display</span></button>
       <button class="mg-btn" type="button" data-act="help" title="Help: keyboard shortcuts and the referee tutorial (?)"><svg class="mg-i" aria-hidden="true"><use href="/_mg/icons.svg#help"></use></svg><span class="lbl hide-sm">help</span></button>
     </span>

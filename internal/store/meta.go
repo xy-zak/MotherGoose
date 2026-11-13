@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"slices"
+	"sort"
 	"strings"
 	"unicode"
 	"unicode/utf8"
@@ -224,13 +226,19 @@ func setPage(m *Session, key string, pm PageMeta) {
 
 // movePageMeta follows a page that was moved or renamed (to == "" drops it).
 // A page moved to the referee's side stops being per-player, as if switched
-// off, so its players' copies are kept for when it comes back. The file
-// operation has already happened, so a failure here is logged rather than
-// reported as if the move itself had failed.
+// off, so its players' copies are kept for when it comes back. A page renamed
+// in place keeps its position; one moved to the other scope goes after that
+// scope's ordered pages until it is given a place. The file operation has
+// already happened, so a failure here is logged rather than reported as if
+// the move itself had failed.
 func (s *Store) movePageMeta(id string, sc Scope, name string, toScope Scope, toName string) {
 	_, err := s.updateMeta(id, func(m *Session) error {
+		changed := moveInOrder(m, sc, name, toScope, toName)
 		pm, ok := m.Pages[pageKey(sc, name)]
 		if !ok {
+			if changed {
+				return nil
+			}
 			return errNoChange
 		}
 		delete(m.Pages, pageKey(sc, name))
@@ -245,6 +253,79 @@ func (s *Store) movePageMeta(id string, sc Scope, name string, toScope Scope, to
 	if err != nil && err != errNoChange && !os.IsNotExist(err) {
 		log.Printf("updating details of %s/%s: %v", id, name, err)
 	}
+}
+
+// moveInOrder follows a moved, renamed or deleted page in the saved order,
+// reporting whether the order changed.
+func moveInOrder(m *Session, sc Scope, name string, toScope Scope, toName string) bool {
+	list := m.Order[sc]
+	at := slices.Index(list, name)
+	if at < 0 {
+		return false
+	}
+	if toName != "" && toScope == sc {
+		list[at] = toName
+		return true
+	}
+	list = slices.Delete(list, at, at+1)
+	if len(list) == 0 {
+		delete(m.Order, sc)
+	} else {
+		m.Order[sc] = list
+	}
+	return true
+}
+
+// MaxOrder is the most pages an order may list per scope.
+const MaxOrder = 1000
+
+// SetOrder sets the order one scope's pages are shown in, to the referee and
+// to players. Names that aren't pages of that scope are left out; pages not
+// named follow the named ones, by name.
+func (s *Store) SetOrder(id string, sc Scope, names []string) error {
+	if _, err := ParseScope(string(sc)); err != nil {
+		return err
+	}
+	if len(names) > MaxOrder {
+		return fmt.Errorf("%w: at most %d pages can be ordered", ErrInvalid, MaxOrder)
+	}
+	clean := []string{}
+	for _, n := range names {
+		if !slices.Contains(clean, n) && s.Exists(id, sc, n) {
+			clean = append(clean, n)
+		}
+	}
+	_, err := s.updateMeta(id, func(m *Session) error {
+		if m.Order == nil {
+			m.Order = map[Scope][]string{}
+		}
+		if len(clean) == 0 {
+			delete(m.Order, sc)
+		} else {
+			m.Order[sc] = clean
+		}
+		return nil
+	})
+	return err
+}
+
+// sortByOrder puts files (sorted by name) into the saved order: listed
+// pages first, in their order, then the rest as they were.
+func sortByOrder(files []FileInfo, order []string) {
+	if len(order) == 0 {
+		return
+	}
+	pos := make(map[string]int, len(order))
+	for i, n := range order {
+		pos[n] = i
+	}
+	rank := func(f FileInfo) int {
+		if i, ok := pos[f.Name]; ok {
+			return i
+		}
+		return len(order)
+	}
+	sort.SliceStable(files, func(i, j int) bool { return rank(files[i]) < rank(files[j]) })
 }
 
 var errNoChange = fmt.Errorf("no change")

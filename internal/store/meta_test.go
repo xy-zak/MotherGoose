@@ -165,3 +165,63 @@ func findFile(fs []FileInfo, name string) *FileInfo {
 }
 
 func timeIn(sec int) time.Time { return time.Now().Add(time.Duration(sec) * time.Second) }
+
+func TestPageOrder(t *testing.T) {
+	s := newStore(t)
+	sess, _ := s.CreateSession("Test", "")
+	for _, n := range []string{"a.html", "b.html", "c.html", "d.html"} {
+		s.SaveFile(sess.ID, Shared, n, strings.NewReader("<p>"))
+	}
+	s.SaveFile(sess.ID, GM, "notes.html", strings.NewReader("<p>"))
+	names := func(sc Scope) string {
+		t.Helper()
+		sum, err := s.GetSession(sess.ID)
+		if err != nil {
+			t.Fatal(err)
+		}
+		var out []string
+		for _, f := range sum.Files[sc] {
+			out = append(out, f.Name)
+		}
+		return strings.Join(out, ",")
+	}
+	if got := names(Shared); got != "a.html,b.html,c.html,d.html" {
+		t.Fatalf("by name = %s", got)
+	}
+	// Unknown and repeated names are dropped; unlisted pages follow, by name.
+	if err := s.SetOrder(sess.ID, Shared, []string{"c.html", "nope.html", "a.html", "c.html", "notes.html"}); err != nil {
+		t.Fatal(err)
+	}
+	if got := names(Shared); got != "c.html,a.html,b.html,d.html" {
+		t.Fatalf("ordered = %s", got)
+	}
+	// A rename keeps its place.
+	if err := s.MoveFile(sess.ID, Shared, "a.html", Shared, "z.html"); err != nil {
+		t.Fatal(err)
+	}
+	if got := names(Shared); got != "c.html,z.html,b.html,d.html" {
+		t.Fatalf("after rename = %s", got)
+	}
+	// Moved to the referee: out of the players' order, after the referee's ordered pages.
+	s.SetOrder(sess.ID, GM, []string{"notes.html"})
+	if err := s.MoveFile(sess.ID, Shared, "c.html", GM, ""); err != nil {
+		t.Fatal(err)
+	}
+	if got := names(Shared); got != "z.html,b.html,d.html" {
+		t.Fatalf("players after move = %s", got)
+	}
+	if got := names(GM); got != "notes.html,c.html" {
+		t.Fatalf("referee after move = %s", got)
+	}
+	// Deleted: gone from the order too.
+	if err := s.DeleteFile(sess.ID, Shared, "z.html"); err != nil {
+		t.Fatal(err)
+	}
+	meta, _ := s.loadMeta(sess.ID)
+	if got := strings.Join(meta.Order[Shared], ","); got != "" {
+		t.Fatalf("order after delete = %q", got)
+	}
+	if err := s.SetOrder(sess.ID, Scope("nope"), nil); !errors.Is(err, ErrInvalid) {
+		t.Fatalf("bad scope: %v", err)
+	}
+}
