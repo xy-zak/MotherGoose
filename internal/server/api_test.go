@@ -115,3 +115,26 @@ func TestEndAndDeleteSession(t *testing.T) {
 		t.Fatalf("sessions left: %v", list)
 	}
 }
+
+// Both "open folder" buttons open a folder on the host, and only for the host.
+func TestRevealFolders(t *testing.T) {
+	f := setup(t)
+	var opened []string
+	f.srv.openFolder = func(dir string) error { opened = append(opened, dir); return nil }
+	if rec := f.request("POST", "/api/admin/data/reveal", "", nil); rec.Code != 204 {
+		t.Fatalf("data folder: %d %s", rec.Code, rec.Body.String())
+	}
+	if rec := f.request("POST", "/api/admin/sessions/"+f.id+"/reveal", "", nil); rec.Code != 204 {
+		t.Fatalf("session folder: %d %s", rec.Code, rec.Body.String())
+	}
+	sess, _ := f.st.SessionDir(f.id)
+	if len(opened) != 2 || opened[0] != f.st.Root() || opened[1] != sess {
+		t.Fatalf("opened %v", opened)
+	}
+	if rec := f.request("POST", "/api/admin/data/reveal", "", func(r *http.Request) { r.RemoteAddr = player }); rec.Code != 403 {
+		t.Errorf("a player opening the data folder = %d", rec.Code)
+	}
+	if len(opened) != 2 {
+		t.Fatal("a player's request opened a folder")
+	}
+}

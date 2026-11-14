@@ -21,6 +21,9 @@ type Server struct {
 	// isHost decides whether a request comes from the server machine.
 	// Replaceable in tests.
 	isHost func(*http.Request) bool
+	// openFolder shows a folder in the computer's file explorer. Replaceable
+	// in tests, which mustn't open windows.
+	openFolder func(string) error
 
 	injectJS []byte
 
@@ -49,7 +52,7 @@ func New(st *store.Store, port int) *Server {
 	if err != nil {
 		panic(err)
 	}
-	s := &Server{store: st, hub: NewHub(), port: port, isHost: isHostRequest, injectJS: js}
+	s := &Server{store: st, hub: NewHub(), port: port, isHost: isHostRequest, openFolder: OpenInOS, injectJS: js}
 	s.fp = st.Fingerprint()
 	s.notify = &notifier{send: s.sendChanged}
 	st.OnEntriesSaved(s.notify.entriesSaved)
@@ -82,6 +85,7 @@ func (s *Server) routes() *http.ServeMux {
 	m.HandleFunc("POST /api/admin/sessions/{id}/activate", s.hostOnly(s.apiActivate))
 	m.HandleFunc("DELETE /api/admin/active", s.hostOnly(s.apiDeactivate))
 	m.HandleFunc("POST /api/admin/sessions/{id}/reveal", s.hostOnly(s.apiReveal))
+	m.HandleFunc("POST /api/admin/data/reveal", s.hostOnly(s.apiRevealData))
 	m.HandleFunc("POST /api/admin/sessions/{id}/files", s.hostOnly(s.apiUpload))
 	m.HandleFunc("PUT /api/admin/sessions/{id}/order", s.hostOnly(s.apiSetOrder))
 	m.HandleFunc("POST /api/admin/sessions/{id}/players", s.hostOnly(s.apiAddPlayer))

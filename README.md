@@ -83,7 +83,7 @@ The dashboard has two panes. The sessions list is on the left and the selected s
 - **Reset entries** (HTML pages and fillable PDFs): clear everything typed into the page.
 - **Delete**: remove the file.
 
-Deleting or resetting always asks first. **Join Info** in the top bar shows the players' address and a QR code, and **data folder** shows where everything is stored.
+Deleting or resetting always asks first. **Join Info** in the top bar shows the players' address and a QR code, and **data folder** shows where everything is stored, with a button to open it in your file explorer.
 
 **edit** on a session changes its name or game type. On the host computer, the player view (`/`) also shows the referee pages, in their own orange group of tabs. On every other device they are hidden and refused.
 

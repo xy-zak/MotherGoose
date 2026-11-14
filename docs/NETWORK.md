@@ -90,6 +90,7 @@ Everything returns JSON except the pages themselves. Routes marked *host* answer
 | `GET /api/admin/sessions` | host | Every session, as summaries. |
 | `GET /api/admin/sessions/{id}` | host | One session: files per scope, `hasState`, `playerState`, `lastEdited`. |
 | `POST / PATCH / DELETE /api/admin/sessions/{id}` | host | Create, rename or change game type, delete. |
+| `POST /api/admin/sessions/{id}/reveal`, `POST /api/admin/data/reveal` | host | Open the session's folder, or the whole data folder, in the computer's file explorer. |
 | `POST /api/admin/sessions/{id}/activate`, `DELETE /api/admin/active` | host | Go live, end the session. |
 | `POST /api/admin/sessions/{id}/files` | host | Multipart upload: `scope` plus one or more `files`. |
 | `PUT /api/admin/sessions/{id}/order` | host | `{"scope", "names": [...]}`: page order. |

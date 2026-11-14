@@ -227,15 +227,14 @@ function renderRight() {
       '<div class="head-row"><h1>' + esc(s.name) + '</h1>' + (s.gameType ? gameTag(s.gameType) : '<span class="mg-muted" style="font-size: var(--fs-small)">no game type</span>') + '</div>' +
       '<div class="head-meta">' + sh + ' for players · ' + gm + ' for the referee · edited ' + esc(agoText(s.lastEdited)) + '</div>' +
       '<div class="actions">' +
-        (s.active
-          ? '<a class="mg-btn players" href="/" target="_blank" rel="noopener" data-switch="players" title="The player dashboard: what players see">' + withIcon('view', 'player view') + '</a>'
-          : '<button class="mg-btn go-live" data-act="activate" data-id="' + esc(s.id) + '">' + withIcon('live', 'go live') + '</button>') +
-        '<span class="sep"></span>' +
         '<button class="mg-btn quiet" data-act="edit-session" title="Change the name or game type">' + withIcon('edit', 'edit') + '</button>' +
         '<button class="mg-btn quiet" data-act="reveal" title="Open this session\'s folder">' + withIcon('folder', 'open folder') + '</button>' +
         '<button class="mg-btn quiet" data-act="session-info" title="Session details">' + withIcon('info', 'info') + '</button>' +
         '<span class="mg-grow"></span>' +
-        (s.active ? '<button class="mg-btn end-session" data-act="deactivate" title="End the session: players go back to a waiting screen">' + withIcon('end', 'end session') + '</button>' : '') +
+        // Going live and ending share a place: the one that applies shows.
+        (s.active
+          ? '<button class="mg-btn end-session" data-act="deactivate" title="End the session: players go back to a waiting screen">' + withIcon('end', 'end session') + '</button>'
+          : '<button class="mg-btn go-live" data-act="activate" data-id="' + esc(s.id) + '" title="Put this session on every player\'s screen">' + withIcon('live', 'go live') + '</button>') +
         '<button class="mg-btn danger" data-act="delete-session" title="Delete this session">' + withIcon('delete', 'delete') + '</button>' +
       '</div>' +
       party(s) +
@@ -282,7 +281,7 @@ document.addEventListener('click', attempt(async (e) => {
   const row = btn.closest('.file');
   const act = btn.dataset.act;
   if (act === 'join') joinOverlay();
-  else if (act === 'data') dataOverlay();
+  else if (act === 'data') await dataOverlay();
   else if (act === 'help') await helpOverlay();
   else if (act === 'tour') tutorial();
   else if (act === 'activate') {

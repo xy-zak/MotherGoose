@@ -170,7 +170,16 @@ func (s *Server) apiReveal(w http.ResponseWriter, r *http.Request) {
 		storeError(w, err)
 		return
 	}
-	if err := OpenInOS(dir); err != nil {
+	s.reveal(w, dir)
+}
+
+// apiRevealData opens the data folder itself in the file explorer.
+func (s *Server) apiRevealData(w http.ResponseWriter, r *http.Request) {
+	s.reveal(w, s.store.Root())
+}
+
+func (s *Server) reveal(w http.ResponseWriter, dir string) {
+	if err := s.openFolder(dir); err != nil {
 		jsonError(w, http.StatusInternalServerError, err.Error())
 		return
 	}

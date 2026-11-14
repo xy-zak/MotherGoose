@@ -46,8 +46,8 @@ function tourSteps() {
       '<ul><li><b>MOTHERGOOSE</b>: back to the start, with no session open</li>' +
       '<li>the <b class="referee">referee\'s dashboard</b> label: this page only opens on this computer, the host</li>' +
       '<li>' + ic('join') + ' <b>Join Info</b>: the address players open (<kbd>j</kbd>)</li>' +
-      '<li>' + ic('data') + ' <b>data folder</b>: where everything is kept on this computer</li>' +
       '<li>' + ic('view') + ' <b class="players">player view</b>: see exactly what players see</li>' +
+      '<li>' + ic('data') + ' <b>data folder</b>: where everything is kept on this computer, with a button to open it</li>' +
       '<li>' + ic('settings') + ' <b>display</b>: theme, font and icons, for this device</li>' +
       '<li>' + ic('help') + ' <b>help</b>: shortcuts and this tutorial (<kbd>?</kbd>)</li></ul>' },
     { section: 'Top bar', title: 'Join Info', scene: 'join', target: (d) => d, text:
@@ -62,10 +62,10 @@ function tourSteps() {
 
     { section: 'Session', title: 'The open session', target: ['#right > .mg-panel:first-child > .head-row', '#right > .mg-panel:first-child > .head-meta', '#right > .mg-panel:first-child > .actions'], text:
       '<p>Its name, game type and page counts, with:</p>' +
-      '<ul><li>' + ic('live') + ' <b>go live</b>: put it on every player\'s screen. While it\'s live, <b>end session</b> (next to <b>delete</b>) sends players back to a waiting screen</li>' +
-      '<li>' + ic('edit') + ' <b>edit</b> the name or game type (<kbd>e</kbd>)</li>' +
+      '<ul><li>' + ic('edit') + ' <b>edit</b> the name or game type (<kbd>e</kbd>)</li>' +
       '<li>' + ic('folder') + ' <b>open folder</b> on this computer, to add files by hand</li>' +
       '<li>' + ic('info') + ' <b>info</b>: id, party, dates and where it\'s stored</li>' +
+      '<li>' + ic('live') + ' <b>go live</b>: put it on every player\'s screen. While it\'s live, the same button is <b>end session</b>, which sends players back to a waiting screen</li>' +
       '<li>' + ic('delete') + ' <b>delete</b> it with all its pages and entries (it asks first)</li></ul>' },
 
     { section: 'Party', title: 'The party', target: '.party', text:

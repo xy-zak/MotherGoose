@@ -22,16 +22,18 @@ export function joinOverlay() {
   overlay({ title: 'Join Info', icon: 'join', body });
 }
 
-export function dataOverlay() {
-  overlay({
+export async function dataOverlay() {
+  const v = await overlay({
     title: 'Data folder',
     icon: 'data',
     wide: true,
+    actions: [{ label: 'open folder', value: 'reveal', icon: 'folder', kind: 'primary' }],
     body: kv([['location', '<code>' + esc(A.info ? A.info.dataDir : '') + '</code>']]) +
       '<pre class="tree">data/\n  config.json              which session is live\n  sessions/\n    the-sunken-keep/\n      session.json         name, game type, page descriptions and tags\n' +
       '      shared/              players\' pages\n      gm/                  referee\'s pages (this computer only)\n      state/               what people typed (managed for you)\n        players/           each player\'s copy of per-player pages</pre>' +
       '<p class="mg-muted">Copy .html, .pdf, .png or .jpg files into <code>shared/</code> (players) or <code>gm/</code> (referee) and they appear within a couple of seconds. Back up by copying the whole folder.</p>'
   });
+  if (v === 'reveal') await api('POST', '/api/admin/data/reveal');
 }
 
 export async function editSession() {
