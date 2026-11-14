@@ -102,6 +102,9 @@ func run(port int, dataDir string, openBrowser bool) error {
 		}
 		fmt.Printf("  %-28s %s\n", label, u)
 	}
+	if u := server.LocalNameURL(port); u != "" && len(urls) > 0 {
+		fmt.Printf("  %-28s %s  (if the network supports it)\n", "Players (by name)", u)
+	}
 	fmt.Printf("\n  Data folder  %s\n", st.Root())
 	fmt.Printf("  Press Ctrl+C to stop.\n\n")
 

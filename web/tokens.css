@@ -1,0 +1,163 @@
+/* MotherGoose design tokens: the Catppuccin palettes, the semantic colours,
+ * text sizes and fonts, with no styles of their own. theme.css builds the
+ * app on them; pages that ask for it (<meta name="mothergoose" content="theme">)
+ * and Markdown pages get them too, so they follow each reader's theme and font.
+ *
+ * Flavours: Latte (light), Frappé, Macchiato, Mocha (dark). With no choice
+ * made (data-theme unset) it follows the system: Latte or Mocha.
+ * Components only use the semantic tokens (--bg, --accent…), never --ctp-*.
+ */
+
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("fonts/jetbrains-mono.woff2") format("woff2");
+  font-weight: 100 800;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+2500-259F, U+25A0-25FF, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("fonts/jetbrains-mono-latin-ext.woff2") format("woff2");
+  font-weight: 100 800;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("fonts/jetbrains-mono-italic.woff2") format("woff2");
+  font-weight: 100 800;
+  font-style: italic;
+  font-display: swap;
+}
+
+/* ---- palettes -------------------------------------------------------------- */
+
+:root, :root[data-theme="latte"] {
+  --ctp-rosewater: #dc8a78; --ctp-flamingo: #dd7878; --ctp-pink: #ea76cb; --ctp-mauve: #8839ef;
+  --ctp-red: #d20f39; --ctp-maroon: #e64553; --ctp-peach: #fe640b; --ctp-yellow: #df8e1d;
+  --ctp-green: #40a02b; --ctp-teal: #179299; --ctp-sky: #04a5e5; --ctp-sapphire: #209fb5;
+  --ctp-blue: #1e66f5; --ctp-lavender: #7287fd;
+  --ctp-text: #4c4f69; --ctp-subtext1: #5c5f77; --ctp-subtext0: #6c6f85;
+  --ctp-overlay2: #7c7f93; --ctp-overlay1: #8c8fa1; --ctp-overlay0: #9ca0b0;
+  --ctp-surface2: #acb0be; --ctp-surface1: #bcc0cc; --ctp-surface0: #ccd0da;
+  --ctp-base: #eff1f5; --ctp-mantle: #e6e9ef; --ctp-crust: #dce0e8;
+  --ctp-on-accent: #eff1f5;   /* text on a filled accent: base, for contrast on Latte */
+  --ctp-warn-ink: #a0620a;    /* yellow is too light for text on Latte */
+  --ctp-referee-ink: #b5470b; /* likewise peach */
+  --ctp-live-fill: #2f7d1f;   /* Latte's green is too light to put text on */
+  --ctp-on-live: #eff1f5;
+  color-scheme: light;
+}
+:root[data-theme="frappe"] {
+  --ctp-rosewater: #f2d5cf; --ctp-flamingo: #eebebe; --ctp-pink: #f4b8e4; --ctp-mauve: #ca9ee6;
+  --ctp-red: #e78284; --ctp-maroon: #ea999c; --ctp-peach: #ef9f76; --ctp-yellow: #e5c890;
+  --ctp-green: #a6d189; --ctp-teal: #81c8be; --ctp-sky: #99d1db; --ctp-sapphire: #85c1dc;
+  --ctp-blue: #8caaee; --ctp-lavender: #babbf1;
+  --ctp-text: #c6d0f5; --ctp-subtext1: #b5bfe2; --ctp-subtext0: #a5adce;
+  --ctp-overlay2: #949cbb; --ctp-overlay1: #838ba7; --ctp-overlay0: #737994;
+  --ctp-surface2: #626880; --ctp-surface1: #51576d; --ctp-surface0: #414559;
+  --ctp-base: #303446; --ctp-mantle: #292c3c; --ctp-crust: #232634;
+  --ctp-on-accent: #232634; --ctp-warn-ink: #e5c890; --ctp-referee-ink: #ef9f76; --ctp-live-fill: #a6d189; --ctp-on-live: #232634;
+  color-scheme: dark;
+}
+:root[data-theme="macchiato"] {
+  --ctp-rosewater: #f4dbd6; --ctp-flamingo: #f0c6c6; --ctp-pink: #f5bde6; --ctp-mauve: #c6a0f6;
+  --ctp-red: #ed8796; --ctp-maroon: #ee99a0; --ctp-peach: #f5a97f; --ctp-yellow: #eed49f;
+  --ctp-green: #a6da95; --ctp-teal: #8bd5ca; --ctp-sky: #91d7e3; --ctp-sapphire: #7dc4e4;
+  --ctp-blue: #8aadf4; --ctp-lavender: #b7bdf8;
+  --ctp-text: #cad3f5; --ctp-subtext1: #b8c0e0; --ctp-subtext0: #a5adcb;
+  --ctp-overlay2: #939ab7; --ctp-overlay1: #8087a2; --ctp-overlay0: #6e738d;
+  --ctp-surface2: #5b6078; --ctp-surface1: #494d64; --ctp-surface0: #363a4f;
+  --ctp-base: #24273a; --ctp-mantle: #1e2030; --ctp-crust: #181926;
+  --ctp-on-accent: #181926; --ctp-warn-ink: #eed49f; --ctp-referee-ink: #f5a97f; --ctp-live-fill: #a6da95; --ctp-on-live: #181926;
+  color-scheme: dark;
+}
+:root[data-theme="mocha"] {
+  --ctp-rosewater: #f5e0dc; --ctp-flamingo: #f2cdcd; --ctp-pink: #f5c2e7; --ctp-mauve: #cba6f7;
+  --ctp-red: #f38ba8; --ctp-maroon: #eba0ac; --ctp-peach: #fab387; --ctp-yellow: #f9e2af;
+  --ctp-green: #a6e3a1; --ctp-teal: #94e2d5; --ctp-sky: #89dceb; --ctp-sapphire: #74c7ec;
+  --ctp-blue: #89b4fa; --ctp-lavender: #b4befe;
+  --ctp-text: #cdd6f4; --ctp-subtext1: #bac2de; --ctp-subtext0: #a6adc8;
+  --ctp-overlay2: #9399b2; --ctp-overlay1: #7f849c; --ctp-overlay0: #6c7086;
+  --ctp-surface2: #585b70; --ctp-surface1: #45475a; --ctp-surface0: #313244;
+  --ctp-base: #1e1e2e; --ctp-mantle: #181825; --ctp-crust: #11111b;
+  --ctp-on-accent: #11111b; --ctp-warn-ink: #f9e2af; --ctp-referee-ink: #fab387; --ctp-live-fill: #a6e3a1; --ctp-on-live: #11111b;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {  /* auto + dark system = Mocha */
+    --ctp-rosewater: #f5e0dc; --ctp-flamingo: #f2cdcd; --ctp-pink: #f5c2e7; --ctp-mauve: #cba6f7;
+    --ctp-red: #f38ba8; --ctp-maroon: #eba0ac; --ctp-peach: #fab387; --ctp-yellow: #f9e2af;
+    --ctp-green: #a6e3a1; --ctp-teal: #94e2d5; --ctp-sky: #89dceb; --ctp-sapphire: #74c7ec;
+    --ctp-blue: #89b4fa; --ctp-lavender: #b4befe;
+    --ctp-text: #cdd6f4; --ctp-subtext1: #bac2de; --ctp-subtext0: #a6adc8;
+    --ctp-overlay2: #9399b2; --ctp-overlay1: #7f849c; --ctp-overlay0: #6c7086;
+    --ctp-surface2: #585b70; --ctp-surface1: #45475a; --ctp-surface0: #313244;
+    --ctp-base: #1e1e2e; --ctp-mantle: #181825; --ctp-crust: #11111b;
+    --ctp-on-accent: #11111b; --ctp-warn-ink: #f9e2af; --ctp-referee-ink: #fab387; --ctp-live-fill: #a6e3a1; --ctp-on-live: #11111b;
+    color-scheme: dark;
+  }
+}
+
+/* ---- semantic tokens --------------------------------------------------------- */
+
+:root {
+  --bg: var(--ctp-base);          /* panels and pages */
+  --bar: var(--ctp-mantle);       /* status / info bars */
+  --deep: var(--ctp-crust);       /* inputs, viewer backdrops */
+  --surface: var(--ctp-surface0); /* default buttons, hovered rows */
+  --line: var(--ctp-surface1);    /* panel borders and dividers */
+  --line-strong: var(--ctp-surface2);
+  --text: var(--ctp-text);
+  --muted: var(--ctp-subtext0);   /* secondary text (overlay0 is too faint for text) */
+  --accent: var(--ctp-mauve);     /* primary actions, focus, the active tab */
+  --on-accent: var(--ctp-on-accent);
+  --live: var(--ctp-green);
+  --live-fill: var(--ctp-live-fill);  /* background for anything that says "live" */
+  --on-live: var(--ctp-on-live);
+  --warn: var(--ctp-yellow);
+  --warn-ink: var(--ctp-warn-ink);
+  --danger: var(--ctp-red);
+  --info: var(--ctp-blue);
+  /* Who a page is for. Used for tags, buttons, panel fills and tabs. */
+  --players: var(--ctp-blue);
+  --players-ink: var(--ctp-blue);
+  --referee: var(--ctp-peach);
+  --referee-ink: var(--ctp-referee-ink);
+
+  --font: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  /* The only three text sizes in the app. Everything uses one of these. */
+  --fs-title: 14px;   /* headings, panel titles, overlay titles, section labels */
+  --fs-body: 13px;    /* text, buttons, inputs, tabs, bars */
+  --fs-small: 11.5px; /* metadata, hints, tags, counts */
+  --track: 0;  /* extra letter spacing, for the fonts that read better with it */
+  --bar-h: 28px;
+  --head-h: 40px;   /* page headers: tall enough for full-size buttons */
+  --focus: 0 0 0 1px var(--bg), 0 0 0 2px var(--accent);
+}
+
+/* ---- fonts ------------------------------------------------------------------
+ * Chosen per device in Display settings. Atkinson Hyperlegible was designed
+ * for low vision; OpenDyslexic for dyslexic readers.
+ */
+@font-face { font-family: "Atkinson Hyperlegible Mono"; src: url("fonts/atkinson-hyperlegible-mono-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-display: swap; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: "Atkinson Hyperlegible Mono"; src: url("fonts/atkinson-hyperlegible-mono-latin-700-normal.woff2") format("woff2"); font-weight: 500 800; font-display: swap; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: "Atkinson Hyperlegible Mono"; src: url("fonts/atkinson-hyperlegible-mono-latin-ext-400-normal.woff2") format("woff2"); font-weight: 400; font-display: swap; unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: "Atkinson Hyperlegible Mono"; src: url("fonts/atkinson-hyperlegible-mono-latin-ext-700-normal.woff2") format("woff2"); font-weight: 500 800; font-display: swap; unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: "Atkinson Hyperlegible Next"; src: url("fonts/atkinson-hyperlegible-next-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-display: swap; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: "Atkinson Hyperlegible Next"; src: url("fonts/atkinson-hyperlegible-next-latin-700-normal.woff2") format("woff2"); font-weight: 500 800; font-display: swap; unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD; }
+@font-face { font-family: "Atkinson Hyperlegible Next"; src: url("fonts/atkinson-hyperlegible-next-latin-ext-400-normal.woff2") format("woff2"); font-weight: 400; font-display: swap; unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: "Atkinson Hyperlegible Next"; src: url("fonts/atkinson-hyperlegible-next-latin-ext-700-normal.woff2") format("woff2"); font-weight: 500 800; font-display: swap; unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF; }
+@font-face { font-family: "OpenDyslexic"; src: url("fonts/opendyslexic-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "OpenDyslexic"; src: url("fonts/opendyslexic-latin-700-normal.woff2") format("woff2"); font-weight: 500 800; font-display: swap; }
+
+:root[data-font="hyper-mono"] { --font: "Atkinson Hyperlegible Mono", ui-monospace, monospace; }
+:root[data-font="hyper"] { --font: "Atkinson Hyperlegible Next", system-ui, sans-serif; --track: .01em; }
+:root[data-font="dyslexic"] { --font: "OpenDyslexic", "Atkinson Hyperlegible Next", sans-serif; --track: .02em; }
+:root[data-font="system"] { --font: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+/* OpenDyslexic runs large, so the whole scale steps down together and the
+   sizes stay consistent with each other. */
+:root[data-font="dyslexic"] { --fs-title: 13px; --fs-body: 12px; --fs-small: 10.5px; }
+

@@ -5,6 +5,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
+	"strings"
+
+	"github.com/coder/websocket"
 
 	"mothergoose/internal/store"
 )
@@ -106,7 +109,7 @@ func (s *Server) apiMe(w http.ResponseWriter, r *http.Request) {
 		delete(who, id)
 	} else {
 		if !(store.PageAccess{Players: players}).HasPlayer(*pid) {
-			jsonError(w, http.StatusBadRequest, fmt.Sprintf("There is no player %q in this session.", *pid))
+			jsonError(w, http.StatusBadRequest, fmt.Sprintf("There is no player %q in this campaign.", *pid))
 			return
 		}
 		who[id] = *pid
@@ -148,7 +151,7 @@ func (s *Server) copyFor(r *http.Request, id string, sc store.Scope, name, playe
 	}
 	if s.isHost(r) {
 		if player != "" && !a.HasPlayer(player) {
-			return "", &accessError{http.StatusNotFound, "No such player", fmt.Sprintf("There is no player %q in this session.", player)}
+			return "", &accessError{http.StatusNotFound, "No such player", fmt.Sprintf("There is no player %q in this campaign.", player)}
 		}
 		return player, nil
 	}
@@ -175,6 +178,48 @@ func (s *Server) accessFail(w http.ResponseWriter, r *http.Request, err error) {
 	default:
 		jsonError(w, ae.status, ae.msg)
 	}
+}
+
+// enforceAccess closes the sockets of players' devices that may no longer
+// see the page they have open: one hidden, or no longer shown to the player
+// they picked. Call it under syncMu after changing who sees what.
+func (s *Server) enforceAccess(id string) {
+	access := map[string]store.PageAccess{}
+	for _, room := range s.hub.roomsWithPrefix(id + "/") {
+		parts := strings.SplitN(strings.TrimPrefix(room, id+"/"), "/", 3)
+		if len(parts) < 2 {
+			continue
+		}
+		page := parts[0] + "/" + parts[1]
+		if _, done := access[page]; done {
+			continue
+		}
+		sc, err := store.ParseScope(parts[0])
+		if err != nil {
+			continue
+		}
+		a, err := s.store.Access(id, sc, parts[1])
+		if err != nil {
+			continue // the page went: its own "gone" handles that
+		}
+		access[page] = a
+	}
+	s.hub.kick(func(k string) bool { return strings.HasPrefix(k, id+"/") },
+		func(room string, c *client) bool {
+			if c.host {
+				return false
+			}
+			parts := strings.SplitN(strings.TrimPrefix(room, id+"/"), "/", 3)
+			a, ok := access[parts[0]+"/"+parts[1]]
+			return ok && !a.Visible(c.player)
+		}, map[string]string{"type": "gone"}, websocket.StatusPolicyViolation, "this page is no longer shown to you")
+}
+
+// isPlayerRoom reports whether a room is one of a player's copies in a session.
+func isPlayerRoom(room, id, player string) bool {
+	rest, ok := strings.CutPrefix(room, id+"/")
+	parts := strings.Split(rest, "/")
+	return ok && len(parts) == 3 && parts[2] == player
 }
 
 // ---- roster (referee only) ---------------------------------------------------
@@ -234,6 +279,10 @@ func (s *Server) apiRemovePlayer(w http.ResponseWriter, r *http.Request) {
 	err := s.store.RemovePlayer(id, pid, del)
 	if err == nil {
 		s.hub.toPlayer(id, pid, map[string]string{"type": "gone"})
+		// Their own copies, and pages that were shown only to them.
+		s.hub.kick(func(k string) bool { return isPlayerRoom(k, id, pid) },
+			func(_ string, c *client) bool { return !c.host }, nil, websocket.StatusPolicyViolation, "player removed")
+		s.enforceAccess(id)
 	}
 	s.syncMu.Unlock()
 	if err != nil {

@@ -16,16 +16,29 @@ func (s *Server) apiActive(w http.ResponseWriter, r *http.Request) {
 	if id := s.store.Active(); id != "" {
 		if sum, err := s.store.GetSession(id); err == nil {
 			resp["session"] = map[string]string{"id": sum.ID, "name": sum.Name, "gameType": sum.GameType}
-			files := append([]store.FileInfo{}, sum.Files[store.Shared]...)
+			me := s.me(r, id, sum.Players)
+			files := []store.FileInfo{}
+			for _, f := range sum.Files[store.Shared] {
+				if host {
+					files = append(files, f)
+				} else if f.Access(sum.Players).Visible(me) {
+					// Who else a page is shown to is the referee's business.
+					f.Hidden, f.Audience, f.Allowed = false, store.AudienceAll, []string{}
+					files = append(files, f)
+				}
+			}
 			if host {
 				files = append(files, sum.Files[store.GM]...)
 			}
 			for i := range files {
 				files[i].PlayerState = nil // who has filled in what is the referee's business
+				// Only when the file itself changed: Modified also moves when
+				// anyone's entries are saved, which no player should learn.
+				files[i].Modified = files[i].FileModified
 			}
 			resp["files"] = files
 			resp["players"] = sum.Players
-			if me := s.me(r, id, sum.Players); me != "" {
+			if me != "" {
 				resp["me"] = me
 			}
 		}
@@ -41,6 +54,7 @@ func (s *Server) apiInfo(w http.ResponseWriter, r *http.Request) {
 	}
 	writeJSON(w, http.StatusOK, map[string]any{
 		"port": s.port, "urls": urls, "primary": primary, "dataDir": s.store.Root(),
+		"localUrl": LocalNameURL(s.port),
 	})
 }
 
@@ -51,7 +65,7 @@ func (s *Server) apiQR(w http.ResponseWriter, r *http.Request) {
 		target = urls[0]
 	}
 	if u := r.URL.Query().Get("u"); u != "" {
-		for _, known := range urls {
+		for _, known := range append(urls, LocalNameURL(s.port)) {
 			if u == known {
 				target = u
 			}

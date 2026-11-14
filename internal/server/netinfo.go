@@ -1,8 +1,10 @@
 package server
 
 import (
+	"fmt"
 	"net"
 	"net/http"
+	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -111,4 +113,25 @@ func LANURLs(port int) []string {
 		}
 	}
 	return urls
+}
+
+// localLabelRe is one DNS label: what <name>.local needs to be reachable.
+var localLabelRe = regexp.MustCompile(`^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$`)
+
+// LocalNameURL is the players' address by this computer's name on the local
+// network, http://<name>.local:<port>/. Many networks answer to it (macOS,
+// most Linux desktops and Windows 10+ announce their name), and unlike an IP
+// address it stays the same from one game night to the next. It is "" when
+// the computer's name can't be used that way. Whether a given device can
+// reach it is only known by trying: the dashboard checks before offering it
+// first.
+func LocalNameURL(port int) string {
+	return localNameURL(machineName(), port)
+}
+
+func localNameURL(name string, port int) string {
+	if !localLabelRe.MatchString(name) {
+		return ""
+	}
+	return fmt.Sprintf("http://%s.local:%d/", name, port)
 }

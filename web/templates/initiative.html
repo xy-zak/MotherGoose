@@ -1,0 +1,172 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="mothergoose" content="theme">
+<title>Turn order</title>
+<style>
+  /* MotherGoose look: its theme's tokens when MotherGoose serves the page,
+     Catppuccin Latte / Mocha when the page is opened on its own. */
+  :root {
+    --bg: #eff1f5; --bar: #e6e9ef; --deep: #dce0e8; --surface: #ccd0da; --line: #bcc0cc; --line-strong: #acb0be;
+    --text: #4c4f69; --muted: #6c6f85; --accent: #8839ef; --on-accent: #eff1f5;
+    --players: #1e66f5; --referee: #fe640b; --live: #40a02b; --warn: #df8e1d; --danger: #d20f39;
+    --font: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+    --fs-title: 14px; --fs-body: 13px; --fs-small: 11.5px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1e1e2e; --bar: #181825; --deep: #11111b; --surface: #313244; --line: #45475a; --line-strong: #585b70;
+      --text: #cdd6f4; --muted: #a6adc8; --accent: #cba6f7; --on-accent: #11111b;
+      --players: #89b4fa; --referee: #fab387; --live: #a6e3a1; --warn: #f9e2af; --danger: #f38ba8;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 400 var(--fs-body)/1.5 var(--font); }
+  .page { max-width: 900px; margin: 0 auto; padding: 14px 14px 40px; display: grid; gap: 14px; }
+  .head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+  .head .grow { flex: 1 1 220px; }
+  .big { font-size: calc(var(--fs-title) + 6px); font-weight: 700; width: 100%; }
+  /* Panels: a 1px box with its title sitting on the top line. */
+  .panel { position: relative; border: 1px solid var(--line); padding: 16px 10px 10px; }
+  .panel > .t {
+    position: absolute; top: -.75em; left: 8px; padding: 0 6px; background: var(--bg);
+    font-size: var(--fs-small); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted);
+  }
+  .grid { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(var(--min, 150px), 1fr)); }
+  .row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .muted { color: var(--muted); }
+  .small { font-size: var(--fs-small); }
+  label.f { display: grid; gap: 3px; }
+  label.f > span { font-size: var(--fs-small); font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+  input, textarea, select {
+    font: inherit; color: var(--text); background: var(--deep);
+    border: 1px solid var(--line); border-radius: 0; padding: 4px 6px; min-width: 0;
+  }
+  input::placeholder, textarea::placeholder { color: var(--muted); opacity: .7; }
+  textarea { width: 100%; min-height: 6em; resize: vertical; line-height: 1.5; }
+  input[type=number] { text-align: center; }
+  input[type=checkbox], input[type=radio] { accent-color: var(--accent); width: 15px; height: 15px; margin: 0; }
+  input:focus, textarea:focus, select:focus, [contenteditable]:focus { outline: none; border-color: var(--accent); }
+  button {
+    font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--line);
+    border-radius: 0; padding: 3px 10px; cursor: pointer; min-height: 26px;
+  }
+  button:hover { border-color: var(--accent); }
+  button:focus-visible { outline: 1px solid var(--accent); outline-offset: 1px; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 700; }
+  button.quiet { background: none; }
+  table { width: 100%; border-collapse: collapse; }
+  th { font-size: var(--fs-small); font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; text-align: left; padding: 0 4px 4px; }
+  td { padding: 2px; }
+  td input { width: 100%; }
+  .bar2 { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+  .round { display: inline-flex; align-items: baseline; gap: 6px; padding: 2px 10px; border: 1px solid var(--line); background: var(--bar); }
+  .round b { font-size: calc(var(--fs-title) + 6px); }
+  #order td:first-child { width: 28px; text-align: center; color: var(--muted); }
+  #order td:nth-child(3) input { width: 5em; }
+  #order tr.now td { background: color-mix(in srgb, var(--accent) 22%, var(--bg)); }
+  #order tr.now td:first-child { color: var(--accent); font-weight: 700; }
+  #order tr.now td:first-child::before { content: "▶"; }
+  #order tr.now input { font-weight: 700; }
+  #order tr.empty input { opacity: .75; }
+</style>
+</head>
+<body>
+<main class="page">
+  <header class="head">
+    <div class="grow"><input class="big" id="title" value="Turn order" aria-label="Title"></div>
+    <span class="round" title="Round"><span class="small muted">ROUND</span><b id="round-out">1</b></span>
+  </header>
+
+  <div class="bar2">
+    <button type="button" class="primary" id="next" title="The next one in the list takes their turn">next turn ▶</button>
+    <button type="button" id="prev" title="Back to the one before">◀ back</button>
+    <button type="button" id="sort" title="Highest order first">sort by order</button>
+    <span class="grow" style="flex:1"></span>
+    <button type="button" class="quiet" id="restart" title="Back to round 1, first in the list">new fight</button>
+  </div>
+
+  <section class="panel"><span class="t">Who acts when</span>
+    <table id="order"><thead><tr><th></th><th>Name</th><th>Order</th><th>Notes</th></tr></thead><tbody></tbody></table>
+    <p class="small muted" style="margin:8px 0 0">Fill in a row for each character and foe. Empty rows are skipped. The turn marker and round are shared with everyone who has this page open.</p>
+  </section>
+</main>
+<script>
+  var ROWS = 14;
+  (function () {
+    var body = document.querySelector('#order tbody');
+    for (var i = 1; i <= ROWS; i++) {
+      var tr = document.createElement('tr');
+      tr.dataset.row = i;
+      tr.innerHTML = '<td></td><td><input id="r' + i + '-name" aria-label="Name ' + i + '"></td>' +
+        '<td><input id="r' + i + '-order" type="number" aria-label="Order ' + i + '"></td>' +
+        '<td><input id="r' + i + '-note" aria-label="Notes ' + i + '"></td>';
+      body.appendChild(tr);
+    }
+  })();
+
+  document.addEventListener('DOMContentLoaded', function () {
+    var mg = window.MotherGoose;
+    var turn = (mg && mg.get('turn')) || 1;     // the row taking its turn
+    var round = (mg && mg.get('round')) || 1;
+    var rows = function () { return Array.from(document.querySelectorAll('#order tbody tr')); };
+    var field = function (i, f) { return document.getElementById('r' + i + '-' + f); };
+    var filled = function () { return rows().map(function (r) { return +r.dataset.row; }).filter(function (i) { return field(i, 'name').value.trim(); }); };
+
+    function draw() {
+      rows().forEach(function (r) {
+        var i = +r.dataset.row;
+        r.classList.toggle('now', i === turn && !!field(i, 'name').value.trim());
+        r.classList.toggle('empty', !field(i, 'name').value.trim());
+      });
+      document.getElementById('round-out').textContent = round;
+    }
+    function save() { if (mg) { mg.set('turn', turn); mg.set('round', round); } draw(); }
+    function step(by) {
+      var list = filled();
+      if (!list.length) return;
+      var at = list.indexOf(turn);
+      if (at < 0) { turn = list[0]; save(); return; }
+      var next = at + by;
+      if (next >= list.length) { next = 0; round++; }
+      if (next < 0) { next = list.length - 1; round = Math.max(1, round - 1); }
+      turn = list[next];
+      save();
+    }
+    // Sorting moves the values between rows (as if typed), so it syncs.
+    function sort() {
+      var list = rows().map(function (r) {
+        var i = +r.dataset.row;
+        return { name: field(i, 'name').value, order: field(i, 'order').value, note: field(i, 'note').value, now: i === turn };
+      });
+      list.sort(function (a, b) {
+        if (!a.name.trim() !== !b.name.trim()) return a.name.trim() ? -1 : 1;
+        return (parseFloat(b.order) || -Infinity) - (parseFloat(a.order) || -Infinity);
+      });
+      list.forEach(function (v, k) {
+        var i = k + 1;
+        ['name', 'order', 'note'].forEach(function (f) {
+          var el = field(i, f);
+          if (el.value !== v[f]) { el.value = v[f]; el.dispatchEvent(new Event('input', { bubbles: true })); }
+        });
+        if (v.now) turn = i;
+      });
+      save();
+    }
+    document.getElementById('next').addEventListener('click', function () { step(1); });
+    document.getElementById('prev').addEventListener('click', function () { step(-1); });
+    document.getElementById('sort').addEventListener('click', sort);
+    document.getElementById('restart').addEventListener('click', function () { var l = filled(); turn = l[0] || 1; round = 1; save(); });
+    document.getElementById('order').addEventListener('input', draw);
+    if (mg) {
+      mg.on('turn', function (v) { turn = v || 1; draw(); });
+      mg.on('round', function (v) { round = v || 1; draw(); });
+    }
+    draw();
+  });
+</script>
+</body>
+</html>

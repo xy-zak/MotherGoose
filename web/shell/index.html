@@ -16,8 +16,8 @@
     <a class="mg-brand" href="/" title="MotherGoose">MOTHERGOOSE</a>
     <span class="mg-seg where players hide-sm" id="where"><svg class="mg-i" aria-hidden="true"><use href="/_mg/icons.svg#players"></use></svg><span>player dashboard</span><span id="meName" hidden></span></span>
     <button class="mg-btn players whoami" id="whoBtn" type="button" hidden></button>
-    <button class="mg-seg session" id="sessionBtn" type="button" title="Session details (i)">
-      <span class="label" id="sessionName">no session</span><span id="sessionGame" class="hide-sm"></span>
+    <button class="mg-seg session" id="sessionBtn" type="button" title="Campaign details (i)">
+      <span class="label" id="sessionName">nothing live</span><span id="sessionGame" class="hide-sm"></span>
     </button>
     <button class="mg-btn mg-state warn" id="syncBtn" type="button" title="Connection details (i)"><span id="syncLabel">connecting</span></button>
     <span class="mg-grow"></span>
@@ -27,8 +27,9 @@
       <button class="mg-btn" id="helpBtn" type="button" title="Help: keyboard shortcuts and the player tutorial (?)"><svg class="mg-i" aria-hidden="true"><use href="/_mg/icons.svg#help"></use></svg><span class="lbl hide-sm">help</span></button>
     </span>
   </header>
-  <nav class="tabbar" aria-label="Session pages">
+  <nav class="tabbar" aria-label="Campaign pages">
     <div class="tabs" id="tabs" role="tablist"></div>
+    <button class="bar-btn" id="filterBtn" type="button" hidden aria-haspopup="dialog" title="Show only pages with a tag (t)"></button>
     <button class="bar-btn" id="fullBtn" type="button" title="Full screen (f)"></button>
   </nav>
 
@@ -49,8 +50,8 @@
   <section id="empty" class="mg-center" hidden>
     <div class="mg-notice mg-panel">
       <div class="mg-panel-title"><span class="t" id="emptyEyebrow">waiting</span></div>
-      <h1 id="emptyTitle">The referee hasn't opened a session yet.</h1>
-      <p class="mg-muted" id="emptyText">Keep this page open. It will update by itself when the session starts.</p>
+      <h1 id="emptyTitle">Nothing is live yet.</h1>
+      <p class="mg-muted" id="emptyText">Keep this page open. It will update by itself when the referee starts the session.</p>
     </div>
   </section>
 

@@ -19,6 +19,37 @@ type PageMeta struct {
 	// PerPlayer gives every rostered player their own copy of the page's
 	// entries. Switching it off keeps the copies on disk for later.
 	PerPlayer bool `json:"perPlayer,omitempty"`
+	// Hidden keeps a players' page from every player until the referee
+	// reveals it. The audience below is kept for when it is revealed.
+	Hidden bool `json:"hidden,omitempty"`
+	// Audience is who sees a players' page once it isn't hidden: everyone
+	// (AudienceAll) or only the players in Allowed (AudienceOnly). With
+	// AudienceOnly and nobody allowed, only the referee sees it.
+	Audience string   `json:"audience,omitempty"`
+	Allowed  []string `json:"allowed,omitempty"`
+}
+
+// Who a players' page is for, once it isn't hidden.
+const (
+	AudienceAll  = ""
+	AudienceOnly = "only"
+)
+
+// PageUpdate is a change to a page's details. Nil fields stay as they are.
+type PageUpdate struct {
+	Description *string
+	Tags        *[]string
+	PerPlayer   *bool
+	Hidden      *bool
+	Audience    *string
+	Allowed     *[]string
+}
+
+// PageChange says which of a page's switches an update changed, so the
+// caller knows whom to tell.
+type PageChange struct {
+	PerPlayer  bool // switched on or off
+	Visibility bool // hidden, audience or allowed players changed
 }
 
 const (
@@ -104,9 +135,9 @@ func cleanTags(in []string) ([]string, error) {
 }
 
 func cleanName(name string) (string, error) {
-	name, err := cleanText(name, MaxNameLen, "the session name", false)
+	name, err := cleanText(name, MaxNameLen, "the campaign name", false)
 	if err == nil && name == "" {
-		err = fmt.Errorf("%w: the session name can't be empty", ErrInvalid)
+		err = fmt.Errorf("%w: the campaign name can't be empty", ErrInvalid)
 	}
 	return name, err
 }
@@ -157,42 +188,60 @@ func (s *Store) RenameSession(id, name string) (Session, error) {
 	return s.UpdateSession(id, &name, nil)
 }
 
-// SetPageMeta replaces a page's description and tags, leaving its per-player
-// switch as it is.
+// SetPageMeta replaces a page's description and tags, leaving its other
+// settings as they are.
 func (s *Store) SetPageMeta(id string, sc Scope, name string, pm PageMeta) (PageMeta, error) {
-	pm, _, err := s.UpdatePageMeta(id, sc, name, pm, nil)
+	tags := pm.Tags
+	if tags == nil {
+		tags = []string{}
+	}
+	pm, _, err := s.UpdatePageMeta(id, sc, name, PageUpdate{Description: &pm.Description, Tags: &tags})
 	return pm, err
 }
 
 // CanBePerPlayer says whether a page may have a copy per player: only
 // players' pages that keep entries. Referee pages are never shown to players.
-func CanBePerPlayer(sc Scope, k Kind) bool { return sc == Shared && HasState(k) }
+func CanBePerPlayer(sc Scope, k Kind) bool { return sc == Shared && (k == KindHTML || k == KindPDF) }
 
-// UpdatePageMeta replaces a page's description and tags and, unless perPlayer
-// is nil, sets its per-player switch; it reports whether that switch changed.
-// Entries for pages that no longer exist (removed by hand) are tidied away at
-// the same time.
-func (s *Store) UpdatePageMeta(id string, sc Scope, name string, pm PageMeta, perPlayer *bool) (PageMeta, bool, error) {
+// UpdatePageMeta changes a page's details: whatever the update sets, leaving
+// the rest. It reports which switches changed. Entries for pages that no
+// longer exist (removed by hand) are tidied away at the same time.
+func (s *Store) UpdatePageMeta(id string, sc Scope, name string, up PageUpdate) (PageMeta, PageChange, error) {
+	var ch PageChange
 	if !s.Exists(id, sc, name) {
-		return PageMeta{}, false, fmt.Errorf("file %q: %w", name, ErrNotFound)
+		return PageMeta{}, ch, fmt.Errorf("file %q: %w", name, ErrNotFound)
 	}
-	desc, err := cleanText(pm.Description, MaxDescriptionLen, "the description", true)
-	if err != nil {
-		return PageMeta{}, false, err
+	var desc string
+	var tags []string
+	var err error
+	if up.Description != nil {
+		if desc, err = cleanText(*up.Description, MaxDescriptionLen, "the description", true); err != nil {
+			return PageMeta{}, ch, err
+		}
 	}
-	tags, err := cleanTags(pm.Tags)
-	if err != nil {
-		return PageMeta{}, false, err
+	if up.Tags != nil {
+		if tags, err = cleanTags(*up.Tags); err != nil {
+			return PageMeta{}, ch, err
+		}
 	}
-	if perPlayer != nil && *perPlayer && !CanBePerPlayer(sc, kindOrEmpty(name)) {
+	if up.PerPlayer != nil && *up.PerPlayer && !CanBePerPlayer(sc, kindOrEmpty(name)) {
 		what := "referee pages"
 		if sc == Shared {
 			what = "images"
 		}
-		return PageMeta{}, false, fmt.Errorf("%w: only players' HTML pages and PDFs can have a copy per player, not %s", ErrInvalid, what)
+		if kindOrEmpty(name) == KindMD {
+			what = "Markdown pages"
+		}
+		return PageMeta{}, ch, fmt.Errorf("%w: only players' HTML pages and PDFs can have a copy per player, not %s", ErrInvalid, what)
 	}
-	clean := PageMeta{Description: desc, Tags: tags}
-	changed := false
+	if up.Audience != nil && *up.Audience != AudienceAll && *up.Audience != AudienceOnly {
+		return PageMeta{}, ch, fmt.Errorf("%w: who sees a page is %q (everyone) or %q", ErrInvalid, AudienceAll, AudienceOnly)
+	}
+	restricts := (up.Hidden != nil && *up.Hidden) || (up.Audience != nil && *up.Audience == AudienceOnly)
+	if sc != Shared && restricts {
+		return PageMeta{}, ch, fmt.Errorf("%w: referee pages are never shown to players, so they can't be hidden from them", ErrInvalid)
+	}
+	var clean PageMeta
 	_, err = s.updateMeta(id, func(m *Session) error {
 		if m.Pages == nil {
 			m.Pages = map[string]PageMeta{}
@@ -203,21 +252,55 @@ func (s *Store) UpdatePageMeta(id string, sc Scope, name string, pm PageMeta, pe
 				delete(m.Pages, k)
 			}
 		}
-		was := m.Pages[pageKey(sc, name)].PerPlayer
-		clean.PerPlayer = was
-		if perPlayer != nil {
-			clean.PerPlayer = *perPlayer
+		was := m.Pages[pageKey(sc, name)]
+		clean = was
+		if up.Description != nil {
+			clean.Description = desc
 		}
-		changed = clean.PerPlayer != was
+		if up.Tags != nil {
+			clean.Tags = tags
+		}
+		if up.PerPlayer != nil {
+			clean.PerPlayer = *up.PerPlayer
+		}
+		if up.Hidden != nil {
+			clean.Hidden = *up.Hidden
+		}
+		if up.Audience != nil {
+			clean.Audience = *up.Audience
+		}
+		if up.Allowed != nil {
+			allowed := []string{}
+			for _, pid := range *up.Allowed {
+				if findPlayer(m.Players, pid) < 0 {
+					return fmt.Errorf("%w: there is no player %q in this campaign", ErrInvalid, pid)
+				}
+				if !slices.Contains(allowed, pid) {
+					allowed = append(allowed, pid)
+				}
+			}
+			clean.Allowed = allowed
+		}
+		if clean.Audience == AudienceAll {
+			clean.Allowed = nil // only kept while it means something
+		}
+		if len(clean.Allowed) == 0 {
+			clean.Allowed = nil
+		}
+		ch.PerPlayer = clean.PerPlayer != was.PerPlayer
+		ch.Visibility = clean.Hidden != was.Hidden || clean.Audience != was.Audience || !slices.Equal(clean.Allowed, was.Allowed)
 		setPage(m, pageKey(sc, name), clean)
 		return nil
 	})
-	return clean, changed, err
+	if clean.Tags == nil {
+		clean.Tags = []string{}
+	}
+	return clean, ch, err
 }
 
 // setPage stores a page's details, leaving no entry for a page without any.
 func setPage(m *Session, key string, pm PageMeta) {
-	if pm.Description == "" && len(pm.Tags) == 0 && !pm.PerPlayer {
+	if pm.Description == "" && len(pm.Tags) == 0 && !pm.PerPlayer && !pm.Hidden && pm.Audience == AudienceAll {
 		delete(m.Pages, key)
 	} else {
 		m.Pages[key] = pm
@@ -245,6 +328,10 @@ func (s *Store) movePageMeta(id string, sc Scope, name string, toScope Scope, to
 		if toName != "" {
 			if !CanBePerPlayer(toScope, kindOrEmpty(toName)) {
 				pm.PerPlayer = false
+			}
+			if toScope != Shared {
+				// Referee pages are never shown to players at all.
+				pm.Hidden, pm.Audience, pm.Allowed = false, AudienceAll, nil
 			}
 			setPage(m, pageKey(toScope, toName), pm)
 		}

@@ -1,0 +1,59 @@
+[
+  {
+    "file": "character-sheet.html",
+    "title": "Character sheet",
+    "description": "A sheet for any game: name, concept, six stats you can rename, resources with − and +, abilities, inventory and notes. Each player fills in their own copy.",
+    "tags": ["character"],
+    "scope": "shared",
+    "perPlayer": true
+  },
+  {
+    "file": "notes.html",
+    "title": "Notes",
+    "description": "Rich-text notes with headings, lists and quotes. Shared by everyone who can see it, or keep one on the referee's side.",
+    "tags": ["notes"],
+    "scope": "shared",
+    "perPlayer": false
+  },
+  {
+    "file": "tracker.html",
+    "title": "Tracker",
+    "description": "Counters with − and + (health, ammo, coins…) and conditions you tap on or off. Rename everything to fit your game.",
+    "tags": ["tracker"],
+    "scope": "shared",
+    "perPlayer": false
+  },
+  {
+    "file": "initiative.html",
+    "title": "Turn order",
+    "description": "Who acts when: names and order, sorted with one tap, a marker on whoever's turn it is, and the round. Everyone sees the marker move.",
+    "tags": ["combat"],
+    "scope": "shared",
+    "perPlayer": false
+  },
+  {
+    "file": "clocks.html",
+    "title": "Clocks",
+    "description": "Progress clocks of 4 to 12 segments, for threats, projects and countdowns, and a timer for scenes against the clock.",
+    "tags": ["clocks"],
+    "scope": "shared",
+    "perPlayer": false
+  },
+  {
+    "file": "party-loot.html",
+    "title": "Party loot",
+    "description": "The party's money and shared items: who carries what, and what's owed or to sell.",
+    "tags": ["loot"],
+    "scope": "shared",
+    "perPlayer": false
+  },
+  {
+    "file": "handout.html",
+    "title": "Handout",
+    "description": "A letter or note on paper, to write while it's hidden and reveal when the moment comes. Lock it once it's done.",
+    "tags": ["handout"],
+    "scope": "shared",
+    "perPlayer": false,
+    "hidden": true
+  }
+]

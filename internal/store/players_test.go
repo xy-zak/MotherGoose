@@ -110,7 +110,7 @@ func perPlayerSheet(t *testing.T) (*Store, string) {
 	s.AddPlayer(sess.ID, "Ana")
 	s.AddPlayer(sess.ID, "Ben")
 	on := true
-	if _, _, err := s.UpdatePageMeta(sess.ID, Shared, "sheet.html", PageMeta{}, &on); err != nil {
+	if _, _, err := s.UpdatePageMeta(sess.ID, Shared, "sheet.html", PageUpdate{PerPlayer: &on}); err != nil {
 		t.Fatal(err)
 	}
 	return s, sess.ID
@@ -209,7 +209,8 @@ func TestPerPlayerSwitch(t *testing.T) {
 
 	// Off keeps the copies; on again brings them back.
 	off, on := false, true
-	if _, changed, err := s.UpdatePageMeta(id, Shared, "sheet.html", PageMeta{}, &off); err != nil || !changed {
+	blank, none := "", []string{}
+	if _, changed, err := s.UpdatePageMeta(id, Shared, "sheet.html", PageUpdate{PerPlayer: &off, Description: &blank, Tags: &none}); err != nil || !changed.PerPlayer {
 		t.Fatalf("off: changed=%v err=%v", changed, err)
 	}
 	if f := findFile(mustFiles(t, s, id, Shared), "sheet.html"); f.PerPlayer || f.PlayerState != nil {
@@ -219,10 +220,10 @@ func TestPerPlayerSwitch(t *testing.T) {
 	if _, ok := got.Pages["shared/sheet.html"]; ok {
 		t.Fatalf("empty page entry kept: %+v", got.Pages)
 	}
-	if _, changed, _ := s.UpdatePageMeta(id, Shared, "sheet.html", PageMeta{}, &off); changed {
+	if _, changed, _ := s.UpdatePageMeta(id, Shared, "sheet.html", PageUpdate{PerPlayer: &off}); changed.PerPlayer {
 		t.Fatal("off twice reported a change")
 	}
-	s.UpdatePageMeta(id, Shared, "sheet.html", PageMeta{}, &on)
+	s.UpdatePageMeta(id, Shared, "sheet.html", PageUpdate{PerPlayer: &on})
 	if f := findFile(mustFiles(t, s, id, Shared), "sheet.html"); !f.PerPlayer || !f.PlayerState["ana"] {
 		t.Fatalf("after on again: %+v", f)
 	}
@@ -237,15 +238,15 @@ func TestPerPlayerSwitch(t *testing.T) {
 		sc   Scope
 		name string
 	}{{GM, "notes.html"}, {Shared, "map.png"}} {
-		if _, _, err := s.UpdatePageMeta(id, f.sc, f.name, PageMeta{}, &on); !errors.Is(err, ErrInvalid) {
+		if _, _, err := s.UpdatePageMeta(id, f.sc, f.name, PageUpdate{PerPlayer: &on}); !errors.Is(err, ErrInvalid) {
 			t.Errorf("per-player %s/%s: %v", f.sc, f.name, err)
 		}
-		if _, _, err := s.UpdatePageMeta(id, f.sc, f.name, PageMeta{}, &off); err != nil {
+		if _, _, err := s.UpdatePageMeta(id, f.sc, f.name, PageUpdate{PerPlayer: &off}); err != nil {
 			t.Errorf("switching off %s/%s: %v", f.sc, f.name, err)
 		}
 	}
 	s.SaveFile(id, Shared, "form.pdf", strings.NewReader(tinyPDF))
-	if _, _, err := s.UpdatePageMeta(id, Shared, "form.pdf", PageMeta{}, &on); err != nil {
+	if _, _, err := s.UpdatePageMeta(id, Shared, "form.pdf", PageUpdate{PerPlayer: &on}); err != nil {
 		t.Errorf("per-player pdf: %v", err)
 	}
 }
@@ -321,7 +322,7 @@ func TestMoveRenameDeleteCarryCopies(t *testing.T) {
 	}
 	s.MoveFile(id, GM, "hero.html", Shared, "")
 	on := true
-	s.UpdatePageMeta(id, Shared, "hero.html", PageMeta{}, &on)
+	s.UpdatePageMeta(id, Shared, "hero.html", PageUpdate{PerPlayer: &on})
 	if hero("ana") != `"Ana"` {
 		t.Fatalf("copy after round trip = %s", hero("ana"))
 	}

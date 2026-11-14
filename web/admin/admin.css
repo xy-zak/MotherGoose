@@ -110,6 +110,15 @@ body { display: flex; flex-direction: column; min-height: 100dvh; }
 .fparty .pchip .pname { display: inline-flex; align-items: center; gap: 6px; padding: 0 8px; }
 .fparty .fnote { font-size: var(--fs-small); margin-top: -4px; }
 .file .row-actions { display: flex; gap: 3px; align-items: center; }
+/* A hidden page reads as set aside until it is revealed. */
+.file.is-hidden .title, .file.is-hidden .kindcol { opacity: .6; }
+/* Who sees a players' page, in its info. */
+.vis .vis-players { display: flex; flex-wrap: wrap; gap: 6px; padding: 2px 0 0 23px; }
+.vis .vis-p { display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px; border: 1px solid var(--line); cursor: pointer; grid-template-columns: none; }
+.vis .vis-p .mg-i { width: 11px; height: 11px; color: var(--players-ink); }
+.vis .vis-p:has(input:disabled) { opacity: .5; cursor: default; }
+.vis .vis-p:has(input:checked) { background: color-mix(in srgb, var(--players) 20%, var(--bg)); border-color: var(--players); }
+.hide-toggle { border-style: dashed; }
 .drop {
   margin: 10px; padding: 10px;
   border: 1px dashed var(--line-strong); color: var(--muted);
@@ -134,6 +143,7 @@ body { display: flex; flex-direction: column; min-height: 100dvh; }
 .party-note { font-size: var(--fs-small); margin-bottom: 8px; }
 .party-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; }
 .party .roster { display: flex; flex-wrap: wrap; gap: 6px; margin: 0; padding: 0; list-style: none; min-width: 0; }
+.pchip.flash { outline: 2px solid var(--accent); outline-offset: 1px; }
 .pchip {
   display: inline-flex; align-items: stretch; height: 26px; min-width: 0;
   background: var(--bg); border: 1px solid color-mix(in srgb, var(--players) 50%, var(--line));
@@ -188,6 +198,17 @@ body { display: flex; flex-direction: column; min-height: 100dvh; }
 .gs-learn { display: flex; flex-wrap: wrap; gap: 8px; }
 
 /* overlays */
+/* The tag filter, between the campaign panel and the columns. */
+.tagfilter { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin: 0 0 10px; }
+.tagfilter .tf-label { display: inline-flex; align-items: center; gap: 5px; margin-right: 4px; font-size: var(--fs-small); font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.tagfilter .tf { cursor: pointer; font: inherit; font-size: var(--fs-small); }
+.tagfilter .tf[aria-pressed="true"] { background: color-mix(in srgb, var(--accent) 24%, var(--bg)); border-color: var(--accent); color: var(--text); font-weight: 700; }
+.files .none.filtered { color: var(--muted); }
+.join { display: grid; gap: 10px; }
+.join .mg-section-label { margin: 0; }
+.join-note { margin-top: -6px; font-size: var(--fs-small); }
+.join-list { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
+.join-list li { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; word-break: break-all; }
 .join-url { font-size: var(--fs-title); font-weight: 700; color: var(--players-ink); word-break: break-all; text-decoration: none; }
 .qr { background: #fff; padding: 8px; justify-self: start; border: 1px solid var(--line); }
 .qr img { display: block; width: 200px; height: 200px; image-rendering: pixelated; }
@@ -211,4 +232,37 @@ body { display: flex; flex-direction: column; min-height: 100dvh; }
   .gs-list .gs-text { grid-column: 2; }
   .copy { grid-template-columns: minmax(0, 1fr) auto; }
   .copy .acts { grid-column: 1 / -1; }
+}
+
+/* Upload reports and page checks. */
+.report { margin: 0; padding-left: 1.2em; display: grid; gap: 6px; }
+.report.bad li { color: var(--danger); }
+.check-notes { margin: 4px 0 0; padding-left: 0; list-style: none; display: grid; gap: 4px; font-size: var(--fs-small); color: var(--muted); }
+.check-notes li { display: flex; gap: 6px; align-items: flex-start; }
+.check-notes .mg-i { flex: none; width: 13px; height: 13px; margin-top: 2px; }
+.check-notes .bad { color: var(--danger); display: contents; }
+.fcheck { display: grid; gap: 6px; justify-items: start; }
+.fcheck .mg-section-label { margin: 0; display: inline-flex; align-items: center; gap: 6px; color: var(--warn-ink); }
+.check-ok { display: inline-flex; align-items: center; gap: 6px; font-size: var(--fs-small); }
+.check-ok .mg-i { color: var(--live); }
+
+/* The guide to making pages, in its overlay. */
+.guide-frame { width: 100%; height: min(62vh, 640px); border: 1px solid var(--line); background: var(--bg); }
+
+/* The template gallery: the list beside a live preview. */
+.tg-dialog { width: min(980px, calc(100vw - 24px)) !important; }
+.tgallery { display: grid; gap: 10px; }
+.tg-wrap { display: grid; grid-template-columns: minmax(220px, 300px) minmax(0, 1fr); gap: 10px; }
+.tg-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; align-content: start; max-height: min(60vh, 560px); overflow: auto; }
+.tg-item { display: grid; gap: 3px; width: 100%; padding: 8px 10px; text-align: left; font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line); cursor: pointer; }
+.tg-item span.mg-muted { font-size: var(--fs-small); line-height: 1.4; }
+.tg-item:hover { border-color: var(--accent); }
+.tg-item[aria-selected="true"] { background: color-mix(in srgb, var(--accent) 14%, var(--bg)); border-color: var(--accent); }
+.tg-tags { display: flex; gap: 4px; flex-wrap: wrap; }
+.tg-tags:empty { display: none; }
+.tg-preview { width: 100%; height: min(60vh, 560px); border: 1px solid var(--line); background: var(--bg); }
+@media (max-width: 700px) {
+  .tg-wrap { grid-template-columns: 1fr; }
+  .tg-list { max-height: none; }
+  .tg-preview { height: 46vh; }
 }

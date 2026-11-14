@@ -84,6 +84,50 @@ body.viewer { position: relative; height: 100dvh; overflow: hidden; background: 
 }
 .annotationLayer .linkAnnotation.hasBorder:hover { background-color: color-mix(in srgb, var(--accent) 18%, transparent); }
 
+/* Search: the text layer stays invisible, matches are tinted in the accent. */
+.textLayer .highlight {
+  --highlight-bg-color: color-mix(in srgb, var(--accent) 30%, transparent);
+  --highlight-selected-bg-color: color-mix(in srgb, var(--accent) 65%, transparent);
+}
+.textLayer ::selection { background: color-mix(in srgb, var(--accent) 35%, transparent); }
+
+/* The search bar, top right, clear of the toolbar at the bottom. */
+.vfind {
+  position: fixed; z-index: 6;
+  top: max(10px, env(safe-area-inset-top)); right: max(10px, env(safe-area-inset-right));
+  display: flex; align-items: center; gap: 4px; padding: 3px 4px 3px 8px;
+  max-width: calc(100vw - 20px);
+  background: var(--bg); border: 1px solid var(--accent); font-size: var(--fs-body);
+}
+.vfind[hidden] { display: none; }
+.vfind > .mg-i { flex: none; color: var(--accent); }
+.vfind input { width: min(240px, 46vw); height: 22px; }
+.vfind input::-webkit-search-cancel-button { display: none; }
+.vfind .vcount { min-width: 6ch; text-align: center; white-space: nowrap; }
+
+/* Contents: the PDF's outline, in a panel on the left. */
+.voutline {
+  position: fixed; z-index: 6; left: 0; top: 0; bottom: 0;
+  width: min(320px, 85vw); overflow: auto;
+  background: var(--bg); border-right: 1px solid var(--line-strong);
+  font-size: var(--fs-body);
+}
+.voutline[hidden] { display: none; }
+.voutline-head {
+  position: sticky; top: 0; display: flex; align-items: center; justify-content: space-between;
+  padding: 4px 4px 4px 10px; background: var(--bar); border-bottom: 1px solid var(--line);
+  font-size: var(--fs-small); font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--muted);
+}
+.voutline-head > span { display: inline-flex; align-items: center; gap: 6px; }
+.voutline ul { list-style: none; margin: 0; padding: 0; }
+.voutline ul ul { padding-left: 12px; border-left: 1px solid var(--line); margin-left: 10px; }
+.voutline .item {
+  display: block; width: 100%; padding: 4px 10px; text-align: left;
+  font: inherit; color: var(--text); background: none; border: 0; cursor: pointer;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.voutline .item:hover, .voutline .item:focus-visible { background: var(--surface); outline: none; color: var(--accent); }
+
 /* Sync state, shown in the toolbar only when the viewer is opened on its own
    (inside the player view, the shell's info bar shows it). */
 .vtools .vsync { margin: 0 3px; text-transform: uppercase; }
@@ -114,6 +158,7 @@ body.viewer { position: relative; height: 100dvh; overflow: hidden; background: 
 
 @media (max-width: 560px) {
   .vtools { left: 50%; right: auto; transform: translateX(-50%); }
+  .vtools #findBtn .lbl, .vtools #outlineBtn .lbl { display: none; }
   .pdfViewer .page::before { display: none; }
   .standalone .vtools.pdf .vname { display: none; } /* room for the sync state */
   /* Above the centred toolbar. */

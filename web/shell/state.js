@@ -18,7 +18,10 @@ export const S = {
 };
 
 /** Set by shell.js: redraw, open a tab, reload, full screen, the details overlay. */
-export const app = { render: () => {}, show: () => {}, load: async () => {}, setFull: () => {}, detailsOverlay: () => {} };
+export const app = {
+  render: () => {}, show: () => {}, load: async () => {}, setFull: () => {}, detailsOverlay: () => {},
+  dropFrames: () => {}, reconnectEvents: () => {}
+};
 
 export const fileKey = (f) => f.scope + '/' + f.name;
 // A per-player page has one frame per copy: "shared/sheet.html#ana", and

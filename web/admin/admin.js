@@ -1,22 +1,25 @@
 // MotherGoose dashboard: the referee's view, on the host machine only. Two
-// panes: the sessions list on the left, the selected session on the right.
+// panes: the campaigns list on the left, the selected campaign on the right.
+// (A campaign is stored as a "session" folder; in the UI, a session is one
+// evening of play: from "go live" to "end session".)
 // Details, editing and anything destructive open in overlays.
 //
 // This module loads the data, draws both panes and handles clicks and keys.
 // The rest is in its own modules: state.js (what's loaded), overlays.js,
 // pages.js (uploads and drag and drop) and tutorial.js.
 import {
-  $, ago, agoText, api, attempt, chips, confirmDialog, enc,
+  $, ago, agoText, allTags, api, attempt, chips, confirmDialog, enc, hasTags, savedList, saveList,
   esc, ftype, gameTag, ic, keysList, kindTag, listenEvents, overlay,
-  perPlayerTag, SCOPE, shortcutAllowed, size, term, titleOf, toast, uiBtn,
-  viewUrl, withIcon
+  isHidden, perPlayerTag, SCOPE, shortcutAllowed, size, term, titleOf, toast, uiBtn,
+  viewUrl, visTags, withIcon
 } from '/_mg/ui.js';
 import { A, app, fileCount, livePort, MAX_PLAYERS, playersBase } from './state.js';
 import { tourRunning } from '/_mg/tour.js';
 import { bootScreen, switchLinks } from '/_mg/fx.js';
-import { joinOverlay, dataOverlay, editSession, sessionOverlay, fileOverlay, renamePlayer, removePlayer } from './overlays.js';
+import { joinOverlay, dataOverlay, editSession, sessionOverlay, fileOverlay, renamePlayer, removePlayer, toggleHidden, showPage, guideOverlay, templateOverlay } from './overlays.js';
 import { upload, enablePageDrag } from './pages.js';
 import { tutorial } from './tutorial.js';
+import { isJumpKey, quickJump } from '/_mg/jump.js';
 
 const left = $('left'), right = $('right'), picker = $('picker');
 
@@ -61,7 +64,7 @@ async function refresh() {
 }
 document.addEventListener('focusout', () => setTimeout(() => { if (A.refreshQueued) refresh(); }, 50));
 
-// ---- left pane: what's live, and the sessions list ----------------------------------
+// ---- left pane: what's live, and the campaigns list ----------------------------------
 
 function renderLeft() {
   const rows = A.sessions.map((s) => {
@@ -75,13 +78,13 @@ function renderLeft() {
 
   left.innerHTML =
     '<div class="mg-panel list">' +
-      '<div class="mg-panel-title"><span class="t">' + ic('sessions') + 'Sessions</span><span class="side"><span class="count">' + A.sessions.length + '</span></span></div>' +
+      '<div class="mg-panel-title"><span class="t">' + ic('sessions') + 'Campaigns</span><span class="side"><span class="count">' + A.sessions.length + '</span></span></div>' +
       '<form class="new-form" id="newForm">' +
-        '<input class="mg-input" name="name" placeholder="new session name" maxlength="120" required aria-label="New session name" title="New session (n)">' +
+        '<input class="mg-input" name="name" placeholder="new campaign name" maxlength="120" required aria-label="New campaign name" title="New campaign (n)">' +
         '<input class="mg-input game" name="gameType" placeholder="game type" maxlength="60" autocomplete="off" aria-label="Game type (optional)">' +
-        '<button class="mg-btn primary small" type="submit" title="Create session">' + withIcon('add', 'new') + '</button></form>' +
-      '<nav class="slist" aria-label="Sessions">' +
-        (rows || '<p class="empty">No sessions yet. Create one above, or drop a folder into the data folder\'s <code>sessions/</code>.</p>') +
+        '<button class="mg-btn primary small" type="submit" title="Create campaign">' + withIcon('add', 'new') + '</button></form>' +
+      '<nav class="slist" aria-label="Campaigns">' +
+        (rows || '<p class="empty">No campaigns yet. Create one above, or drop a folder into the data folder\'s <code>sessions/</code>.</p>') +
       '</nav>' +
     '</div>';
 }
@@ -97,13 +100,13 @@ left.addEventListener('submit', attempt(async (e) => {
   location.hash = '#/s/' + enc(s.id);
 }));
 
-// ---- right pane: the selected session -------------------------------------------------
+// ---- right pane: the selected campaign -------------------------------------------------
 
 // The start page, with no session open: what MotherGoose does, one thing per
 // line, and buttons to learn more. Terms, file types and buttons each have
 // their own look (the key at the top says which is which).
 function welcome() {
-  const types = ftype('.html') + ' ' + ftype('.pdf') + ' ' + ftype('.png') + ' ' + ftype('.jpg');
+  const types = ftype('.html') + ' ' + ftype('.md') + ' ' + ftype('.pdf') + ' ' + ftype('.png') + ' ' + ftype('.jpg');
   const feat = (icon, name, text) =>
     '<li><span class="gs-ic">' + ic(icon) + '</span><b class="gs-name">' + esc(name) + '</b><span class="gs-text">' + text + '</span></li>';
   const stepRow = (n, text) => '<li><span class="gs-n">' + n + '</span><span class="gs-text">' + text + '</span></li>';
@@ -117,22 +120,22 @@ function welcome() {
 
     '<div class="mg-section-label">What you can do</div>' +
     '<ul class="gs-list">' +
-      feat('sessions', 'Sessions', 'Keep one ' + term('session') + ' per game night or campaign. Give it a ' + term('game type') + ' (the game or rules being played) to tell sessions apart.') +
+      feat('sessions', 'Campaigns', 'Keep each game in its own ' + term('campaign') + ': its pages, party and entries, ready for every ' + term('session') + ' you play. Give it a ' + term('game type') + ' (the game or rules being played) to tell campaigns apart.') +
       feat('kind-html', 'Pages', 'Add ' + types + ' files with ' + uiBtn('add', 'add') + ', or drop them on a column.') +
       feat('check', 'Live entries', 'Anything typed into an ' + ftype('.html') + ' page, or into a ' + ftype('.pdf') + ' form, is saved and synced live to everyone viewing it.') +
       feat('players', 'Who sees what', term('Players', 'players') + ' pages go to every player. ' + term('Referee', 'referee') + ' pages only open on this computer.') +
       feat('switch', 'Order', 'Drag a page up or down to reorder it: players\' tabs follow the same order. Drag it onto the other column to change who it\'s for.') +
       feat('tag', 'Details', 'Give each page a ' + term('description') + ' and ' + term('tags') + ' with ' + uiBtn('info', 'info') + ', so players know what they\'re looking at.') +
-      feat('player', 'Party', 'Add your players to the session\'s ' + term('party', 'players') + '. Mark character sheets ' + term('per player', 'players') + ': each player fills in their own copy.') +
-      feat('live', 'Go live', uiBtn('live', 'go live', 'go-live') + ' puts a session on the players\' screens; ' + uiBtn('end', 'end session', 'end-session') + ' takes it off again.') +
+      feat('player', 'Party', 'Add your players to the campaign\'s ' + term('party', 'players') + '. Mark character sheets ' + term('per player', 'players') + ': each player fills in their own copy.') +
+      feat('live', 'Go live', uiBtn('live', 'go live', 'go-live') + ' starts a session: the campaign goes on the players\' screens. ' + uiBtn('end', 'end session', 'end-session') + ' takes it off again.') +
       feat('join', 'Joining', uiBtn('join', 'Join Info') + ' shows the address and QR code players open to join.') +
       feat('export', 'Export', uiBtn('export', 'export filled') + ' downloads a page with every entry baked in, which works offline.') +
       feat('settings', 'Display', uiBtn('settings', 'display') + ' changes the theme, font, icons and animations, for this device.') +
     '</ul>' +
 
-    '<div class="mg-section-label">Your first session</div>' +
+    '<div class="mg-section-label">Your first campaign</div>' +
     '<ol class="gs-list gs-steps">' +
-      stepRow(1, 'Type a name, and a ' + term('game type') + ', under ' + term('Sessions') + ' on the left, then press ' + uiBtn('add', 'new', 'primary') + '.') +
+      stepRow(1, 'Type a name, and a ' + term('game type') + ', under ' + term('Campaigns') + ' on the left, then press ' + uiBtn('add', 'new', 'primary') + '.') +
       stepRow(2, 'Drop ' + types + ' files on the ' + term('Players', 'players') + ' or ' + term('Referee', 'referee') + ' column.') +
       stepRow(3, 'Add each player\'s name to the ' + term('party', 'players') + '.') +
       stepRow(4, 'Press ' + uiBtn('live', 'go live', 'go-live') + ', then show the table ' + uiBtn('join', 'Join Info') + '.') +
@@ -140,25 +143,56 @@ function welcome() {
 
     '<div class="mg-section-label">Learn more</div>' +
     '<div class="gs-learn">' +
-      '<button type="button" class="mg-btn primary" data-act="tour" title="A guided tour of this page, using an example session">' + withIcon('tutorial', 'referee tutorial') + '</button>' +
+      '<button type="button" class="mg-btn primary" data-act="tour" title="A guided tour of this page, using an example campaign">' + withIcon('tutorial', 'referee tutorial') + '</button>' +
       '<a class="mg-btn players" href="/?tour=1" target="_blank" rel="noopener" data-switch="players" title="Opens the player dashboard in a new tab and starts its tour">' + withIcon('tutorial', 'player tutorial') + '</a>' +
+      '<button type="button" class="mg-btn" data-act="guide" title="How to write pages for MotherGoose, also as an AI skill">' + withIcon('guide', 'making HTML pages') + '</button>' +
       '<button type="button" class="mg-btn" data-act="help" title="Keyboard shortcuts (?)">' + withIcon('help', 'keyboard shortcuts') + '</button>' +
       '<button type="button" class="mg-btn" data-prefs title="Theme, font, icons and animations">' + withIcon('settings', 'display settings') + '</button>' +
     '</div></div>';
 }
 
-function fileRow(s, f) {
-  return '<div class="file" draggable="true" data-scope="' + f.scope + '" data-name="' + esc(f.name) + '">' +
+// ---- tag filter: show only the pages with every chosen tag (this device) ------------------
+const filterKey = (s) => 'mg-filter:' + s.id;
+function tagFilter(s) {
+  const tags = allTags([].concat(s.files.shared || [], s.files.gm || []));
+  const lower = tags.map((t) => t.toLowerCase());
+  return savedList(filterKey(s)).filter((t) => lower.includes(t.toLowerCase()));
+}
+function filterBar(s, filter) {
+  const tags = allTags([].concat(s.files.shared || [], s.files.gm || []));
+  if (!tags.length) return '';
+  const on = new Set(filter.map((t) => t.toLowerCase()));
+  return '<div class="tagfilter" role="group" aria-label="Show only pages tagged">' +
+    '<span class="tf-label">' + withIcon('filter', 'filter') + '</span>' +
+    tags.map((t) => '<button type="button" class="mg-chip tf" data-act="filter-tag" data-tag="' + esc(t) + '" aria-pressed="' + on.has(t.toLowerCase()) + '" title="' +
+      (on.has(t.toLowerCase()) ? 'Stop filtering by ' : 'Show only pages tagged ') + esc(t) + '">' + esc(t) + '</button>').join('') +
+    (filter.length ? '<button type="button" class="mg-btn quiet small compact" data-act="filter-clear" title="Show every page again">' + withIcon('close', 'clear') + '</button>' : '') +
+    '</div>';
+}
+
+function fileRow(s, f, filter) {
+  const vis = visTags(f, s.players);
+  const players = f.scope === 'shared';
+  return '<div class="file' + (isHidden(f) ? ' is-hidden' : '') + '" draggable="true" data-scope="' + f.scope + '" data-name="' + esc(f.name) + '"' +
+    (filter && filter.length && !hasTags(f, filter) ? ' hidden' : '') + '>' +
     '<span class="kindcol">' + kindTag(f.kind) + '</span>' +
     '<div class="what"><div class="title">' + esc(titleOf(f)) + '</div>' +
       (f.description ? '<div class="desc" title="' + esc(f.description) + '">' + esc(f.description.split('\n')[0]) + '</div>' : '') +
       '<div class="sub"><span class="fname" title="' + esc(f.name) + '">' + esc(f.name) + '</span><span>·</span><span>' + size(f.size) + '</span><span>·</span>' +
       '<span>' + esc(ago(f.modified)) + '</span>' + (f.hasState && !f.perPlayer ? '<span class="mg-tag filled">filled in</span>' : '') +
 '</div>' +
-      (f.perPlayer || (f.tags && f.tags.length)
-        ? '<div class="tagline">' + (f.perPlayer ? perPlayerTag() + playerChips(s, f) : '') + chips(f.tags) + '</div>'
+      (vis || f.perPlayer || (f.tags && f.tags.length)
+        ? '<div class="tagline">' + vis + (f.perPlayer ? perPlayerTag() + playerChips(s, f) : '') + chips(f.tags) + '</div>'
         : '') + '</div>' +
     '<div class="row-actions">' +
+      (players
+        ? '<button class="mg-btn small compact' + (isHidden(f) ? ' players' : ' quiet') + '" data-act="toggle-hidden" title="' +
+            (isHidden(f) ? 'Reveal: players it\'s for see it straight away' : 'Hide from every player until you reveal it') + '">' +
+            withIcon(isHidden(f) ? 'view' : 'hidden', isHidden(f) ? 'reveal' : 'hide') + '</button>' +
+          (s.active && !isHidden(f)
+            ? '<button class="mg-btn small compact quiet" data-act="show-page" title="Ask every player who can see it to look at it now">' + withIcon('show', 'show') + '</button>'
+            : '')
+        : '') +
       '<a class="mg-btn small compact" href="' + viewUrl(s.id, f) + '" target="_blank" rel="noopener" title="' + (f.perPlayer ? 'Open the template on its own (players\' copies are under info)' : 'Open on its own') + '">' + withIcon('open', 'open') + '</a>' +
       '<button class="mg-btn small compact" data-act="file-info" title="Info: rename, description, tags, per player, export, delete">' + withIcon('info', 'info') + '</button>' +
     '</div></div>';
@@ -176,15 +210,19 @@ function playerChips(s, f) {
   }).join('') + '</span>';
 }
 
-function column(s, scope) {
+function column(s, scope, filter) {
   const files = s.files[scope] || [];
   const sc = SCOPE[scope];
+  const shown = filter.length ? files.filter((f) => hasTags(f, filter)).length : files.length;
   return '<section class="mg-panel files-panel ' + sc.cls + '" data-scope="' + scope + '">' +
     '<div class="mg-panel-title"><span class="t">' + ic(sc.icon) + sc.title + '</span>' +
-      '<span class="side"><span class="count">' + files.length + '</span>' +
+      '<span class="side"><span class="count"' + (shown !== files.length ? ' title="' + shown + ' of ' + files.length + ' pages match the filter"' : '') + '>' +
+        (shown !== files.length ? shown + '/' : '') + files.length + '</span>' +
+      '<button class="mg-btn small quiet" data-act="template" data-scope="' + scope + '" title="Add a ready-made page for the ' + sc.label + ': character sheet, notes, tracker…">' + withIcon('template', 'template') + '</button>' +
       '<button class="mg-btn small ' + sc.cls + '" data-act="pick" data-scope="' + scope + '" title="Add files for the ' + sc.label + (scope === 'shared' ? ' (u)' : '') + '">' + withIcon('add', 'add') + '</button></span></div>' +
-    '<div class="files">' + (files.length ? files.map((f) => fileRow(s, f)).join('') : '<p class="none">No pages yet.</p>') + '</div>' +
-    '<div class="drop">' + ic('upload') + ' drop <b>.html .pdf .png .jpg</b> here' + (scope === 'gm' ? ': only this computer sees them' : ': every player sees them') +
+    '<div class="files">' + (files.length ? files.map((f) => fileRow(s, f, filter)).join('') : '<p class="none">No pages yet.</p>') +
+      (files.length && !shown ? '<p class="none filtered">No pages here have ' + (filter.length > 1 ? 'all those tags' : 'that tag') + '.</p>' : '') + '</div>' +
+    '<div class="drop">' + ic('upload') + ' drop <b>.html .md .pdf .png .jpg</b> here' + (scope === 'gm' ? ': only this computer sees them' : ': every player sees them') +
       (files.length ? '<br><span class="mg-muted">drag pages to reorder them, or onto the other column</span>' : '') + '</div>' +
     '</section>';
 }
@@ -198,7 +236,7 @@ function party(s) {
   return '<section class="party" aria-label="Party">' +
     '<div class="party-divider"><div class="mg-panel-title"><span class="t">' + ic('players') + 'Party</span>' +
       '<span class="side"><span class="count">' + players.length + '</span></span></div></div>' +
-    '<p class="mg-muted party-note">Players in this session only. Each player picks their name on their own device; per-player pages then show them their own copy.</p>' +
+    '<p class="mg-muted party-note">Players in this campaign only. Each player picks their name on their own device; per-player pages then show them their own copy.</p>' +
     '<div class="party-row">' +
       (players.length
         ? '<ul class="roster" aria-label="Players">' + players.map((p) =>
@@ -220,26 +258,28 @@ function renderRight() {
   const typed = was && { value: was.value, focus: was === document.activeElement, at: was.selectionStart };
   if (!s) { right.innerHTML = welcome(); return; }
   const sh = (s.files.shared || []).length, gm = (s.files.gm || []).length;
+  const filter = tagFilter(s);
   right.innerHTML =
     '<div class="mg-panel session">' +
-      '<div class="mg-panel-title"><span class="t">Session</span>' +
+      '<div class="mg-panel-title"><span class="t">Campaign</span>' +
         (s.active ? '<span class="side">' + livePort() + '</span>' : '') + '</div>' +
       '<div class="head-row"><h1>' + esc(s.name) + '</h1>' + (s.gameType ? gameTag(s.gameType) : '<span class="mg-muted" style="font-size: var(--fs-small)">no game type</span>') + '</div>' +
       '<div class="head-meta">' + sh + ' for players · ' + gm + ' for the referee · edited ' + esc(agoText(s.lastEdited)) + '</div>' +
       '<div class="actions">' +
         '<button class="mg-btn quiet" data-act="edit-session" title="Change the name or game type">' + withIcon('edit', 'edit') + '</button>' +
-        '<button class="mg-btn quiet" data-act="reveal" title="Open this session\'s folder">' + withIcon('folder', 'open folder') + '</button>' +
-        '<button class="mg-btn quiet" data-act="session-info" title="Session details">' + withIcon('info', 'info') + '</button>' +
+        '<button class="mg-btn quiet" data-act="reveal" title="Open this campaign\'s folder">' + withIcon('folder', 'open folder') + '</button>' +
+        '<button class="mg-btn quiet" data-act="session-info" title="Campaign details">' + withIcon('info', 'info') + '</button>' +
         '<span class="mg-grow"></span>' +
         // Going live and ending share a place: the one that applies shows.
         (s.active
           ? '<button class="mg-btn end-session" data-act="deactivate" title="End the session: players go back to a waiting screen">' + withIcon('end', 'end session') + '</button>'
-          : '<button class="mg-btn go-live" data-act="activate" data-id="' + esc(s.id) + '" title="Put this session on every player\'s screen">' + withIcon('live', 'go live') + '</button>') +
-        '<button class="mg-btn danger" data-act="delete-session" title="Delete this session">' + withIcon('delete', 'delete') + '</button>' +
+          : '<button class="mg-btn go-live" data-act="activate" data-id="' + esc(s.id) + '" title="Start a session: put this campaign on every player\'s screen">' + withIcon('live', 'go live') + '</button>') +
+        '<button class="mg-btn danger" data-act="delete-session" title="Delete this campaign">' + withIcon('delete', 'delete') + '</button>' +
       '</div>' +
       party(s) +
     '</div>' +
-    '<div class="columns">' + column(s, 'shared') + column(s, 'gm') + '</div>';
+    filterBar(s, filter) +
+    '<div class="columns">' + column(s, 'shared', filter) + column(s, 'gm', filter) + '</div>';
 
   const input = document.querySelector('#addPlayer input');
   if (typed && !input.disabled) {
@@ -259,17 +299,19 @@ right.addEventListener('submit', attempt(async (e) => {
 }));
 async function helpOverlay() {
   const keys = [
-    ['n', 'new session'], ['↑ ↓', 'move through the sessions list'], ['enter', 'open the highlighted session'],
-    ['e', 'edit the open session'], ['u', 'add files for the players'], ['p', 'add a player to the party'], ['j', 'Join Info: address and QR code'],
-    ['?', 'this help'], ['esc', 'close an overlay']
+    ['n', 'new campaign'], ['↑ ↓', 'move through the campaigns list'], ['enter', 'open the highlighted campaign'],
+    ['e', 'edit the open campaign'], ['u', 'add files for the players'], ['p', 'add a player to the party'], ['j', 'Join Info: address and QR code'],
+    ['ctrl k  /', 'jump to a campaign, page, tag or player'], ['?', 'this help'], ['esc', 'close an overlay']
   ];
   const v = await overlay({
     title: 'Help', icon: 'help',
-    body: '<p><b>New here?</b> The <b>referee tutorial</b> walks you through every part of this dashboard, one step at a time, using an example session.</p>' +
+    body: '<p><b>New here?</b> The <b>referee tutorial</b> walks you through every part of this dashboard, one step at a time, using an example campaign.</p>' +
+      '<p><b>Making pages?</b> <b>Making HTML pages</b> explains how to write pages whose fields save and sync. It is also an <b>AI skill</b>: give it to an AI assistant and ask for the page you want.</p>' +
       '<hr class="mg-rule"><div class="mg-section-label">Keyboard shortcuts</div>' + keysList(keys),
-    actions: [{ label: 'referee tutorial', value: 'tour', kind: 'primary', icon: 'tutorial' }]
+    actions: [{ label: 'making HTML pages', value: 'guide', kind: 'quiet', icon: 'guide' }, { label: 'referee tutorial', value: 'tour', kind: 'primary', icon: 'tutorial' }]
   });
   if (v === 'tour') tutorial();
+  if (v === 'guide') guideOverlay();
 }
 
 // ---- actions -----------------------------------------------------------------------
@@ -290,7 +332,7 @@ document.addEventListener('click', attempt(async (e) => {
     await api('POST', '/api/admin/sessions/' + enc(btn.dataset.id) + '/activate');
     refresh();
     await bootScreen(startScreen(s, was));
-    toast('Session is live');
+    toast('Session started: ' + s.name + ' is live');
   } else if (act === 'deactivate') {
     const s = A.sessions.find((x) => x.active);
     await api('DELETE', '/api/admin/active');
@@ -305,17 +347,34 @@ document.addEventListener('click', attempt(async (e) => {
     await sessionOverlay();
   } else if (act === 'delete-session') {
     const n = fileCount(A.current);
-    if (await confirmDialog('Delete session', 'Delete "' + A.current.name + '"' + (n ? ' and its ' + n + ' file' + (n === 1 ? '' : 's') + ', with everything typed into them' : '') + '? This can\'t be undone.', 'delete session')) {
+    if (await confirmDialog('Delete campaign', 'Delete "' + A.current.name + '"' + (n ? ' and its ' + n + ' file' + (n === 1 ? '' : 's') + ', with everything typed into them' : '') + '? This can\'t be undone.', 'delete campaign')) {
       await api('DELETE', '/api/admin/sessions/' + enc(A.current.id));
-      toast('Session deleted');
+      toast('Campaign deleted');
       location.hash = '#/';
     }
+  } else if (act === 'template') {
+    await templateOverlay(btn.dataset.scope);
+  } else if (act === 'guide') {
+    await guideOverlay();
   } else if (act === 'pick') {
     A.pickScope = btn.dataset.scope;
     picker.value = '';
     picker.click();
   } else if (act === 'file-info') {
     await fileOverlay(row.dataset.scope, row.dataset.name);
+  } else if (act === 'filter-tag') {
+    const t = btn.dataset.tag, now = tagFilter(A.current);
+    const i = now.findIndex((x) => x.toLowerCase() === t.toLowerCase());
+    if (i >= 0) now.splice(i, 1); else now.push(t);
+    saveList(filterKey(A.current), now);
+    renderRight();
+  } else if (act === 'filter-clear') {
+    saveList(filterKey(A.current), []);
+    renderRight();
+  } else if (act === 'toggle-hidden') {
+    await toggleHidden(row.dataset.scope, row.dataset.name);
+  } else if (act === 'show-page') {
+    await showPage(row.dataset.scope, row.dataset.name);
   } else if (act === 'rename-player') {
     await renamePlayer(btn.dataset.id);
   } else if (act === 'remove-player') {
@@ -350,9 +409,40 @@ function endScreen(s) {
 
 // ---- keyboard ----------------------------------------------------------------------
 
+// Quick jump: every campaign, every page in them, and every party member.
+function jump() {
+  const items = [];
+  A.sessions.forEach((s) => {
+    const open = () => { location.hash = '#/s/' + enc(s.id); };
+    items.push({ title: s.name, sub: 'campaign' + (s.gameType ? ' · ' + s.gameType : '') + (s.active ? ' · live' : ''), icon: 'sessions', text: s.id, run: open });
+    ['shared', 'gm'].forEach((scope) => (s.files[scope] || []).forEach((f) => items.push({
+      title: titleOf(f), sub: f.name + ' · ' + SCOPE[scope].label + ' · ' + s.name, icon: 'kind-' + f.kind, cls: SCOPE[scope].cls,
+      tags: f.tags, text: f.description,
+      run: async () => { await goTo(s.id); fileOverlay(scope, f.name); }
+    })));
+    (s.players || []).forEach((p) => items.push({
+      title: p.name, sub: 'player · ' + s.name, icon: 'player', cls: 'players',
+      run: async () => {
+        await goTo(s.id);
+        const chip = right.querySelector('[data-act="rename-player"][data-id="' + CSS.escape(p.id) + '"]');
+        if (chip) { chip.focus(); chip.closest('.pchip').classList.add('flash'); setTimeout(() => chip.closest('.pchip') && chip.closest('.pchip').classList.remove('flash'), 1600); }
+      }
+    }));
+  });
+  quickJump({ items, placeholder: 'campaign, page, tag or player', title: 'Jump to' });
+}
+// goTo opens a campaign and waits until it's drawn.
+async function goTo(id) {
+  if (A.selectedId === id && A.current && A.current.id === id) return;
+  location.hash = '#/s/' + enc(id);
+  for (let i = 0; i < 30 && !(A.current && A.current.id === id); i++) await new Promise((r) => setTimeout(r, 50));
+}
+
 document.addEventListener('keydown', attempt(async (e) => {
+  if (isJumpKey(e) && !document.querySelector('dialog[open]')) { e.preventDefault(); jump(); return; }
   if (!shortcutAllowed(e)) return;
   const k = e.key;
+  if (k === '/') { e.preventDefault(); jump(); return; }
   if (k === 'n') { const i = document.querySelector('#newForm input'); if (i) i.focus(); }
   else if (k === 'j') joinOverlay();
   else if (k === '?') { await helpOverlay(); return; }

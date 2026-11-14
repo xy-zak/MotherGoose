@@ -136,8 +136,14 @@ $('page').addEventListener('change', (e) => go(parseInt(e.target.value, 10) || 1
 $('page').addEventListener('focus', (e) => e.target.select());
 
 document.addEventListener('keydown', (e) => {
+  if (!viewer || !viewer.pagesCount) return;
+  // Search opens from anywhere, even a field: Ctrl+F (⌘F) means "find".
+  if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 'f') { e.preventDefault(); openFind(); return; }
+  if (e.key === 'Escape' && !$('find').hidden && (e.target === $('findInput') || !isTyping(e))) { e.preventDefault(); closeFind(); return; }
   // Never while filling in a field, or in the page box.
-  if (isTyping(e) || !viewer || !viewer.pagesCount) return;
+  if (isTyping(e)) return;
+  if (e.key === '/') { e.preventDefault(); openFind(); return; }
+  if (e.key === 'o' && !$('outlineBtn').hidden) { e.preventDefault(); toggleOutline(); return; }
   if (e.key === '+' || e.key === '=') stepZoom(1);
   else if (e.key === '-') stepZoom(-1);
   else if (e.key === '0') setZoom('fit');
@@ -152,6 +158,101 @@ addEventListener('resize', () => {
   clearTimeout(resizeTimer);
   resizeTimer = setTimeout(() => { if (zoom === 'fit') applyZoom(); }, 150);
 });
+
+// ---- search ------------------------------------------------------------------------
+// PDF.js's find controller searches the text of every page and highlights
+// the matches in the text layer. A scanned PDF has no text to search.
+
+let findState = null;   // PDF.js's FindState, once the viewer module is in
+let textChecked = null; // whether the PDF has any text: null until asked
+
+function openFind() {
+  $('find').hidden = false;
+  $('findInput').focus();
+  $('findInput').select();
+  if ($('findInput').value) find('again');
+}
+function closeFind() {
+  $('find').hidden = true;
+  if (eventBus) eventBus.dispatch('findbarclose', { source: null });
+  pagesEl.focus();
+}
+function find(type, previous = false) {
+  const query = $('findInput').value;
+  if (!eventBus) return;
+  if (!query.trim()) { $('findCount').textContent = ''; eventBus.dispatch('findbarclose', { source: null }); return; }
+  eventBus.dispatch('find', {
+    source: null, type, query, caseSensitive: false, entireWord: false,
+    highlightAll: true, findPrevious: previous, matchDiacritics: false
+  });
+}
+function showCount(state, count) {
+  const el = $('findCount');
+  if (state === findState.PENDING) { el.textContent = '…'; return; }
+  if (count && count.total) { el.textContent = count.current + ' / ' + count.total; return; }
+  if (state === findState.NOT_FOUND) {
+    el.textContent = 'no matches';
+    noTextCheck();
+  }
+}
+// Says so once, when a search finds nothing in a PDF without text.
+async function noTextCheck() {
+  if (textChecked !== null) return;
+  textChecked = false;
+  for (let i = 1; i <= Math.min(3, doc.numPages); i++) {
+    const t = await (await doc.getPage(i)).getTextContent().catch(() => null);
+    if (t && t.items.some((it) => it.str && it.str.trim())) { textChecked = true; return; }
+  }
+  $('findCount').textContent = 'no text';
+  note("This PDF has no searchable text: it's probably a scan, so its pages are pictures.", { icon: 'warning' });
+}
+$('findBtn').onclick = () => ($('find').hidden ? openFind() : closeFind());
+$('findInput').addEventListener('input', () => find(''));
+$('find').addEventListener('submit', (e) => { e.preventDefault(); find('again'); });
+$('findInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter' && e.shiftKey) { e.preventDefault(); find('again', true); }
+});
+$('findPrev').onclick = () => find('again', true);
+$('findClose').onclick = closeFind;
+
+// ---- contents (the PDF's outline) -------------------------------------------------------
+
+let linkService = null;
+function toggleOutline(open) {
+  const el = $('outline');
+  const on = open === undefined ? el.hidden : open;
+  el.hidden = !on;
+  $('outlineBtn').setAttribute('aria-pressed', String(on));
+  $('outlineBtn').classList.toggle('quiet', !on);
+  if (on) { const first = el.querySelector('button.item'); if (first) first.focus(); }
+}
+async function buildOutline() {
+  const items = await doc.getOutline().catch(() => null);
+  if (!items || !items.length) return;
+  const add = (ul, list, depth) => list.forEach((it) => {
+    const li = document.createElement('li');
+    const b = document.createElement('button');
+    b.type = 'button';
+    b.className = 'item';
+    b.textContent = (it.title || '').trim() || 'untitled';
+    b.addEventListener('click', () => {
+      if (it.dest) linkService.goToDestination(it.dest);
+      else if (it.url && /^https?:/i.test(it.url)) window.open(it.url, '_blank', 'noopener,noreferrer');
+      if (innerWidth <= 700) toggleOutline(false);
+    });
+    li.appendChild(b);
+    if (it.items && it.items.length && depth < 6) {
+      const sub = document.createElement('ul');
+      add(sub, it.items, depth + 1);
+      li.appendChild(sub);
+    }
+    ul.appendChild(li);
+  });
+  add($('outlineList'), items, 0);
+  $('outlineBtn').hidden = false;
+}
+$('outlineBtn').onclick = () => toggleOutline();
+$('outlineClose').onclick = () => toggleOutline(false);
 
 // ---- form fields ------------------------------------------------------------------
 //
@@ -496,7 +597,8 @@ async function exportFilled() {
 
 async function main() {
   const viewerLib = await import(LIB + 'web/pdf_viewer.mjs');
-  const { PDFViewer, EventBus, PDFLinkService, PDFScriptingManager, LinkTarget } = viewerLib;
+  const { PDFViewer, EventBus, PDFLinkService, PDFScriptingManager, LinkTarget, PDFFindController, FindState } = viewerLib;
+  findState = FindState;
   try {
     doc = await pdfjsLib.getDocument({
       url: src,
@@ -532,7 +634,7 @@ async function main() {
   }
 
   eventBus = new EventBus();
-  const linkService = new PDFLinkService({
+  linkService = new PDFLinkService({
     eventBus,
     externalLinkTarget: LinkTarget.BLANK,
     externalLinkRel: 'noopener noreferrer nofollow'
@@ -577,6 +679,9 @@ async function main() {
     sandboxGap.clear();
   });
 
+  const findController = new PDFFindController({ linkService, eventBus });
+  eventBus.on('updatefindcontrolstate', ({ state, matchesCount }) => showCount(state, matchesCount));
+  eventBus.on('updatefindmatchescount', ({ matchesCount }) => showCount(findState.FOUND, matchesCount));
   viewer = new PDFViewer({
     container: pagesEl,
     viewer: $('viewer'),
@@ -585,7 +690,8 @@ async function main() {
     scriptingManager: scripting,
     annotationMode: pdfjsLib.AnnotationMode.ENABLE_FORMS,
     annotationEditorMode: pdfjsLib.AnnotationEditorType.DISABLE,
-    textLayerMode: 0,                // as before: pages are pictures, not selectable text
+    textLayerMode: 1,                // the text layer: search highlights, and text can be selected
+    findController,
     removePageBorders: true,
     maxCanvasPixels: MAX_CANVAS_PIXELS,
     imageResourcesPath: LIB + 'web/images/'
@@ -602,6 +708,8 @@ async function main() {
 
   viewer.setDocument(doc);
   linkService.setDocument(doc, null);
+  findController.setDocument(doc);
+  buildOutline();
 
   if (autoExport) {
     const ok = await Promise.race([snapshotLoaded.then(() => true), new Promise((r) => setTimeout(() => r(false), 10000))]);

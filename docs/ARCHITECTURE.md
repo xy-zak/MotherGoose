@@ -8,6 +8,8 @@ How MotherGoose is put together, the rules that keep it simple, and how a reques
 
 MotherGoose is one program the referee runs on their own computer. It serves the referee's dashboard and the players' view over the local network, and keeps everything in a folder of plain files.
 
+**Words.** People see **campaigns** (a folder of pages, a party and their entries) and **sessions** (one evening of play, from "go live" to "end session"). On disk and in the code a campaign is still a *session*: `data/sessions/<id>/session.json`, `store.Session`, `/api/admin/sessions/…`, the `{session}` in `/s/{session}/…`. As with the `shared/` and `gm/` folders (shown as "players" and "referee"), the names on disk stayed so existing data folders keep working; only what people read changed.
+
 Five constraints drive almost every design decision:
 
 1. **One binary, nothing to install.** Go, with the whole web UI embedded (`web/embed.go`). It has no database and no external services.
@@ -87,12 +89,14 @@ These are the rules the code follows. A change that breaks one should change the
    - It covers names, kinds, sizes and limits, what a valid roster is, which pages can be per player, and that entries exist only for pages that exist (`checkState`).
    - Store errors wrap one of three sentinels (`ErrNotFound`, `ErrInvalid`, `ErrExists`). Each is written as a sentence a referee can read, because it reaches the dashboard as it is.
 2. **The server owns who may do what.**
-   - The host check (`isHostRequest`), the live-session check (`canView`) and which copy of a per-player page a request gets (`copyFor`) live in `internal/server`.
+   - The host check (`isHostRequest`), the live-campaign check (`canView`), whether this device may see a page at all (`canSee`: hidden pages, and pages shown only to some players) and which copy of a per-player page a request gets (`copyFor`) live in `internal/server`.
+   - Every way a page reaches a player's device checks `canSee`: `/api/active` (the list of tabs), `/s/…` (the page, PDF or image itself, refused as 404), `/ws/file` (joining, and every edit), and "show to players". A player's device only ever gets its own copy of a per-player page.
+   - When who sees what changes, `enforceAccess` closes the sockets of devices that lost a page; switching a page to or from per player closes players' sockets on it too, so one that ignores `reload` can't keep listening.
    - The store answers questions ("who is on the roster?"); the server decides.
 3. **Every route goes through `guard` first** (Host header, cross-site requests, framing). Host-only routes are wrapped in `hostOnly` in `routes()`, in one place, so it's visible which routes are which.
 4. **The UI talks to the server in one way per need:**
    - `api()` (in `ui.js`) for requests
-   - `listenEvents()` for "something changed"
+   - `listenEvents()` for "something changed" (and the few other events, such as `show`)
    - `createSync()` (in `sync.js`) for a page's entries
 
 ### Changes and live updates
@@ -291,15 +295,19 @@ flowchart LR
 | `/` | `theme.css`, `shell/shell.css`, `prefs.js`, `tips.js` | `shell/shell.js` | Loading the live session, tabs and frames, sync status, full screen, keyboard |
 | `/_mg/viewer/pdf.html` | `theme.css`, PDF.js's `pdf_viewer.css`, `viewer/viewer.css`, `prefs.js`, `tips.js`, `sync.js` | `viewer/pdf.js` | PDF.js viewer, zoom and pages, form fields, filled export |
 | `/_mg/viewer/image.html` | `theme.css`, `viewer/viewer.css`, `prefs.js`, `tips.js` | `viewer/image.js` | Fit to screen, actual size |
-| `/s/<session>/<scope>/<page>.html` | the referee's own page, plus `/_mg/inject.js` | `inject.js` | Saving and syncing the page's fields; `window.MotherGoose` |
+| `/s/<session>/<scope>/<page>.html` | the referee's own page, plus `/_mg/inject.js` (and `tokens.css` with `page-theme.js` when the page asks to follow the theme) | `inject.js` | Saving and syncing the page's fields; `window.MotherGoose` |
+| `/s/<session>/<scope>/<page>.md` | the Markdown, turned into HTML by `internal/pages`, with `md.css` inlined, the theme and `/_mg/inject.js` | `inject.js` | The same: task-list boxes are fields |
+| `/_mg/guide/` | `web/guide/SKILL.md`, rendered like a Markdown page | – | The guide to making pages (the raw file is also an AI skill) |
 
 What each feature module does:
 
 | Module | What it does |
 |---|---|
-| `admin/overlays.js` | Join Info, data folder, session details and editing, a page's info popup with its party and copies, renaming and removing players |
-| `admin/pages.js` | Uploads, files dropped from the computer, dragging pages to reorder or move them |
-| `admin/tutorial.js` | The referee tutorial, with its example session |
+| `admin/overlays.js` | Join Info (with the `.local` name), data folder, campaign details and editing, a page's info popup (who sees it, its check, party and copies), hide/reveal and show, the template gallery, the guide, renaming and removing players |
+| `admin/pages.js` | Uploads and what checking them found, files dropped from the computer, dragging pages to reorder or move them (the tag filter hides rows but never changes the order of the hidden ones) |
+| `admin/tutorial.js` | The referee tutorial, with its example campaign |
+| `shell/seen.js` | Which pages this device has opened, for the new and updated marks on tabs |
+| `jump.js` | Quick jump (Ctrl+K or /), used by both dashboards |
 | `shell/tabs.js` | This device's tab order and sizes, shrink-to-fit, the tab menu, dragging tabs |
 | `shell/who.js` | The name in the top bar, picking or changing it, the "who are you?" panel, the referee's whose-copy strip |
 | `shell/tutorial.js` | The player tutorial |
@@ -323,13 +331,17 @@ How the dashboard and the player view manage their state:
 5. Add a test next to the others. Document the route in NETWORK.md.
 
 **A new kind of page**
-- Add it to `KindOf`, `MaxSize`, `ContentType` and `checkContent` (`kinds.go`), and decide `HasState` and `CanBePerPlayer`.
-- Add a viewer under `web/viewer/` if browsers can't show it directly, and route it in `viewUrl` (`ui.js`).
-- If it has entries, its viewer uses `createSync` like `pdf.js`.
+- Add it to `KindOf`, `MaxSize`, `ContentType` and `checkContent` (`kinds.go`), and decide `HasState`, `IsPage` and `CanBePerPlayer`.
+- A kind shown as a web page (`IsPage`, like Markdown) is turned into HTML in `readPage` (`pages.go`), checked by `CheckPage` on the way in, and gets the page script like HTML. In the UI, `isPage` (`ui.js`) keeps it out of the viewers.
+- Otherwise, add a viewer under `web/viewer/` if browsers can't show it directly, and route it in `viewUrl` (`ui.js`). If it has entries, its viewer uses `createSync` like `pdf.js`.
+- Add its icon (`kind-<kind>`) to `scripts/icons.py`, and its name to `KIND_LABEL`/`KIND_NAME`.
+
+**A new template**
+- Add the file to `web/templates/` and an entry to `templates.json`. It must pass `CheckPage` with no warnings (one file, every field named), and follow the theme with fallbacks; `TestTemplates` checks both.
 
 **A new display setting**
 - Add it to `prefs.js` as a `data-*` attribute on `<html>`, with a default that sets no attribute.
-- Key the CSS off it in `theme.css`.
+- Key the CSS off it in `theme.css`, or in `tokens.css` for colours and fonts (Markdown pages, templates and pages that ask for the theme get `tokens.css` too, and `page-theme.js` would need to copy the new attribute).
 
 **A new dashboard feature**
 - Put it in a module next to `admin.js` or `shell.js`, reading the page's state object.
@@ -343,7 +355,7 @@ How the dashboard and the player view manage their state:
 - **Go:** `go test -race ./...`.
   - The store tests cover sessions, files, entries, copies, broken files, saving without blocking, and concurrent creates.
   - The server tests cover access, CSRF and rebinding, the API routes, live sync, acks, joining while someone writes, edits after a delete or move, the notifier, and the page script.
-- **Browsers:** there is no automated browser test in the repository. Changes to the UI or the sync clients should be tried in a browser: both dashboards, both tutorials, an HTML page and a fillable PDF on two devices, and an exported copy offline.
+- **Browsers:** there is no automated browser test in the repository. Changes to the UI or the sync clients should be tried in a browser: both dashboards, both tutorials, an HTML page, a Markdown page and a fillable PDF on two devices, a hidden and a restricted page as two different players, and an exported copy offline.
 
 ---
 
@@ -352,5 +364,7 @@ How the dashboard and the player view manage their state:
 - **No partial updates.** Every `changed` event refetches whole listings. That's fine for a table of players, and the notifier keeps it to a few refetches. A very large session (hundreds of pages) would want per-session events.
 - **Host detection trusts the remote address.** Anything that relays other devices' requests from this machine (a local reverse proxy, some VPNs) would make them count as the host. The README's security notes say not to expose the port, but don't mention this case yet.
 - **The first read of a page's entries happens under the store lock.** Each copy is read from disk once, then cached. Only saving was moved off the lock, because it happens continuously.
-- **`session.json` is re-read for every access check** (`Access`). It's small and cached by the OS, but a busy session with many pages open does read it often.
+- **`session.json` is re-read for every access check** (`Access`). It's small and cached by the OS, but a busy campaign with many pages open does read it often.
+- **A device's name is read when its sockets connect.** After picking another name, the player view reopens its pages and its events socket, so the server knows who it is now.
+- **The self-contained check reads markup, not behaviour.** It sees `src`, `<link href>`, `srcset`, `url()` and `@import`, but not what a script fetches by itself.
 - **The dialog-close patch** changes a platform prototype. It's done once, in `prefs.js`, and it is the reason dialogs close the same way everywhere. A page that loads MotherGoose's scripts gets it too.

@@ -1,0 +1,39 @@
+/* Markdown pages. Inlined into each page, so an exported copy keeps it. The
+ * colours and font are MotherGoose's tokens (tokens.css, added while the page
+ * is served), with Catppuccin Latte and Mocha as fallbacks for a copy opened
+ * on its own. */
+:root {
+  --bg: #eff1f5; --surface: #ccd0da; --line: #bcc0cc; --text: #4c4f69; --muted: #6c6f85;
+  --accent: #8839ef; --deep: #dce0e8;
+  --font: "JetBrains Mono", ui-monospace, Menlo, Consolas, monospace;
+  --fs-title: 14px; --fs-body: 13px; --fs-small: 11.5px;
+}
+@media (prefers-color-scheme: dark) {
+  :root { --bg: #1e1e2e; --surface: #313244; --line: #45475a; --text: #cdd6f4; --muted: #a6adc8; --accent: #cba6f7; --deep: #11111b; }
+}
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 400 calc(var(--fs-body) + 1px)/1.6 var(--font); }
+.md { max-width: 74ch; margin: 0 auto; padding: 20px 18px 48px; overflow-wrap: anywhere; }
+.md > :first-child { margin-top: 0; }
+.md h1, .md h2, .md h3, .md h4 { line-height: 1.3; margin: 1.6em 0 .5em; }
+.md h1 { font-size: 1.6em; padding-bottom: .3em; border-bottom: 1px solid var(--line); }
+.md h2 { font-size: 1.3em; padding-bottom: .2em; border-bottom: 1px dashed var(--line); }
+.md h3 { font-size: 1.1em; }
+.md h4 { font-size: 1em; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+.md p, .md ul, .md ol, .md blockquote, .md pre, .md table { margin: 0 0 1em; }
+.md a { color: var(--accent); }
+.md ul, .md ol { padding-left: 1.6em; }
+.md li + li { margin-top: .2em; }
+.md li:has(> input.task), .md li:has(> p > input.task) { list-style: none; margin-left: -1.4em; }
+.md input.task { width: 1.05em; height: 1.05em; margin: 0 .45em 0 0; vertical-align: -.15em; accent-color: var(--accent); cursor: pointer; }
+.md li:has(> input.task:checked), .md li:has(> p > input.task:checked) { color: var(--muted); text-decoration: line-through; }
+.md blockquote { margin-left: 0; padding: .4em 1em; border-left: 3px solid var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--bg)); }
+.md blockquote > :last-child { margin-bottom: 0; }
+.md code { font-family: var(--font); font-size: .92em; padding: .1em .3em; background: var(--surface); }
+.md pre { padding: 10px 12px; overflow: auto; background: var(--deep); border: 1px solid var(--line); }
+.md pre code { padding: 0; background: none; }
+.md hr { border: 0; border-top: 1px dashed var(--line); margin: 2em 0; }
+.md table { border-collapse: collapse; display: block; overflow-x: auto; }
+.md th, .md td { padding: 5px 10px; border: 1px solid var(--line); text-align: left; }
+.md th { background: var(--surface); }
+.md img { max-width: 100%; height: auto; }

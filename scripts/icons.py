@@ -32,6 +32,12 @@ ICONS = {
     "switch": "refresh-double", "template": "page",
     # the tutorial, and the popups it tours
     "tutorial": "graduation-cap", "popup": "app-window",
+    # who sees a page, and drawing players' attention to one
+    "hidden": "eye-closed", "only": "lock", "show": "megaphone", "new": "bell",
+    # finding things: search, the PDF outline, tag filters
+    "search": "search", "outline": "list", "filter": "filter",
+    # Markdown pages, the page guide and its AI skill
+    "kind-md": "text-box", "guide": "book", "skill": "sparks", "copy": "copy",
 }
 
 def main(pkg: Path) -> None:

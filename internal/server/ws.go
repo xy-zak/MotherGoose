@@ -75,6 +75,7 @@ func (s *Server) wsFile(w http.ResponseWriter, r *http.Request) {
 	conn.SetReadLimit(store.MaxValueSize + 8192)
 	c := newClient(conn)
 	c.host = s.isHost(r)
+	c.player, _ = s.canSee(r, fc.id, fc.sc, fc.name)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
@@ -136,6 +137,12 @@ func (s *Server) handleSet(r *http.Request, c *client, fc fileCopy, m wsMsg) boo
 		c.close(websocket.StatusPolicyViolation, "this copy of the page is no longer available")
 		return false
 	}
+	// Or the page hidden, or no longer shown to this device's player.
+	if _, ok := s.canSee(r, fc.id, fc.sc, fc.name); !ok {
+		s.syncMu.Unlock()
+		c.close(websocket.StatusPolicyViolation, "this page is no longer shown to you")
+		return false
+	}
 	err := s.store.SetValue(fc.id, fc.sc, fc.name, fc.player, m.Key, m.Value)
 	if err == nil {
 		s.hub.toRoom(fc.room, map[string]any{"type": "set", "key": m.Key, "value": m.Value}, c)
@@ -163,6 +170,8 @@ func (s *Server) wsEvents(w http.ResponseWriter, r *http.Request) {
 	}
 	conn.SetReadLimit(4096)
 	c := newClient(conn)
+	c.host = s.isHost(r)
+	c.who = readWho(r)
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	s.hub.addListener(c)

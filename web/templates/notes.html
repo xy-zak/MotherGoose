@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="mothergoose" content="theme">
+<title>Notes</title>
+<style>
+  /* MotherGoose look: its theme's tokens when MotherGoose serves the page,
+     Catppuccin Latte / Mocha when the page is opened on its own. */
+  :root {
+    --bg: #eff1f5; --bar: #e6e9ef; --deep: #dce0e8; --surface: #ccd0da; --line: #bcc0cc; --line-strong: #acb0be;
+    --text: #4c4f69; --muted: #6c6f85; --accent: #8839ef; --on-accent: #eff1f5;
+    --players: #1e66f5; --referee: #fe640b; --live: #40a02b; --warn: #df8e1d; --danger: #d20f39;
+    --font: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+    --fs-title: 14px; --fs-body: 13px; --fs-small: 11.5px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1e1e2e; --bar: #181825; --deep: #11111b; --surface: #313244; --line: #45475a; --line-strong: #585b70;
+      --text: #cdd6f4; --muted: #a6adc8; --accent: #cba6f7; --on-accent: #11111b;
+      --players: #89b4fa; --referee: #fab387; --live: #a6e3a1; --warn: #f9e2af; --danger: #f38ba8;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 400 var(--fs-body)/1.5 var(--font); }
+  .page { max-width: 900px; margin: 0 auto; padding: 14px 14px 40px; display: grid; gap: 14px; }
+  .head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+  .head .grow { flex: 1 1 220px; }
+  .big { font-size: calc(var(--fs-title) + 6px); font-weight: 700; width: 100%; }
+  /* Panels: a 1px box with its title sitting on the top line. */
+  .panel { position: relative; border: 1px solid var(--line); padding: 16px 10px 10px; }
+  .panel > .t {
+    position: absolute; top: -.75em; left: 8px; padding: 0 6px; background: var(--bg);
+    font-size: var(--fs-small); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted);
+  }
+  .grid { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(var(--min, 150px), 1fr)); }
+  .row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .muted { color: var(--muted); }
+  .small { font-size: var(--fs-small); }
+  label.f { display: grid; gap: 3px; }
+  label.f > span { font-size: var(--fs-small); font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+  input, textarea, select {
+    font: inherit; color: var(--text); background: var(--deep);
+    border: 1px solid var(--line); border-radius: 0; padding: 4px 6px; min-width: 0;
+  }
+  input::placeholder, textarea::placeholder { color: var(--muted); opacity: .7; }
+  textarea { width: 100%; min-height: 6em; resize: vertical; line-height: 1.5; }
+  input[type=number] { text-align: center; }
+  input[type=checkbox], input[type=radio] { accent-color: var(--accent); width: 15px; height: 15px; margin: 0; }
+  input:focus, textarea:focus, select:focus, [contenteditable]:focus { outline: none; border-color: var(--accent); }
+  button {
+    font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--line);
+    border-radius: 0; padding: 3px 10px; cursor: pointer; min-height: 26px;
+  }
+  button:hover { border-color: var(--accent); }
+  button:focus-visible { outline: 1px solid var(--accent); outline-offset: 1px; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 700; }
+  button.quiet { background: none; }
+  table { width: 100%; border-collapse: collapse; }
+  th { font-size: var(--fs-small); font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; text-align: left; padding: 0 4px 4px; }
+  td { padding: 2px; }
+  td input { width: 100%; }
+  .tools { position: sticky; top: 0; z-index: 1; display: flex; flex-wrap: wrap; gap: 4px; padding: 6px 0; background: var(--bg); }
+  .tools button { min-width: 30px; padding: 2px 8px; }
+  .tools .sep { width: 1px; align-self: stretch; background: var(--line); margin: 0 4px; }
+  #notes {
+    min-height: 60vh; padding: 12px 14px; background: var(--deep); border: 1px solid var(--line);
+    line-height: 1.6; overflow-wrap: anywhere;
+  }
+  #notes:empty::before { content: attr(data-placeholder); color: var(--muted); opacity: .7; }
+  #notes h2 { font-size: calc(var(--fs-title) + 2px); margin: 1em 0 .4em; padding-bottom: .2em; border-bottom: 1px dashed var(--line); }
+  #notes h3 { font-size: var(--fs-title); margin: 1em 0 .3em; }
+  #notes > :first-child { margin-top: 0; }
+  #notes blockquote { margin: .6em 0; padding: .3em .9em; border-left: 3px solid var(--accent); background: color-mix(in srgb, var(--accent) 8%, var(--deep)); }
+  #notes ul, #notes ol { padding-left: 1.5em; }
+  #notes img { max-width: 100%; }
+</style>
+</head>
+<body>
+<main class="page">
+  <header class="head">
+    <div class="grow"><input class="big" id="title" placeholder="Notes" aria-label="Title"></div>
+  </header>
+  <div class="tools" role="toolbar" aria-label="Formatting" data-mg-ignore>
+    <button type="button" data-cmd="bold" title="Bold (Ctrl+B)"><b>B</b></button>
+    <button type="button" data-cmd="italic" title="Italic (Ctrl+I)"><i>I</i></button>
+    <button type="button" data-cmd="strikeThrough" title="Strike through"><s>S</s></button>
+    <span class="sep"></span>
+    <button type="button" data-cmd="formatBlock" data-arg="h2" title="Heading">H</button>
+    <button type="button" data-cmd="formatBlock" data-arg="h3" title="Small heading">h</button>
+    <button type="button" data-cmd="formatBlock" data-arg="p" title="Plain text">¶</button>
+    <button type="button" data-cmd="formatBlock" data-arg="blockquote" title="Quote">❝</button>
+    <span class="sep"></span>
+    <button type="button" data-cmd="insertUnorderedList" title="Bulleted list">•</button>
+    <button type="button" data-cmd="insertOrderedList" title="Numbered list">1.</button>
+    <button type="button" data-cmd="removeFormat" title="Clear formatting">⌫</button>
+  </div>
+  <div id="notes" contenteditable="true" role="textbox" aria-multiline="true" aria-label="Notes"
+       data-placeholder="Write here. Everyone who has this page open sees what you type, as you type it."></div>
+  <p class="small muted">Formatting, lists and pasted pictures are kept. Pictures make the page slower to open on phones: keep them small.</p>
+</main>
+<script>
+  // The toolbar formats the text being edited in the notes.
+  document.querySelector('.tools').addEventListener('mousedown', function (e) {
+    var b = e.target.closest('button');
+    if (!b) return;
+    e.preventDefault(); // keep the selection in the notes
+    document.getElementById('notes').focus();
+    document.execCommand(b.dataset.cmd, false, b.dataset.arg ? '<' + b.dataset.arg + '>' : null);
+    // Formatting is an edit too: tell the page script, so it is saved.
+    document.getElementById('notes').dispatchEvent(new Event('input', { bubbles: true }));
+  });
+</script>
+</body>
+</html>

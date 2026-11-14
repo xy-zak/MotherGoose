@@ -2,8 +2,9 @@
 // computer, and pages dragged up and down a column or onto the other one.
 // A page dragged within its column is put where the marker shows; dragged to
 // the other column, it is moved there and put in that place.
-import { api, attempt, enc, SCOPE, toast } from '/_mg/ui.js';
+import { api, attempt, enc, esc, ic, overlay, SCOPE, toast, withIcon } from '/_mg/ui.js';
 import { A, app, fileBase } from './state.js';
+import { guideOverlay, checkNotes } from './overlays.js';
 
 export async function upload(scope, files) {
   const list = Array.from(files || []);
@@ -11,11 +12,36 @@ export async function upload(scope, files) {
   const fd = new FormData();
   fd.append('scope', scope);
   list.forEach((f) => fd.append('files', f, f.name));
-  const res = await api('POST', '/api/admin/sessions/' + enc(A.current.id) + '/files', fd);
-  let msg = res.saved.length ? 'Added ' + res.saved.length + ' file' + (res.saved.length === 1 ? '' : 's') + ' for the ' + SCOPE[scope].label : '';
-  if (res.errors && res.errors.length) msg += (msg ? '. ' : '') + 'Skipped: ' + res.errors.join('; ');
-  toast(msg, !res.saved.length);
+  let res;
+  try {
+    res = await api('POST', '/api/admin/sessions/' + enc(A.current.id) + '/files', fd);
+  } catch (e) {
+    // Nothing was saved: every file was refused. Say why, in full.
+    await uploadReport({ saved: [], errors: e.message.split('; '), warnings: {} }, scope);
+    return;
+  }
   app.refresh();
+  const warned = Object.keys(res.warnings || {});
+  if ((res.errors && res.errors.length) || warned.length) await uploadReport(res, scope);
+  else toast('Added ' + res.saved.length + ' file' + (res.saved.length === 1 ? '' : 's') + ' for the ' + SCOPE[scope].label);
+}
+
+// What happened to an upload when there's more to say than "added": files
+// refused (often a page that isn't one file), and pages worth a second look.
+async function uploadReport(res, scope) {
+  const saved = res.saved || [], errors = res.errors || [], warnings = res.warnings || {};
+  const body =
+    (saved.length ? '<p>' + ic('check') + ' Added ' + saved.map((n) => '<b>' + esc(n) + '</b>').join(', ') + ' for the ' + SCOPE[scope].label + '.</p>' : '') +
+    (errors.length ? '<div class="mg-section-label">Not added</div><ul class="report bad">' + errors.map((e) => '<li>' + esc(e) + '</li>').join('') + '</ul>' : '') +
+    (Object.keys(warnings).length ? '<div class="mg-section-label">Worth a look</div><ul class="report">' +
+      Object.keys(warnings).map((n) => '<li><b>' + esc(n) + '</b>' + checkNotes(warnings[n]) + '</li>').join('') + '</ul>' : '') +
+    '<p class="mg-muted">Pages must be one file, with everything inside it. <b>Making HTML pages</b> shows how, and can be given to an AI assistant to write pages for you.</p>';
+  const v = await overlay({
+    title: errors.length ? (saved.length ? 'Some files weren\'t added' : 'Not added') : 'Added, with notes',
+    icon: errors.length ? 'warning' : 'info', wide: true, body,
+    actions: [{ label: 'Making HTML pages', value: 'guide', icon: 'guide', kind: 'quiet' }, { label: 'OK', value: null, kind: 'primary', icon: 'check' }]
+  });
+  if (v === 'guide') guideOverlay();
 }
 
 
@@ -26,17 +52,21 @@ const isPageDrag = (e) => !!dragged || Array.from(e.dataTransfer.types || []).in
 
 // Where in a column's list a drop at y lands: the index among the other pages,
 // and the y (in the list's own box) to draw the marker at.
+// Rows hidden by the tag filter keep their place in the order: the drop
+// lands among the rows on screen, and the order sent lists every page.
 function dropSpot(col, y) {
   const list = col.querySelector('.files');
   const rows = Array.from(list.querySelectorAll('.file')).filter((r) => r !== (dragged && dragged.row));
+  const seen = rows.filter((r) => !r.hidden);
   const top = list.getBoundingClientRect().top;
-  let i = rows.findIndex((r) => { const b = r.getBoundingClientRect(); return y < b.top + b.height / 2; });
-  if (i < 0) i = rows.length;
+  let i = seen.findIndex((r) => { const b = r.getBoundingClientRect(); return y < b.top + b.height / 2; });
+  if (i < 0) i = seen.length;
   let at;
-  if (!rows.length) at = 2;
-  else if (i < rows.length) at = rows[i].getBoundingClientRect().top - top - 4;
-  else at = rows[rows.length - 1].getBoundingClientRect().bottom - top + 2;
-  return { index: i, rows, at, list };
+  if (!seen.length) at = 2;
+  else if (i < seen.length) at = seen[i].getBoundingClientRect().top - top - 4;
+  else at = seen[seen.length - 1].getBoundingClientRect().bottom - top + 2;
+  const index = i < seen.length ? rows.indexOf(seen[i]) : seen.length ? rows.indexOf(seen[seen.length - 1]) + 1 : rows.length;
+  return { index, rows, at, list };
 }
 
 function clearMarks() {

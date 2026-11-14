@@ -7,16 +7,21 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
+	"path/filepath"
 	"strings"
 
+	"github.com/coder/websocket"
+
+	"mothergoose/internal/pages"
 	"mothergoose/internal/store"
 )
 
-// requireHTML refuses a filled export of anything but an HTML page. A filled
-// PDF is written by the PDF viewer in the browser, which already has PDF.js.
+// requireHTML refuses a filled export of anything but an HTML or Markdown
+// page (exported as HTML). A filled PDF is written by the PDF viewer in the
+// browser, which already has PDF.js.
 func requireHTML(w http.ResponseWriter, name string) bool {
-	if k, _ := store.KindOf(name); k != store.KindHTML {
-		jsonError(w, http.StatusBadRequest, fmt.Sprintf("%q is a %s: only HTML pages are exported here", name, k))
+	if k, _ := store.KindOf(name); !store.IsPage(k) {
+		jsonError(w, http.StatusBadRequest, fmt.Sprintf("%q is a %s: only HTML and Markdown pages are exported here", name, k))
 		return false
 	}
 	return true
@@ -36,13 +41,16 @@ func (s *Server) apiUpload(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	saved, failed := []string{}, []string{}
+	// What checking each saved page found worth telling the referee about:
+	// what it loads from the internet, and fields without a name.
+	warnings := map[string]pages.Report{}
 	for _, fh := range r.MultipartForm.File["files"] {
 		f, err := fh.Open()
 		if err != nil {
 			failed = append(failed, fh.Filename+": "+err.Error())
 			continue
 		}
-		name, err := s.store.SaveFile(id, sc, fh.Filename, f)
+		name, rep, err := s.store.SavePage(id, sc, fh.Filename, f)
 		f.Close()
 		if err != nil {
 			if errors.Is(err, store.ErrNotFound) {
@@ -56,6 +64,9 @@ func (s *Server) apiUpload(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		saved = append(saved, name)
+		if len(rep.Web) > 0 || rep.Unnamed > 0 {
+			warnings[name] = rep
+		}
 		s.hub.toFile(id, string(sc), name, map[string]string{"type": "reload"})
 	}
 	if len(saved) > 0 {
@@ -65,7 +76,7 @@ func (s *Server) apiUpload(w http.ResponseWriter, r *http.Request) {
 	if len(saved) == 0 && len(failed) > 0 {
 		status = http.StatusBadRequest
 	}
-	writeJSON(w, status, map[string]any{"saved": saved, "errors": failed})
+	writeJSON(w, status, map[string]any{"saved": saved, "errors": failed, "warnings": warnings})
 }
 
 func (s *Server) fileTarget(w http.ResponseWriter, r *http.Request) (string, store.Scope, string, bool) {
@@ -147,7 +158,7 @@ func (s *Server) apiResetState(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if !a.HasPlayer(player) {
-			jsonError(w, http.StatusNotFound, fmt.Sprintf("There is no player %q in this session.", player))
+			jsonError(w, http.StatusNotFound, fmt.Sprintf("There is no player %q in this campaign.", player))
 			return
 		}
 	}
@@ -194,27 +205,41 @@ func (s *Server) apiSetOrder(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// apiSetPageMeta replaces a page's description and tags, and sets its
-// per-player switch when perPlayer is given.
+// apiSetPageMeta changes a page's details: whichever of its description,
+// tags, per-player switch and who it is shown to the body gives.
 func (s *Server) apiSetPageMeta(w http.ResponseWriter, r *http.Request) {
 	id, sc, name, ok := s.fileTarget(w, r)
 	if !ok {
 		return
 	}
 	var body struct {
-		Description string   `json:"description"`
-		Tags        []string `json:"tags"`
-		PerPlayer   *bool    `json:"perPlayer"`
+		Description *string   `json:"description"`
+		Tags        *[]string `json:"tags"`
+		PerPlayer   *bool     `json:"perPlayer"`
+		Hidden      *bool     `json:"hidden"`
+		Audience    *string   `json:"audience"`
+		Allowed     *[]string `json:"allowed"`
 	}
 	if err := decodeBody(w, r, &body); err != nil {
-		bodyError(w, err, `{"description": "...", "tags": ["..."], "perPlayer"?: bool}`)
+		bodyError(w, err, `{"description"?: "...", "tags"?: ["..."], "perPlayer"?: bool, "hidden"?: bool, "audience"?: "" | "only", "allowed"?: ["<player id>"]}`)
 		return
 	}
 	s.syncMu.Lock()
-	pm, switched, err := s.store.UpdatePageMeta(id, sc, name, store.PageMeta{Description: body.Description, Tags: body.Tags}, body.PerPlayer)
-	if err == nil && switched {
-		// Everyone viewing it is now looking at the wrong entries.
+	pm, ch, err := s.store.UpdatePageMeta(id, sc, name, store.PageUpdate{
+		Description: body.Description, Tags: body.Tags, PerPlayer: body.PerPlayer,
+		Hidden: body.Hidden, Audience: body.Audience, Allowed: body.Allowed,
+	})
+	if err == nil && ch.PerPlayer {
+		// Everyone viewing it is now looking at the wrong entries. Players'
+		// sockets are closed too, so one that ignores the reload can't keep
+		// hearing the template (or a copy) it now has no business with.
 		s.hub.toFile(id, string(sc), name, map[string]string{"type": "reload"})
+		base := roomKey(id, string(sc), name)
+		s.hub.kick(func(k string) bool { return k == base || strings.HasPrefix(k, base+"/") },
+			func(_ string, c *client) bool { return !c.host }, nil, websocket.StatusPolicyViolation, "this page changed: reload it")
+	}
+	if err == nil && ch.Visibility {
+		s.enforceAccess(id)
 	}
 	s.syncMu.Unlock()
 	if err != nil {
@@ -225,6 +250,64 @@ func (s *Server) apiSetPageMeta(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, pm)
 }
 
+// apiCheckPage reports what checking an HTML or Markdown page finds: files
+// it loads from beside itself (which never load), from the internet, and
+// fields without a name. It covers pages copied into the folder by hand,
+// which no upload checked.
+func (s *Server) apiCheckPage(w http.ResponseWriter, r *http.Request) {
+	id, sc, name, ok := s.fileTarget(w, r)
+	if !ok || !requireHTML(w, name) {
+		return
+	}
+	doc, err := s.store.ReadFile(id, sc, name)
+	if err != nil {
+		storeError(w, err)
+		return
+	}
+	k, _ := store.KindOf(name)
+	rep, err := store.CheckPage(name, k, doc)
+	resp := map[string]any{"report": rep}
+	if err != nil {
+		resp["error"] = strings.TrimPrefix(err.Error(), store.ErrInvalid.Error()+": ")
+	}
+	writeJSON(w, http.StatusOK, resp)
+}
+
+// apiShowPage asks every player's device that can see a page to look at it
+// now. Each one is asked, not switched: the player chooses. It answers how
+// many devices were asked.
+func (s *Server) apiShowPage(w http.ResponseWriter, r *http.Request) {
+	id, sc, name, ok := s.fileTarget(w, r)
+	if !ok {
+		return
+	}
+	if sc != store.Shared {
+		jsonError(w, http.StatusBadRequest, "Only players' pages can be shown to players.")
+		return
+	}
+	if !s.store.Exists(id, sc, name) {
+		jsonError(w, http.StatusNotFound, "file not found")
+		return
+	}
+	if s.store.Active() != id {
+		jsonError(w, http.StatusConflict, "This campaign isn't live: go live first.")
+		return
+	}
+	a, err := s.store.Access(id, sc, name)
+	if err != nil {
+		storeError(w, err)
+		return
+	}
+	if a.Hidden {
+		jsonError(w, http.StatusConflict, "This page is hidden: reveal it first.")
+		return
+	}
+	n := s.hub.EventTo(map[string]string{"type": "show", "key": string(sc) + "/" + name}, func(c *client) bool {
+		return !c.host && a.Visible(c.who[id])
+	})
+	writeJSON(w, http.StatusOK, map[string]int{"devices": n})
+}
+
 // apiExport returns a standalone copy of the page with all saved values
 // baked in (state JSON + an inline copy of the page script running offline).
 func (s *Server) apiExport(w http.ResponseWriter, r *http.Request) {
@@ -232,7 +315,7 @@ func (s *Server) apiExport(w http.ResponseWriter, r *http.Request) {
 	if !ok || !requireHTML(w, name) {
 		return
 	}
-	doc, err := s.store.ReadFile(id, sc, name)
+	doc, err := s.readPage(id, sc, name)
 	if err != nil {
 		storeError(w, err)
 		return
@@ -248,7 +331,7 @@ func (s *Server) apiExport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	tag := stateTag(st) + "<script>\n" + string(s.injectJS) + "\n</script>\n"
-	base := strings.TrimSuffix(strings.TrimSuffix(name, ".html"), ".htm")
+	base := strings.TrimSuffix(name, filepath.Ext(name))
 	if player != "" {
 		base += "-" + player
 	}

@@ -28,7 +28,7 @@ export function renderPick(f, who) {
   el.innerHTML = '<span class="pick-label" title="' + PER_PLAYER_HINT + '">' + withIcon('player', 'whose copy') + '</span>' +
     btn('', withIcon('template', 'template'), 'The template: its entries are the starting values for each player\'s copy') +
     S.players.map((p) => btn(p.id, '<span>' + esc(p.name) + '</span>', p.name + '\'s copy')).join('') +
-    (S.players.length ? '' : '<span class="pick-note">No players yet. Add them in the referee\'s dashboard, under PARTY in the session panel.</span>');
+    (S.players.length ? '' : '<span class="pick-note">No players yet. Add them in the referee\'s dashboard, under PARTY in the campaign panel.</span>');
 }
 
 $('pick').addEventListener('click', (e) => {
@@ -55,6 +55,9 @@ export function renderAsk(f) {
 
 const setMe = attempt(async (id) => {
   await api('POST', '/api/me', { player: id });
+  // Pages already open still speak as the old name: open them afresh.
+  app.dropFrames();
+  app.reconnectEvents();
   await app.load();
 });
 

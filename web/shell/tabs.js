@@ -235,7 +235,13 @@ function endTabDrag(drop) {
     return;
   }
   renderLater = false;
-  if (drop && d.moved) setOrder(Array.from(tabsEl.querySelectorAll('.tab')).map((t) => t.dataset.key));
+  if (drop && d.moved) {
+    // Tabs hidden by the tag filter keep their places: only the shown ones move.
+    const shown = Array.from(tabsEl.querySelectorAll('.tab')).map((t) => t.dataset.key);
+    const on = new Set(shown);
+    let j = 0;
+    setOrder(S.files.map(fileKey).map((k) => (on.has(k) ? shown[j++] : k)));
+  }
   else app.render();   // cancelled: back as they were
 }
 addEventListener('pointerup', () => endTabDrag(true));

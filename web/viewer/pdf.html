@@ -26,9 +26,24 @@
     <span class="zoom" id="zoom">–</span>
     <button class="mg-btn quiet small" id="in" type="button" title="Zoom in (+)"><svg class="mg-i" aria-hidden="true"><use href="/_mg/icons.svg#zoom-in"></use></svg><span class="lbl">zoom in</span></button>
     <button class="mg-btn small" id="fit" type="button" aria-pressed="true" title="Fit to width (0)"><svg class="mg-i" aria-hidden="true"><use href="/_mg/icons.svg#fit"></use></svg><span class="lbl">fit</span></button>
+    <span class="vsep"></span>
+    <button class="mg-btn quiet small" id="findBtn" type="button" title="Search this PDF (/ or Ctrl+F)"><svg class="mg-i" aria-hidden="true"><use href="/_mg/icons.svg#search"></use></svg><span class="lbl">search</span></button>
+    <button class="mg-btn quiet small" id="outlineBtn" type="button" hidden aria-pressed="false" title="Contents (o)"><svg class="mg-i" aria-hidden="true"><use href="/_mg/icons.svg#outline"></use></svg><span class="lbl">contents</span></button>
     <span class="vsep" data-forms hidden></span>
     <button class="mg-btn quiet small" id="export" type="button" data-forms hidden title="Download this PDF with the entries filled in (e)"><svg class="mg-i" aria-hidden="true"><use href="/_mg/icons.svg#export"></use></svg><span class="lbl">export filled</span></button>
   </div>
+  <form id="find" class="vfind" role="search" hidden>
+    <svg class="mg-i" aria-hidden="true"><use href="/_mg/icons.svg#search"></use></svg>
+    <input class="mg-input" id="findInput" type="search" placeholder="search this PDF" aria-label="Search this PDF" autocomplete="off" enterkeyhint="search">
+    <span class="vcount mg-muted" id="findCount" aria-live="polite"></span>
+    <button class="mg-btn quiet small" id="findPrev" type="button" title="Previous match (Shift+Enter)"><svg class="mg-i" aria-hidden="true"><use href="/_mg/icons.svg#prev"></use></svg><span class="lbl">previous</span></button>
+    <button class="mg-btn quiet small" id="findNext" type="submit" title="Next match (Enter)"><svg class="mg-i" aria-hidden="true"><use href="/_mg/icons.svg#next"></use></svg><span class="lbl">next</span></button>
+    <button class="mg-btn quiet small" id="findClose" type="button" title="Close (esc)" aria-label="Close search"><svg class="mg-i" aria-hidden="true"><use href="/_mg/icons.svg#close"></use></svg></button>
+  </form>
+  <nav id="outline" class="voutline" hidden aria-label="Contents">
+    <div class="voutline-head"><span><svg class="mg-i" aria-hidden="true"><use href="/_mg/icons.svg#outline"></use></svg>Contents</span><button class="mg-btn quiet small" id="outlineClose" type="button" aria-label="Close contents" title="Close (o)"><svg class="mg-i" aria-hidden="true"><use href="/_mg/icons.svg#close"></use></svg></button></div>
+    <ul id="outlineList"></ul>
+  </nav>
   <div id="note" class="vnote" role="status" hidden><svg class="mg-i" aria-hidden="true"><use id="noteIcon" href="/_mg/icons.svg#info"></use></svg><span id="noteText"></span><button class="mg-btn quiet small" id="noteClose" type="button" aria-label="Close" title="Close"><svg class="mg-i" aria-hidden="true"><use href="/_mg/icons.svg#close"></use></svg></button></div>
   <p id="error" class="verror" hidden></p>
   <script src="/_mg/sync.js"></script>

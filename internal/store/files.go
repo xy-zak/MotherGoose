@@ -2,6 +2,10 @@
 package store
 
 import (
+	"bytes"
+
+	"mothergoose/internal/pages"
+
 	"bufio"
 	"errors"
 	"fmt"
@@ -33,6 +37,21 @@ type FileInfo struct {
 	// PlayerState says, for a per-player page, which rostered players have
 	// entries of their own (player id -> true).
 	PlayerState map[string]bool `json:"playerState,omitempty"`
+	// Who sees a players' page: nobody while Hidden, otherwise everyone, or
+	// only the Allowed players when Audience is AudienceOnly.
+	Hidden   bool     `json:"hidden"`
+	Audience string   `json:"audience"`
+	Allowed  []string `json:"allowed"`
+
+	// FileModified is when the page file itself last changed. Modified also
+	// counts entries being saved, which players mustn't learn about.
+	FileModified time.Time `json:"-"`
+}
+
+// Access is who may see the page, from its details in a session summary.
+func (f FileInfo) Access(players []Player) PageAccess {
+	pm := PageMeta{PerPlayer: f.PerPlayer, Hidden: f.Hidden, Audience: f.Audience, Allowed: f.Allowed}
+	return accessOf(pm, f.Scope, f.Name, players)
 }
 
 // validName accepts names that are safe as a single path element on every OS.
@@ -63,7 +82,7 @@ func CleanFileName(n string) (string, error) {
 	n = unsafeChars.ReplaceAllString(n, "-")
 	n = strings.TrimLeft(strings.TrimSpace(n), ".")
 	if !isPage(n) {
-		return "", fmt.Errorf("%w: only .html, .pdf, .png and .jpg files can be added (got %q)", ErrInvalid, n)
+		return "", fmt.Errorf("%w: only .html, .md, .pdf, .png and .jpg files can be added (got %q)", ErrInvalid, n)
 	}
 	if !validName(n) {
 		return "", fmt.Errorf("%w: bad file name %q", ErrInvalid, n)
@@ -105,7 +124,20 @@ func readTitle(p string) string {
 	return t
 }
 
-// ListFiles lists the HTML files in one scope of a session, by name.
+// readMDTitle is a Markdown page's first level-1 heading, from its start.
+func readMDTitle(p string) string {
+	f, err := os.Open(p)
+	if err != nil {
+		return ""
+	}
+	defer f.Close()
+	buf := make([]byte, 16<<10)
+	n, _ := io.ReadFull(f, buf)
+	_, t, _ := pages.Markdown(buf[:n])
+	return t
+}
+
+// ListFiles lists the pages in one scope of a session, by name.
 func (s *Store) ListFiles(id string, sc Scope) ([]FileInfo, error) {
 	if err := s.checkSession(id); err != nil {
 		return nil, err
@@ -127,9 +159,11 @@ func (s *Store) ListFiles(id string, sc Scope) ([]FileInfo, error) {
 			continue // removed since ReadDir
 		}
 		kind, _ := KindOf(e.Name())
-		info := FileInfo{Name: e.Name(), Kind: kind, Scope: sc, Size: fi.Size(), Modified: fi.ModTime(), Tags: []string{}}
+		info := FileInfo{Name: e.Name(), Kind: kind, Scope: sc, Size: fi.Size(), Modified: fi.ModTime(), FileModified: fi.ModTime(), Tags: []string{}, Allowed: []string{}}
 		if kind == KindHTML {
 			info.Title = readTitle(filepath.Join(d, e.Name()))
+		} else if kind == KindMD {
+			info.Title = readMDTitle(filepath.Join(d, e.Name()))
 		} else {
 			info.Title = strings.TrimSuffix(e.Name(), filepath.Ext(e.Name()))
 		}
@@ -192,13 +226,21 @@ func (s *Store) ReadFile(id string, sc Scope, name string) ([]byte, error) {
 // SaveFile writes an uploaded file. An existing file with the same name is
 // replaced but its saved state is kept. Returns the cleaned name.
 func (s *Store) SaveFile(id string, sc Scope, name string, r io.Reader) (string, error) {
+	name, _, err := s.SavePage(id, sc, name, r)
+	return name, err
+}
+
+// SavePage is SaveFile, also returning what checking an HTML or Markdown
+// page found (CheckPage): one that loads files from beside it is refused.
+func (s *Store) SavePage(id string, sc Scope, name string, r io.Reader) (string, pages.Report, error) {
+	var rep pages.Report
 	name, err := CleanFileName(name)
 	if err != nil {
-		return "", err
+		return "", rep, err
 	}
 	p, err := s.filePath(id, sc, name)
 	if err != nil {
-		return "", err
+		return "", rep, err
 	}
 	other := GM
 	if sc == GM {
@@ -206,23 +248,35 @@ func (s *Store) SaveFile(id string, sc Scope, name string, r io.Reader) (string,
 	}
 	if op, _ := s.filePath(id, other, name); op != "" {
 		if _, err := os.Stat(op); err == nil {
-			return "", fmt.Errorf("%q %w in the %s pages", name, ErrExists, other.Label())
+			return "", rep, fmt.Errorf("%q %w in the %s pages", name, ErrExists, other.Label())
 		}
 	}
 	kind, _ := KindOf(name)
 	br := bufio.NewReaderSize(r, 1024)
 	head, err := br.Peek(1024)
 	if err != nil && !errors.Is(err, io.EOF) {
-		return "", err
+		return "", rep, err
 	}
 	if err := checkContent(name, kind, head); err != nil {
-		return "", err
-	}
-	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
-		return "", err
+		return "", rep, err
 	}
 	tooBig := fmt.Errorf("%w: %q is larger than %d MiB", ErrInvalid, name, MaxSize(kind)>>20)
-	return name, writeAtomicFrom(p, &capReader{r: br, left: MaxSize(kind), err: tooBig})
+	var body io.Reader = &capReader{r: br, left: MaxSize(kind), err: tooBig}
+	if IsPage(kind) {
+		// Pages are checked whole before anything is written.
+		doc, err := io.ReadAll(body)
+		if err != nil {
+			return "", rep, err
+		}
+		if rep, err = CheckPage(name, kind, doc); err != nil {
+			return "", rep, err
+		}
+		body = bytes.NewReader(doc)
+	}
+	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
+		return "", rep, err
+	}
+	return name, rep, writeAtomicFrom(p, body)
 }
 
 // capReader fails with err once more than left bytes would be read, so an

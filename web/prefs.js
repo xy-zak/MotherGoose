@@ -114,7 +114,7 @@
     d.innerHTML = '<div class="mg-dialog-head">' + icon('settings') + '<span class="t">Display settings</span>' +
       '<button type="button" class="mg-btn quiet small" data-close aria-label="Close">esc</button></div>' +
       '<div class="mg-dialog-body mg-prefs">' + section('theme') + section('font') + section('labels') + section('motion') +
-      '<p class="mg-muted" style="font-size: var(--fs-small)">Saved on this device only. Pages added to a session keep their own fonts and colours.</p></div>' +
+      '<p class="mg-muted" style="font-size: var(--fs-small)">Saved on this device only. Pages added to a campaign keep their own fonts and colours, unless they ask to follow these.</p></div>' +
       '<div style="height:10px"></div>';
     document.body.appendChild(d);
     d.addEventListener('click', function (e) {

@@ -43,8 +43,10 @@ export function size(n) {
 /** titleOf is what a page is called: its <title>, or its file name without the type. */
 export const titleOf = (f) => f.title || f.name.replace(/\.[^.]+$/, '');
 
-export const KIND_LABEL = { html: 'page', pdf: 'pdf', image: 'img' };
-export const KIND_NAME = { html: 'HTML page', pdf: 'PDF', image: 'image' };
+export const KIND_LABEL = { html: 'page', md: 'md', pdf: 'pdf', image: 'img' };
+export const KIND_NAME = { html: 'HTML page', md: 'Markdown page', pdf: 'PDF', image: 'image' };
+/** isPage: shown as a web page in its own frame (HTML, and Markdown made into HTML), not in a viewer. */
+export const isPage = (f) => f.kind === 'html' || f.kind === 'md';
 
 // ---- icons ----------------------------------------------------------------------
 // Iconoir icons from the sprite. ic() alone is decorative; with() pairs an
@@ -71,6 +73,23 @@ export const gameTag = (gameType) => gameType ? '<span class="mg-game" title="Ga
 export const serverPort = () => location.port || (location.protocol === 'https:' ? '443' : '80');
 export const liveTag = (port) => '<span class="mg-live" title="The server is running and players can join">LIVE:' + esc(port || serverPort()) + '</span>';
 export const chips = (tags) => (tags && tags.length) ? '<span class="mg-chips">' + tags.map((t) => '<span class="mg-chip">' + esc(t) + '</span>').join('') + '</span>' : '';
+
+// ---- tags ------------------------------------------------------------------------
+/** allTags lists the tags used across pages, once each (ignoring case), sorted. */
+export function allTags(files) {
+  const seen = new Map();
+  files.forEach((f) => (f.tags || []).forEach((t) => { const k = t.toLowerCase(); if (!seen.has(k)) seen.set(k, t); }));
+  return Array.from(seen.values()).sort((a, b) => a.localeCompare(b, undefined, { sensitivity: 'base' }));
+}
+/** hasTags: the page has every one of the tags (ignoring case). */
+export const hasTags = (f, tags) => tags.every((t) => (f.tags || []).some((x) => x.toLowerCase() === t.toLowerCase()));
+/** savedList reads a list kept on this device; saveList keeps one (empty: forgets it). */
+export function savedList(key) {
+  try { const v = JSON.parse(localStorage.getItem(key) || '[]'); return Array.isArray(v) ? v.filter((x) => typeof x === 'string') : []; } catch (e) { return []; }
+}
+export function saveList(key, list) {
+  try { if (list.length) localStorage.setItem(key, JSON.stringify(list)); else localStorage.removeItem(key); } catch (e) {}
+}
 
 // Where a page is viewed: HTML directly, PDFs and images in the bundled viewers.
 // player picks one player's copy of a per-player page (none: the template).
@@ -99,7 +118,7 @@ export function filledUrl(sessionId, f, player) {
 // ---- per-player pages ----------------------------------------------------------------
 // Players' HTML and PDF pages can be marked "per player": every player on the
 // session's roster fills in their own copy, seen only by them and the referee.
-export const canPerPlayer = (f) => f.scope === 'shared' && (f.kind === 'html' || f.kind === 'pdf');
+export const canPerPlayer = (f) => f.scope === 'shared' && (f.kind === 'html' || f.kind === 'pdf');  // not Markdown
 export const hasEntries = (f) => f.kind !== 'image';
 export const PER_PLAYER_HINT = 'Per player: each player fills in their own copy, seen only by them and the referee';
 /** perPlayerTag marks a per-player page; extra (e.g. "2/3" filled in) follows the label. */
@@ -107,6 +126,29 @@ export const perPlayerTag = (extra, hint) => '<span class="mg-tag players" title
   (extra ? '<span class="extra">' + esc(extra) + '</span>' : '') + '</span>';
 /** playerName finds a player's name on a roster, falling back to the id. */
 export const playerName = (players, id) => { const p = (players || []).find((x) => x.id === id); return p ? p.name : id; };
+
+// ---- who sees a players' page ----------------------------------------------------------
+// A players' page can be hidden until the referee reveals it, and shown only
+// to some players. Players are never told either: they just see it or don't.
+export const isHidden = (f) => f.scope === 'shared' && !!f.hidden;
+export const isOnly = (f) => f.scope === 'shared' && f.audience === 'only';
+/** audienceText says who sees a players' page once revealed, in words. */
+export function audienceText(f, players) {
+  if (!isOnly(f)) return 'every player';
+  const names = (f.allowed || []).map((id) => playerName(players, id));
+  return names.length ? 'only ' + names.join(', ') : 'no player (only you)';
+}
+/** visTags marks a players' page that is hidden, or shown only to some players. */
+export function visTags(f, players) {
+  let out = '';
+  if (isHidden(f)) out += '<span class="mg-tag hidden" title="Hidden: no player sees it until you reveal it">' + withIcon('hidden', 'hidden') + '</span>';
+  if (isOnly(f)) {
+    const names = (f.allowed || []).map((id) => playerName(players, id));
+    out += '<span class="mg-tag only" title="' + esc((isHidden(f) ? 'Once revealed, shown to ' : 'Shown to ') + audienceText(f, players)) + '">' +
+      withIcon('only', 'only') + '<span class="extra">' + esc(names.length ? names.join(', ') : 'you') + '</span></span>';
+  }
+  return out;
+}
 
 let toastTimer;
 export function toast(msg, isError) {
@@ -122,6 +164,40 @@ export function toast(msg, isError) {
   el.hidden = false;
   clearTimeout(toastTimer);
   toastTimer = setTimeout(() => { el.hidden = true; }, isError ? 6000 : 3500);
+}
+
+/**
+ * notice shows a short message with an optional button, stacked with any
+ * others, gone after a few seconds (or when its button or × is pressed).
+ *   text:   the message (plain text); strong: a part shown in bold after it
+ *   action: { label, icon, run } — the button, which also closes the notice
+ *   icon:   shown before the text
+ */
+export function notice({ text, strong = '', action = null, icon = 'new', ms = 7000 }) {
+  let stack = document.querySelector('.mg-notices');
+  if (!stack) {
+    stack = document.createElement('div');
+    stack.className = 'mg-notices';
+    stack.setAttribute('role', 'status');
+    stack.setAttribute('aria-live', 'polite');
+    document.body.appendChild(stack);
+  }
+  // A few at most: the oldest go first.
+  while (stack.children.length >= 3) stack.firstElementChild.remove();
+  const el = document.createElement('div');
+  el.className = 'mg-notice-pop';
+  el.innerHTML = ic(icon) + '<span class="msg"></span>' +
+    (action ? '<button type="button" class="mg-btn small primary">' + withIcon(action.icon || 'open', action.label) + '</button>' : '') +
+    '<button type="button" class="mg-btn small quiet x" aria-label="Dismiss">' + ic('close') + '</button>';
+  const msg = el.querySelector('.msg');
+  msg.textContent = text;
+  if (strong) { const b = document.createElement('b'); b.textContent = ' ' + strong; msg.appendChild(b); }
+  const close = () => { clearTimeout(timer); el.remove(); };
+  const timer = setTimeout(close, ms);
+  el.querySelector('.x').addEventListener('click', close);
+  if (action) el.querySelector('.primary').addEventListener('click', () => { close(); action.run(); });
+  stack.appendChild(el);
+  return close;
 }
 
 export async function api(method, path, body) {
@@ -297,37 +373,52 @@ export const SILENT_MS = 60000;
 
 /**
  * listenEvents keeps a WebSocket open to /ws/events, reconnecting with
- * backoff. onEvent runs for each server event (and once on every connect),
- * onState(up) whenever the connection opens or drops.
+ * backoff. onEvent runs for each "changed" event (and once on every connect),
+ * onState(up) whenever the connection opens or drops, and onMessage(m) for
+ * any other message, such as "show". It returns { reconnect }, which opens a
+ * fresh connection now: the server reads who this device is when it connects.
  */
-export function listenEvents(onEvent, onState) {
-  let retry = 0;
-  (function connect() {
+export function listenEvents(onEvent, onState, onMessage) {
+  let retry = 0, current = null;
+  function connect() {
     const ws = new WebSocket((location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + location.host + '/ws/events');
     let heard = Date.now(), done = false;
     const watch = setInterval(() => { if (Date.now() - heard > SILENT_MS) drop(); }, 10000);
-    const closed = () => {
+    const closed = (again = true) => {
       if (done) return;
       done = true;
       clearInterval(watch);
+      if (current === conn) current = null;
+      if (!again) return;
       onState(false);
       setTimeout(connect, Math.min(5000, 500 * Math.pow(2, retry++)));
     };
-    const drop = () => {
+    const drop = (again = true) => {
       ws.onopen = ws.onmessage = ws.onclose = null;
       try { ws.close(); } catch (e) { /* already closing */ }
-      closed();
+      closed(again);
     };
+    const conn = { drop };
+    current = conn;
     ws.onopen = () => { retry = 0; heard = Date.now(); onState(true); onEvent(); };
     ws.onmessage = (ev) => {
       heard = Date.now();
       let m = null;
       try { m = JSON.parse(ev.data); } catch (e) { /* not ours */ }
       if (m && m.type === 'ping') return;
+      if (m && m.type && m.type !== 'changed') { if (onMessage) onMessage(m); return; }
       onEvent();
     };
-    ws.onclose = closed;
-  })();
+    ws.onclose = () => closed();
+  }
+  connect();
+  return {
+    reconnect() {
+      if (current) current.drop(false);
+      retry = 0;
+      connect();
+    }
+  };
 }
 
 /** isTyping is true when a key press belongs to a text field, not a shortcut. */

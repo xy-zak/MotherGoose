@@ -16,7 +16,7 @@ import (
 
 const forbiddenPage = `<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>MotherGoose</title><link rel="stylesheet" href="/_mg/theme.css"><script src="/_mg/prefs.js"></script>
-<body class="mg-center"><main class="mg-notice"><p class="mg-eyebrow">403 · %s</p>
+<body class="mg-center"><main class="mg-notice"><p class="mg-eyebrow">%d · %s</p>
 <h1>%s</h1><p>%s</p><p><a class="mg-btn players" href="/">Go to the player dashboard</a></p></main></body>`
 
 func (s *Server) forbid(w http.ResponseWriter, r *http.Request, msg string) {
@@ -26,14 +26,25 @@ func (s *Server) forbid(w http.ResponseWriter, r *http.Request, msg string) {
 // forbidPage refuses with a JSON error for API calls and WebSockets, and a
 // readable page for anything shown in a browser tab or frame.
 func (s *Server) forbidPage(w http.ResponseWriter, r *http.Request, eyebrow, heading, msg string) {
+	statusPage(w, r, http.StatusForbidden, eyebrow, heading, msg)
+}
+
+// notFound says a page isn't there, in the same two forms. Pages a player
+// may not see answer this way too, so they can't tell that they exist.
+func notFound(w http.ResponseWriter, r *http.Request) {
+	statusPage(w, r, http.StatusNotFound, "Not here", "No such page",
+		"This page isn't in the campaign, or isn't shown to you.")
+}
+
+func statusPage(w http.ResponseWriter, r *http.Request, status int, eyebrow, heading, msg string) {
 	if strings.HasPrefix(r.URL.Path, "/api/") || strings.HasPrefix(r.URL.Path, "/ws/") {
-		jsonError(w, http.StatusForbidden, msg)
+		jsonError(w, status, msg)
 		return
 	}
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.Header().Set("Cache-Control", "no-store")
-	w.WriteHeader(http.StatusForbidden)
-	fmt.Fprintf(w, forbiddenPage, html.EscapeString(eyebrow), html.EscapeString(heading), html.EscapeString(msg))
+	w.WriteHeader(status)
+	fmt.Fprintf(w, forbiddenPage, status, html.EscapeString(eyebrow), html.EscapeString(heading), html.EscapeString(msg))
 }
 
 func (s *Server) hostOnly(h http.HandlerFunc) http.HandlerFunc {
@@ -52,6 +63,21 @@ func (s *Server) canView(r *http.Request, id string, sc store.Scope) bool {
 		return true
 	}
 	return sc == store.Shared && id != "" && id == s.store.Active()
+}
+
+// canSee decides, after canView, whether this device may see one page: the
+// host always may; another device only if the page isn't hidden and is
+// shown to the player it picked. It also returns that player ("" for none).
+func (s *Server) canSee(r *http.Request, id string, sc store.Scope, name string) (string, bool) {
+	if s.isHost(r) {
+		return "", true
+	}
+	a, err := s.store.Access(id, sc, name)
+	if err != nil {
+		return "", false
+	}
+	me := s.me(r, id, a.Players)
+	return me, a.Visible(me)
 }
 
 func writeJSON(w http.ResponseWriter, status int, v any) {

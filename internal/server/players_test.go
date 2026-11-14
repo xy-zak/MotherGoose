@@ -23,7 +23,7 @@ func (f *fixture) perPlayer(t *testing.T) {
 	f.st.AddPlayer(f.id, "Ana")
 	f.st.AddPlayer(f.id, "Ben")
 	on := true
-	if _, _, err := f.st.UpdatePageMeta(f.id, store.Shared, "sheet.html", store.PageMeta{}, &on); err != nil {
+	if _, _, err := f.st.UpdatePageMeta(f.id, store.Shared, "sheet.html", store.PageUpdate{PerPlayer: &on}); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -142,7 +142,7 @@ func TestPerPlayerAccess(t *testing.T) {
 	f.st.SetValue(f.id, store.Shared, "sheet.html", "ana", "#notes", json.RawMessage(`"ana's"`))
 	f.st.SaveFile(f.id, store.Shared, "rules.pdf", strings.NewReader(tinyPDF))
 	on := true
-	f.st.UpdatePageMeta(f.id, store.Shared, "rules.pdf", store.PageMeta{}, &on)
+	f.st.UpdatePageMeta(f.id, store.Shared, "rules.pdf", store.PageUpdate{PerPlayer: &on})
 	ana := whoCookieFor(f.id, "ana")
 	hostReq := func(r *http.Request) {}
 
@@ -181,7 +181,7 @@ func TestPerPlayerAccess(t *testing.T) {
 
 	// Pages that aren't per-player ignore ?player=.
 	off := false
-	f.st.UpdatePageMeta(f.id, store.Shared, "sheet.html", store.PageMeta{}, &off)
+	f.st.UpdatePageMeta(f.id, store.Shared, "sheet.html", store.PageUpdate{PerPlayer: &off})
 	rec := f.request("GET", "/s/"+f.id+"/shared/sheet.html?player=ben", "", withCookie(nil))
 	if rec.Code != 200 || strings.Contains(rec.Body.String(), "data-mg-player") || !strings.Contains(rec.Body.String(), `"template"`) {
 		t.Fatalf("non-per-player page with ?player=: %d\n%s", rec.Code, rec.Body.String())

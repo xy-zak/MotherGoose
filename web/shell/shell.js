@@ -1,8 +1,8 @@
 // Player view (also used by the referee on the host): one tab per page of the
-// live session, each in a kept-alive iframe so switching tabs never loses
+// live campaign, each in a kept-alive iframe so switching tabs never loses
 // scroll position.
 //
-// Per-player pages: each player picks their name from the session's roster
+// Per-player pages: each player picks their name from the campaign's party
 // (kept by a cookie the server sets) and sees their own copy. The referee
 // sees the template or any player's copy, chosen in a strip above the page.
 //
@@ -10,12 +10,12 @@
 // or hold on a touch screen). When they don't all fit, the ones at the end
 // shrink by themselves, so the row never has to scroll.
 //
-// This module loads the session and draws the page, opens tabs and handles
+// This module loads the live campaign and draws the page, opens tabs and handles
 // the keyboard and full screen. state.js holds what's loaded; tabs.js, who.js
 // and tutorial.js are the rest.
 import {
-  $, agoText, api, attempt, chips, esc, gameTag, ic,
-  keysList, KIND_NAME, kv, listenEvents, liveTag, overlay, PER_PLAYER_HINT, perPlayerTag,
+  $, agoText, allTags, api, isPage, attempt, audienceText, chips, esc, gameTag, hasTags, ic, isHidden, isOnly, savedList, saveList,
+  keysList, KIND_NAME, kv, listenEvents, liveTag, notice, overlay, PER_PLAYER_HINT, perPlayerTag,
   playerName, SCOPE, scopeTag, serverPort, shortcutAllowed, SHORTCUTS_NOTE, size, titleOf,
   viewUrl, when, withIcon
 } from '/_mg/ui.js';
@@ -24,7 +24,9 @@ import { bootScreen, switchLinks } from '/_mg/fx.js';
 import { activeFile, app, fileKey, frameKey, meName, S } from './state.js';
 import { arrange, fitTabs, tabPrefs, redrawWhenFree } from './tabs.js';
 import { renderWho, renderPick, renderAsk, pickName } from './who.js';
+import { markSeen, primeSeen, seenState } from './seen.js';
 import { tutorial } from './tutorial.js';
+import { isJumpKey, quickJump } from '/_mg/jump.js';
 
 const FULL_KEY = 'mg-full';
 
@@ -68,6 +70,12 @@ async function load() {
     S.pick.clear();
     if (oldId !== null) S.active = null;
   }
+  // What was there before, to tell players about pages that arrive (or are
+  // replaced) while they watch. Not on the first load, a session change or
+  // a reconnect, when "new" would mean everything.
+  const before = S.loaded && newId === oldId && S.serverUp && wasUp
+    ? new Map(S.serverFiles.map((f) => [fileKey(f), f.modified])) : null;
+  wasUp = S.serverUp;
   S.session = d.session;
   S.serverFiles = d.files || [];
   S.files = arrange(S.serverFiles);
@@ -80,17 +88,61 @@ async function load() {
     if (!keep.has(k)) { dropFrame(k); return; }
     const fr = S.frames.get(k), f = live.get(fr.dataset.file);
     // The viewers aren't told when their file is replaced: reload them.
-    if (f.kind !== 'html' && S.versions.get(k) !== f.modified) {
+    if (!isPage(f) && S.versions.get(k) !== f.modified) {
       S.versions.set(k, f.modified);
       fr.src = viewUrl(S.session.id, f, f.modified, fr.dataset.who);
     }
   });
+  if (S.session && !S.isHost) {
+    primeSeen();
+    if (before) announce(before);
+  }
   redrawWhenFree();
   if (S.loaded && newId !== oldId && !tourRunning()) {
     if (newId) bootScreen(liveScreen());
     else bootScreen(endScreen(was));
   }
   S.loaded = true;
+}
+
+let wasUp = false;  // the events socket was up at the last load
+const notices = new Map();  // fileKey -> closes its notice, once the page is opened
+
+// Tells the player about pages that appeared or were replaced since the last
+// load, each with a button to open it. The open tab needs no notice.
+function announce(before) {
+  if (tourRunning()) return;
+  S.files.forEach((f) => {
+    const k = fileKey(f);
+    if (k === S.active) { if (before.get(k) !== f.modified) markSeen(f); return; }
+    const was = before.get(k);
+    if (was === undefined) notices.set(k, notice({ text: 'New page:', strong: titleOf(f), action: { label: 'open', run: () => show(k, true) } }));
+    else if (was !== f.modified) notices.set(k, notice({ text: 'Updated:', strong: titleOf(f), icon: 'reset', action: { label: 'open', run: () => show(k, true) } }));
+  });
+}
+
+// The referee asked every player who can see a page to look at it. The
+// player chooses: nothing switches by itself.
+let showing = null;
+async function onServerMessage(m) {
+  if (m.type !== 'show' || typeof m.key !== 'string' || S.isHost) return;
+  let f = S.files.find((x) => fileKey(x) === m.key);
+  if (!f) { await load(); f = S.files.find((x) => fileKey(x) === m.key); }
+  if (!f || showing === m.key || tourRunning()) return;
+  if (S.active === m.key && !document.hidden) {
+    notice({ text: 'The referee is pointing at this page:', strong: titleOf(f), icon: 'show' });
+    return;
+  }
+  showing = m.key;
+  const body = document.createElement('div');
+  body.innerHTML = '<p>The referee wants everyone to look at:</p><p class="show-title"></p>';
+  body.querySelector('.show-title').textContent = titleOf(f);
+  const v = await overlay({
+    title: 'Look at this', icon: 'show', body,
+    actions: [{ label: 'later', value: null, kind: 'quiet', icon: 'close' }, { label: 'go to it', value: 'go', kind: 'primary', icon: 'open' }]
+  });
+  showing = null;
+  if (v === 'go' && S.files.some((x) => fileKey(x) === m.key)) show(m.key, true);
 }
 
 // What the boot and shutdown screens say (fx.js types them out).
@@ -113,25 +165,69 @@ function endScreen(was) {
   };
 }
 
+// ---- tag filter: only the tabs with every chosen tag (this device, per campaign) ----------
+const filterKey = () => 'mg-tabfilter:' + (S.session ? S.session.id : '');
+function tabFilter() {
+  const lower = allTags(S.files).map((t) => t.toLowerCase());
+  return savedList(filterKey()).filter((t) => lower.includes(t.toLowerCase()));
+}
+// The tabs on show: those matching the filter, and always the open one.
+function visibleFiles() {
+  const filter = tabFilter();
+  return filter.length ? S.files.filter((f) => hasTags(f, filter) || fileKey(f) === S.active) : S.files;
+}
+function drawFilterBtn() {
+  const tags = allTags(S.files), filter = tabFilter();
+  const b = $('filterBtn');
+  b.hidden = !tags.length;
+  b.classList.toggle('on', filter.length > 0);
+  b.setAttribute('aria-pressed', String(filter.length > 0));
+  b.innerHTML = withIcon('filter', filter.length ? filter.join(' + ') : 'filter');
+  b.title = filter.length ? 'Showing only pages tagged ' + filter.join(' and ') + ' (t)' : 'Show only pages with a tag (t)';
+}
+async function filterOverlay() {
+  const tags = allTags(S.files);
+  if (!tags.length) return;
+  const body = document.createElement('div');
+  const draw = () => {
+    const on = new Set(tabFilter().map((t) => t.toLowerCase()));
+    body.innerHTML = '<p class="mg-muted">Show only the tabs with every tag you pick. Kept on this device.</p>' +
+      '<div class="tf-chips">' + tags.map((t) => '<button type="button" class="mg-chip tf" data-tag="' + esc(t) + '" aria-pressed="' + on.has(t.toLowerCase()) + '">' + esc(t) + '</button>').join('') + '</div>';
+  };
+  draw();
+  body.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-tag]');
+    if (!b) return;
+    const now = tabFilter(), i = now.findIndex((x) => x.toLowerCase() === b.dataset.tag.toLowerCase());
+    if (i >= 0) now.splice(i, 1); else now.push(b.dataset.tag);
+    saveList(filterKey(), now);
+    draw();
+    render();
+  });
+  const v = await overlay({ title: 'Filter tabs', icon: 'filter', body, actions: [{ label: 'show all', value: 'all', kind: 'quiet', icon: 'close' }, { label: 'done', value: null, kind: 'primary', icon: 'check' }] });
+  if (v === 'all') { saveList(filterKey(), []); render(); }
+}
+
 function render() {
   $('adminLink').hidden = !S.isHost;
+  drawFilterBtn();
   renderWho();
   const has = !!S.session && S.files.length > 0;
   $('stage').hidden = !has;
   $('empty').hidden = has;
-  $('sessionName').textContent = S.session ? S.session.name : 'no session';
+  $('sessionName').textContent = S.session ? S.session.name : 'nothing live';
   $('sessionGame').innerHTML = S.session ? gameTag(S.session.gameType) : '';
   document.title = S.session ? S.session.name + ' · MotherGoose' : 'MotherGoose';
 
   if (!S.session) {
     $('emptyEyebrow').textContent = 'waiting';
-    $('emptyTitle').textContent = "The referee hasn't opened a session yet.";
-    $('emptyText').textContent = 'Keep this page open. It will update by itself when the session starts.';
+    $('emptyTitle').textContent = 'Nothing is live yet.';
+    $('emptyText').textContent = 'Keep this page open. It will update by itself when the referee starts the session.';
   } else if (!S.files.length) {
     $('emptyEyebrow').textContent = S.session.name;
     $('emptyTitle').textContent = 'No pages here yet.';
     $('emptyText').textContent = S.isHost
-      ? 'Add pages to this session from the referee\'s dashboard, or drop them into its folder.'
+      ? 'Add pages to this campaign from the referee\'s dashboard, or drop them into its folder.'
       : 'The referee is still setting things up. Pages will appear here automatically.';
   }
 
@@ -142,7 +238,7 @@ function render() {
   const grouped = S.files.some((f) => f.scope === 'gm');
   const small = new Set(tabPrefs().small);
   let lastScope = null;
-  S.files.forEach((f, i) => {
+  visibleFiles().forEach((f, i) => {
     if (grouped && lastScope !== f.scope) {
       const g = document.createElement('span');
       g.className = 'tab-group ' + SCOPE[f.scope].cls;
@@ -160,10 +256,17 @@ function render() {
     b.title = titleOf(f) + (f.description ? ': ' + f.description : '') + '  (' + SCOPE[f.scope].label + (i < 9 ? ', key ' + (i + 1) : '') + ')' +
       (f.perPlayer ? '\n' + PER_PLAYER_HINT + (S.isHost ? '. Pick whose copy above the page.' : '.') : '') +
       '\nDrag to reorder. Right-click (or hold) to shrink it.';
+    const mark = S.isHost ? '' : seenState(f);
+    if (mark) b.title += '\n' + (mark === 'new' ? 'New: you haven\'t opened it yet.' : 'Updated since you last opened it.');
+    if (S.isHost && (isHidden(f) || isOnly(f))) {
+      b.title += '\n' + (isHidden(f) ? 'Hidden from players. ' : '') + 'Shown to ' + audienceText(f, S.players) + '.';
+    }
     b.innerHTML = (i < 9 ? '<span class="n">' + (i + 1) + '</span>' : '') +
       (f.kind !== 'html' ? ic('kind-' + f.kind) : '') +
       (f.perPlayer ? ic('player', 'per') : '') +
-      '<span class="t">' + esc(titleOf(f)) + '</span>';
+      (S.isHost && isHidden(f) ? ic('hidden', 'vis') : S.isHost && isOnly(f) ? ic('only', 'vis') : '') +
+      '<span class="t">' + esc(titleOf(f)) + '</span>' +
+      (mark ? '<span class="seen ' + mark + '" aria-label="' + (mark === 'new' ? 'new' : 'updated') + '"></span>' : '');
     tabs.appendChild(b);
   });
 
@@ -186,9 +289,9 @@ function show(key, focusTab) {
   const fk = who === null ? null : frameKey(f, who);
   if (fk && !S.frames.has(fk)) {
     const fr = document.createElement('iframe');
-    fr.src = viewUrl(S.session.id, f, f.kind !== 'html' ? f.modified : '', who);
+    fr.src = viewUrl(S.session.id, f, !isPage(f) ? f.modified : '', who);
     fr.title = titleOf(f) + (who ? ': ' + playerName(S.players, who) : f.perPlayer ? ': template' : '');
-    if (f.kind !== 'html') fr.className = 'viewer';
+    if (!isPage(f)) fr.className = 'viewer';
     fr.setAttribute('allow', 'fullscreen');
     fr.dataset.file = fileKey(f);
     fr.dataset.who = who;
@@ -199,6 +302,12 @@ function show(key, focusTab) {
     $('frames').appendChild(fr);
   }
   S.shown = fk;
+  if (notices.has(key)) { notices.get(key)(); notices.delete(key); }
+  if (!S.isHost && seenState(f)) {
+    markSeen(f);
+    const mark = document.querySelector('.tab[data-key="' + CSS.escape(key) + '"] .seen');
+    if (mark) mark.remove();
+  }
   S.frames.forEach((fr, k) => { fr.hidden = k !== fk; });
   $('who').hidden = !!fk;
   if (!fk) renderAsk(f);
@@ -219,9 +328,10 @@ function show(key, focusTab) {
 
 
 function step(delta) {
-  const i = S.files.findIndex((f) => fileKey(f) === S.active);
-  if (i < 0 || !S.files.length) return;
-  show(fileKey(S.files[(i + delta + S.files.length) % S.files.length]), true);
+  const list = visibleFiles();
+  const i = list.findIndex((f) => fileKey(f) === S.active);
+  if (i < 0 || !list.length) return;
+  show(fileKey(list[(i + delta + list.length) % list.length]), true);
 }
 
 // ---- connection state ----------------------------------------------------------
@@ -260,7 +370,7 @@ function detailsOverlay() {
   const f = activeFile();
   const st = syncState();
   const rows = [
-    ['session', S.session ? esc(S.session.name) : '<span class="mg-muted">none live</span>'],
+    ['campaign', S.session ? esc(S.session.name) + ' <span class="mg-muted">live now</span>' : '<span class="mg-muted">none live</span>'],
     ['game', S.session && S.session.gameType ? gameTag(S.session.gameType) : '<span class="mg-muted">not set</span>'],
     ['you are', S.isHost ? 'the referee (this is the host computer)'
       : S.me ? '<b>' + esc(meName()) + '</b> <span class="mg-muted">a player, on this device</span>'
@@ -282,20 +392,21 @@ function detailsOverlay() {
     }
     rows.push(
       ['file', esc(f.name)],
-      ['type', f.kind === 'html' ? 'HTML page: entries are saved and synced' : f.kind === 'pdf' ? 'PDF: form fields are saved and synced' : KIND_NAME[f.kind]],
+      ['type', f.kind === 'html' ? 'HTML page: entries are saved and synced' : f.kind === 'md' ? 'Markdown page: ticked boxes are saved and synced'
+        : f.kind === 'pdf' ? 'PDF: form fields are saved and synced' : KIND_NAME[f.kind]],
       ['size', size(f.size)],
       ['changed', esc(when(f.modified)) + ' <span class="mg-muted">(' + esc(agoText(f.modified)) + ')</span>'],
       ['sync', f.kind === 'image' ? '<span class="mg-muted">nothing to sync</span>' : !S.shown ? '<span class="mg-muted">nothing open</span>'
         : st === 'live' ? 'saved and syncing' : esc(STATUS_TEXT[st] || st)]
     );
   }
-  overlay({ title: 'Session details', icon: 'info', wide: true, body: kv(rows) });
+  overlay({ title: 'Campaign details', icon: 'info', wide: true, body: kv(rows) });
 }
 
 async function helpOverlay() {
   const keys = [
     ['f', 'full screen on / off'], ['esc', 'leave full screen'], ['1 – 9', 'jump to a tab'],
-    ['[  ]', 'previous / next tab'], ['← →', 'move between tabs (when a tab has focus)'], ['i', 'session details'], ['?', 'this help']
+    ['[  ]', 'previous / next tab'], ['t', 'filter the tabs by tag'], ['ctrl k  /', 'jump to a page'], ['← →', 'move between tabs (when a tab has focus)'], ['i', 'campaign details'], ['?', 'this help']
   ];
   const mouse = [
     ['drag a tab', 'put the tabs in your own order (on this device)'],
@@ -318,6 +429,7 @@ $('sessionBtn').addEventListener('click', detailsOverlay);
 $('syncBtn').addEventListener('click', detailsOverlay);
 $('helpBtn').addEventListener('click', helpOverlay);
 $('whoBtn').addEventListener('click', attempt(pickName));
+$('filterBtn').addEventListener('click', filterOverlay);
 
 // ---- full screen ------------------------------------------------------------------
 // Collapses the app UI to the tab strip, and also asks the browser for real
@@ -364,12 +476,27 @@ if (wasFull) setFull(true, false);
 
 // ---- keyboard ----------------------------------------------------------------------
 
+// Quick jump: every tab, by title, file name, description or tag.
+function jump() {
+  if (!S.files.length) return;
+  quickJump({
+    title: 'Jump to a page', placeholder: 'page or #tag',
+    items: S.files.map((f) => ({
+      title: titleOf(f), sub: SCOPE[f.scope].label + (f.perPlayer ? ' · per player' : ''), icon: 'kind-' + f.kind, cls: SCOPE[f.scope].cls,
+      tags: f.tags, text: f.name + ' ' + (f.description || ''), run: () => show(fileKey(f), true)
+    }))
+  });
+}
+
 document.addEventListener('keydown', (e) => {
+  if (isJumpKey(e) && !document.querySelector('dialog[open]')) { e.preventDefault(); jump(); return; }
   if (!shortcutAllowed(e)) return;
   const k = e.key;
+  if (k === '/') { e.preventDefault(); jump(); return; }
   if (k === 'f') { setFull(!document.body.classList.contains('mg-full')); }
   else if (k === 'Escape' && document.body.classList.contains('mg-full')) { setFull(false); }
-  else if (/^[1-9]$/.test(k) && S.files[+k - 1]) { show(fileKey(S.files[+k - 1]), true); }
+  else if (/^[1-9]$/.test(k) && visibleFiles()[+k - 1]) { show(fileKey(visibleFiles()[+k - 1]), true); }
+  else if (k === 't' && allTags(S.files).length) { filterOverlay(); }
   else if (k === '[') { step(-1); }
   else if (k === ']') { step(1); }
   else if ((k === 'ArrowRight' || k === 'ArrowLeft') && e.target.closest && e.target.closest('.tabs')) { step(k === 'ArrowRight' ? 1 : -1); }
@@ -389,11 +516,15 @@ if (wantTour) history.replaceState(null, '', location.pathname + location.hash);
 app.render = render;
 app.show = show;
 app.load = load;
+// After picking another name: frames reopen as the new player, and the
+// events socket reconnects so the server knows who this device is now.
+app.dropFrames = () => Array.from(S.frames.keys()).forEach(dropFrame);
 app.setFull = setFull;
 app.detailsOverlay = detailsOverlay;
 
 switchLinks();
-listenEvents(load, (up) => { S.serverUp = up; updateSync(); });
+const events = listenEvents(load, (up) => { S.serverUp = up; updateSync(); }, onServerMessage);
+app.reconnectEvents = () => events.reconnect();
 load().then(async () => {
   if (!wantTour) return;
   for (let i = 0; i < 20 && document.documentElement.classList.contains('mg-arrive'); i++) await new Promise((r) => setTimeout(r, 100));

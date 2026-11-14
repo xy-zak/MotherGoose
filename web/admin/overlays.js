@@ -1,25 +1,75 @@
-// The referee dashboard's overlays: Join Info, the data folder, a session's
+// The referee dashboard's overlays: Join Info, the data folder, a campaign's
 // details and editing, a page's info popup (where a page is edited, its party
 // and copies), and renaming or removing players.
 import {
-  agoText, api, attempt, canPerPlayer, confirmDialog, enc, esc, filledUrl,
-  formOverlay, gameTag, hasEntries, ic, KIND_NAME, kindTag, kv, overlay,
+  agoText, api, attempt, audienceText, canPerPlayer, confirmDialog, enc, esc, filledUrl, isPage, perPlayerTag,
+  formOverlay, gameTag, hasEntries, ic, isHidden, isOnly, KIND_NAME, kindTag, kv, overlay,
   parseTags, playerName, SCOPE, scopeTag, size, titleOf, toast, viewUrl,
-  when, withIcon
+  visTags, when, withIcon
 } from '/_mg/ui.js';
 import { A, app, fileBase, filledCount, livePort, MAX_PLAYERS, other, playersBase } from './state.js';
+import { tourRunning } from '/_mg/tour.js';
 
+// Join Info: the address players open, as a link and a QR code. The
+// computer's name (<name>.local) stays the same between game nights, unlike
+// its IP address, so it goes first when it answers here; any address can be
+// picked to show its QR code instead.
 export function joinOverlay() {
-  const urls = (A.info && A.info.urls) || [];
-  const others = urls.slice(1).map((u) => '<a href="' + esc(u) + '" target="_blank" rel="noopener">' + esc(u) + '</a>').join('<br>');
-  const body = urls.length
-    ? '<div class="mg-section-label">Players open</div>' +
-      '<a class="join-url" href="' + esc(A.info.primary) + '" target="_blank" rel="noopener">' + esc(A.info.primary) + '</a>' +
-      '<div class="qr"><img src="/api/qr.png" alt="QR code for ' + esc(A.info.primary) + '"></div>' +
+  const info = A.info || {};
+  const urls = info.urls || [];
+  if (!urls.length) {
+    overlay({ title: 'Join Info', icon: 'join', body: '<p>No network connection found. Connect this computer to Wi-Fi or a LAN, then reload.</p>' });
+    return;
+  }
+  const body = document.createElement('div');
+  body.className = 'join';
+  let addrs = urls.map((u) => ({ url: u, note: '' }));
+  let shown = urls[0];
+  const draw = () => {
+    const main = addrs.find((a) => a.url === shown) || addrs[0];
+    body.innerHTML =
+      '<div class="mg-section-label">Players open</div>' +
+      '<a class="join-url" href="' + esc(main.url) + '" target="_blank" rel="noopener">' + esc(main.url) + '</a>' +
+      (main.note ? '<p class="mg-muted join-note">' + esc(main.note) + '</p>' : '') +
+      '<div class="qr"><img src="/api/qr.png?u=' + enc(main.url) + '" alt="QR code for ' + esc(main.url) + '"></div>' +
       '<p class="mg-muted">Players need to be on the same Wi-Fi or network as this computer. They can scan the code with a phone camera.</p>' +
-      (others ? '<hr class="mg-rule"><div class="mg-section-label">If that doesn\'t work, try</div><p>' + others + '</p>' : '')
-    : '<p>No network connection found. Connect this computer to Wi-Fi or a LAN, then reload.</p>';
+      (addrs.length > 1
+        ? '<hr class="mg-rule"><div class="mg-section-label">Other addresses</div><ul class="join-list">' +
+          addrs.filter((a) => a !== main).map((a) =>
+            '<li><a href="' + esc(a.url) + '" target="_blank" rel="noopener">' + esc(a.url) + '</a>' +
+            (a.note ? ' <span class="mg-muted">' + esc(a.note) + '</span>' : '') +
+            ' <button type="button" class="mg-btn quiet small compact" data-qr="' + esc(a.url) + '" title="Show the QR code for this address">' + withIcon('join', 'QR') + '</button></li>').join('') +
+          '</ul><p class="mg-muted">Each device remembers its name and tab order for the address it used, so it\'s easiest if everyone keeps to one.</p>'
+        : '');
+  };
+  draw();
+  body.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-qr]');
+    if (b) { shown = b.dataset.qr; draw(); }
+  });
   overlay({ title: 'Join Info', icon: 'join', body });
+  if (!info.localUrl || tourRunning()) return;
+  // Does this computer's name answer on this network? Ask it, from here.
+  reachable(info.localUrl).then((ok) => {
+    const local = { url: info.localUrl, note: ok ? 'by this computer\'s name: stays the same between game nights' : 'may work on some devices' };
+    if (ok) { addrs = [local].concat(addrs); if (shown === urls[0]) shown = local.url; }
+    else addrs = addrs.concat([local]);
+    if (body.isConnected) draw();
+  });
+}
+
+// reachable tries to fetch a small file from an address, for at most 2 s.
+async function reachable(base) {
+  const ctl = new AbortController();
+  const t = setTimeout(() => ctl.abort(), 2000);
+  try {
+    await fetch(base + '_mg/icons.svg', { mode: 'no-cors', cache: 'no-store', signal: ctl.signal });
+    return true;
+  } catch (e) {
+    return false;
+  } finally {
+    clearTimeout(t);
+  }
 }
 
 export async function dataOverlay() {
@@ -29,9 +79,9 @@ export async function dataOverlay() {
     wide: true,
     actions: [{ label: 'open folder', value: 'reveal', icon: 'folder', kind: 'primary' }],
     body: kv([['location', '<code>' + esc(A.info ? A.info.dataDir : '') + '</code>']]) +
-      '<pre class="tree">data/\n  config.json              which session is live\n  sessions/\n    the-sunken-keep/\n      session.json         name, game type, page descriptions and tags\n' +
+      '<pre class="tree">data/\n  config.json              which campaign is live\n  sessions/                one folder per campaign\n    the-sunken-keep/\n      session.json         name, game type, party, page details and who sees them\n' +
       '      shared/              players\' pages\n      gm/                  referee\'s pages (this computer only)\n      state/               what people typed (managed for you)\n        players/           each player\'s copy of per-player pages</pre>' +
-      '<p class="mg-muted">Copy .html, .pdf, .png or .jpg files into <code>shared/</code> (players) or <code>gm/</code> (referee) and they appear within a couple of seconds. Back up by copying the whole folder.</p>'
+      '<p class="mg-muted">Copy .html, .md, .pdf, .png or .jpg files into <code>shared/</code> (players) or <code>gm/</code> (referee) and they appear within a couple of seconds. Back up by copying the whole folder.</p>'
   });
   if (v === 'reveal') await api('POST', '/api/admin/data/reveal');
 }
@@ -39,7 +89,7 @@ export async function dataOverlay() {
 export async function editSession() {
   const s = A.current;
   const v = await formOverlay({
-    title: 'Edit session', icon: 'edit',
+    title: 'Edit campaign', icon: 'edit',
     fields: [
       { name: 'name', label: 'Name', value: s.name, max: 120, required: true },
       { name: 'gameType', label: 'Game type', hint: 'the game or rules you\'re playing', value: s.gameType, max: 60 }
@@ -54,13 +104,13 @@ export async function editSession() {
 export async function sessionOverlay() {
   const s = A.current;
   const v = await overlay({
-    title: 'Session: ' + s.name,
+    title: 'Campaign: ' + s.name,
     icon: 'info',
     wide: true,
     body: kv([
       ['name', esc(s.name)], ['game type', s.gameType ? gameTag(s.gameType) : '<span class="mg-muted">not set</span>'],
       ['id', '<code>' + esc(s.id) + '</code>'],
-      ['status', s.active ? livePort() : 'not running'],
+      ['status', s.active ? livePort() + ' <span class="mg-muted">a session is on</span>' : 'not live'],
       ['pages', (s.files.shared || []).length + ' for players, ' + (s.files.gm || []).length + ' for the referee'],
       ['party', (s.players || []).length ? (s.players || []).map((p) => esc(p.name)).join(', ') : '<span class="mg-muted">no players yet</span>'],
       ['created', esc(when(s.created))], ['last edit', esc(when(s.lastEdited))],
@@ -89,12 +139,12 @@ function copiesList(s, f) {
   return '<div><div class="mg-section-label">' + ic('player') + ' Copies</div>' +
     '<ul class="copies">' + row('', 'template', 'starting values', f.hasState) +
       players.map((p) => row(p.id, p.name, '', !!(f.playerState && f.playerState[p.id]))).join('') + '</ul></div>' +
-    (players.length ? '' : '<p class="mg-muted">No players in the party yet: add them under PARTY in the session panel.</p>');
+    (players.length ? '' : '<p class="mg-muted">No players in the party yet: add them under PARTY in the campaign panel.</p>');
 }
 
 // The info popup is where a page is edited: name, description, tags and the
 // per-player switch are saved together with "save"; party changes (when the
-// page is per player) apply straight away, as in the session panel's party.
+// page is per player) apply straight away, as in the campaign panel's party.
 export async function fileOverlay(scope, name) {
   const s = A.current;
   const f = (s.files[scope] || []).find((x) => x.name === name);
@@ -120,13 +170,17 @@ export async function fileOverlay(scope, name) {
             '<span><b>' + ic('player', 'deco') + ' Per player</b><span class="hint">Every player in the party fills in their own copy, seen only by them and you. ' +
             'Entries already in the page become each player\'s starting values. Turning it off keeps their copies for later.</span></span></label>'
         : '') +
+      (scope === 'shared' ? visibilityFields(s, f) : '') +
       '<button type="submit" hidden></button>' +
     '</form>' +
+    (isPage(f) ? '<div class="fcheck" id="fcheck"></div>' : '') +
     '<div class="fparty" id="fparty"' + (per ? '' : ' hidden') + '></div>' +
     '<div class="fcopies" id="fcopies"></div>' +
     '<hr class="mg-rule">' +
     kv([
-      ['for', scopeTag(scope) + ' <span class="mg-muted">' + (scope === 'gm' ? 'this computer only' : per ? 'each player their own copy, when the session is live' : 'every player, when the session is live') + '</span>'],
+      ['for', scopeTag(scope) + ' <span class="mg-muted">' + (scope === 'gm' ? 'this computer only'
+        : (isHidden(f) ? 'hidden; once revealed, ' : '') + audienceText(f, s.players) + (per ? ', each their own copy' : '') + ', when the session is live') + '</span>' +
+        (scope === 'shared' ? ' ' + visTags(f, s.players) : '')],
       ['type', kindTag(f.kind) + ' ' + KIND_NAME[f.kind]],
       ['size', size(f.size)], ['changed', esc(when(f.modified)) + ' <span class="mg-muted">(' + esc(agoText(f.modified)) + ')</span>'],
       ['entries', !hasEntries(f) ? '<span class="mg-muted">not applicable</span>'
@@ -138,6 +192,19 @@ export async function fileOverlay(scope, name) {
 
   const form = body.querySelector('#fform');
   const partyEl = body.querySelector('#fparty');
+  // What checking the page finds: worth knowing about pages copied in by hand.
+  // (The tutorial's example pages aren't on disk.)
+  if (isPage(f) && !tourRunning()) {
+    api('GET', base + '/check').then((c) => {
+      const el = body.querySelector('#fcheck');
+      if (!el) return;
+      const notes = checkNotes(c.report || {});
+      const rep = c.report || {};
+      el.innerHTML = notes
+        ? '<div class="mg-section-label">' + ic('warning') + ' Checked</div>' + notes + '<button type="button" class="mg-btn quiet small" data-guide>' + withIcon('guide', 'Making HTML pages') + '</button>'
+        : '<p class="mg-muted check-ok">' + ic('check') + ' One self-contained file' + (rep.fields ? ', ' + rep.fields + ' field' + (rep.fields === 1 ? '' : 's') + ' saved and synced' : '') + '.</p>';
+    }).catch(() => {});
+  }
   const copiesEl = body.querySelector('#fcopies');
 
   // The party and each copy, redrawn after every party change.
@@ -147,7 +214,7 @@ export async function fileOverlay(scope, name) {
     const full = players.length >= MAX_PLAYERS;
     partyEl.innerHTML =
       '<div class="mg-section-label">' + ic('players') + ' Party</div>' +
-      '<p class="mg-muted fnote">The party of this whole session. Adding or removing a player applies straight away.</p>' +
+      '<p class="mg-muted fnote">The party of this whole campaign. Adding or removing a player applies straight away.</p>' +
       '<div class="party-row">' +
         (players.length
           ? '<ul class="roster" aria-label="Players">' + players.map((p) =>
@@ -182,6 +249,12 @@ export async function fileOverlay(scope, name) {
     const metaBody = { description: v.description || '', tags: parseTags(v.tags) };
     const wantPer = perOk && !!v.perPlayer;
     if (perOk) metaBody.perPlayer = wantPer;
+    if (scope === 'shared') {
+      metaBody.hidden = !!v.hidden;
+      metaBody.audience = v.audience === 'only' ? 'only' : '';
+      metaBody.allowed = Array.from(form.querySelectorAll('[name=allowed]:checked')).map((i) => i.value);
+      if (metaBody.hidden !== isHidden(f)) changed.push(metaBody.hidden ? 'hidden from players' : 'revealed');
+    }
     await api('PUT', fileBase(s, scope, target) + '/meta', metaBody);
     if (perOk && wantPer !== per) changed.push(wantPer ? 'now per player' : 'shared again: everyone sees one copy');
     toast((changed.length ? target + ' ' + changed.join(', ') : 'Saved details for ' + target));
@@ -189,8 +262,9 @@ export async function fileOverlay(scope, name) {
   }
 
   const actions = [];
+  if (scope === 'shared' && s.active && !isHidden(f)) actions.push({ label: 'show to players', value: 'show', kind: 'quiet', icon: 'show' });
   if (!per) actions.push({ label: 'open', href: viewUrl(s.id, f), kind: 'quiet', icon: 'open' });
-  if (!per && hasEntries(f)) actions.push({ label: 'export filled', href: filledUrl(s.id, f), download: f.kind === 'html', icon: 'export', kind: 'quiet' });
+  if (!per && hasEntries(f)) actions.push({ label: 'export filled', href: filledUrl(s.id, f), download: f.kind !== 'pdf', icon: 'export', kind: 'quiet' });
   if (!per && f.hasState) actions.push({ label: 'reset entries', value: 'reset', kind: 'danger', icon: 'reset' });
   const to = other(scope);
   actions.push({ label: 'move to ' + SCOPE[to].label, value: 'move', kind: SCOPE[to].cls, icon: to === 'gm' ? 'to-referee' : 'to-players' });
@@ -217,7 +291,15 @@ export async function fileOverlay(scope, name) {
       // Ticking per player shows the party, so players can be added before saving.
       const pp = form.querySelector('[name=perPlayer]');
       if (pp) pp.addEventListener('change', () => { partyEl.hidden = !pp.checked; });
+      // The players to show it to only matter with "only these players".
+      const syncVis = () => {
+        const only = !!form.querySelector('[name=audience][value=only]:checked');
+        form.querySelectorAll('[name=allowed]').forEach((i) => { i.disabled = !only; });
+      };
+      form.querySelectorAll('[name=audience]').forEach((r) => r.addEventListener('change', syncVis));
+      syncVis();
       d.addEventListener('click', attempt(async (e) => {
+        if (e.target.closest('[data-guide]')) { guideOverlay(); return; }
         const r = e.target.closest('[data-copy-reset]');
         if (r && !r.disabled) { reset = r.dataset.copyReset; d.close(); return; }
         const rm = e.target.closest('[data-fremove]');
@@ -249,6 +331,8 @@ export async function fileOverlay(scope, name) {
   } else if (v === 'reset' && await confirmDialog('Reset entries', 'Clear everything typed into "' + f.name + '"? Every device viewing it reloads empty.', 'clear entries')) {
     await api('DELETE', base + '/state');
     toast('Entries cleared');
+  } else if (v === 'show') {
+    await showPage(scope, name);
   } else if (v === 'move') {
     await move(scope, name, to);
     return;
@@ -257,6 +341,128 @@ export async function fileOverlay(scope, name) {
     toast('Deleted ' + f.name);
   }
   app.refresh();
+}
+
+// ---- pages: what checking one found, templates, the guide to making them ----------------
+
+/** checkNotes lists what checking a page found worth a look, as HTML <ul>. */
+export function checkNotes(rep) {
+  const notes = [];
+  if (rep.local && rep.local.length) notes.push('<span class="bad">' + ic('warning') + ' loads files that aren\'t inside it, so they never load: ' + rep.local.map(esc).join(', ') + '</span>');
+  if (rep.web && rep.web.length) notes.push(ic('server') + ' loads from the internet (' + rep.web.map(esc).join(', ') + '): it only works while the device viewing it has internet');
+  if (rep.unnamed) notes.push(ic('warning') + ' ' + rep.unnamed + ' of ' + rep.fields + ' fields have no <code>id</code> or <code>name</code>: their saved values are lost if the page\'s layout changes');
+  return notes.length ? '<ul class="check-notes">' + notes.map((n) => '<li>' + n + '</li>').join('') + '</ul>' : '';
+}
+
+// The guide to making pages: shown in a frame, and offered as a file (it is
+// also an AI skill) or as text to paste into an AI assistant.
+export async function guideOverlay() {
+  const body = '<iframe class="guide-frame" src="/_mg/guide/" title="Making HTML pages"></iframe>' +
+    '<p class="mg-muted">This guide is also an <b>AI skill</b>: download it for an assistant that takes skills (for Claude Code, put it in <code>~/.claude/skills/mothergoose-pages/SKILL.md</code>), or copy it into any AI chat, then ask for the page you want.</p>';
+  const v = await overlay({
+    title: 'Making HTML pages', icon: 'guide', wide: true, body,
+    actions: [
+      { label: 'open in a tab', href: '/_mg/guide/', kind: 'quiet', icon: 'open' },
+      { label: 'copy for an AI assistant', value: 'copy', kind: 'quiet', icon: 'copy' },
+      { label: 'download as AI skill', href: '/_mg/guide/SKILL.md', download: true, icon: 'skill', kind: 'primary' }
+    ]
+  });
+  if (v === 'copy') {
+    const text = await (await fetch('/_mg/guide/SKILL.md', { cache: 'no-cache' })).text();
+    toast(await copyText(text) ? 'Copied the guide: paste it into an AI chat, then ask for your page' : 'Couldn\'t copy here: use "download as AI skill" instead', false);
+  }
+}
+
+// copyText puts text on the clipboard, also where the clipboard API isn't
+// offered (a plain-http address that isn't localhost).
+async function copyText(text) {
+  try { await navigator.clipboard.writeText(text); return true; } catch (e) { /* fall back */ }
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.setAttribute('readonly', '');
+  ta.style.cssText = 'position:fixed;left:-9999px;top:0';
+  document.body.appendChild(ta);
+  ta.select();
+  let ok = false;
+  try { ok = document.execCommand('copy'); } catch (e) {}
+  ta.remove();
+  return ok;
+}
+
+// The template gallery: ready-made pages, each with a live preview, added
+// to a column of the open campaign.
+export async function templateOverlay(scope) {
+  const list = await api('GET', '/api/admin/templates');
+  const body = document.createElement('div');
+  body.className = 'tgallery';
+  body.innerHTML = '<p class="mg-muted">Ready-made pages that work with any game, in MotherGoose\'s look (they follow each reader\'s theme and font). Add one, then rename it and change its details under <b>info</b>.</p>' +
+    '<div class="tg-wrap"><ul class="tg-list" role="listbox" aria-label="Templates">' + list.map((t, i) =>
+      '<li><button type="button" class="tg-item" role="option" data-i="' + i + '" aria-selected="' + (i === 0) + '">' +
+        '<b>' + esc(t.title) + '</b><span class="mg-muted">' + esc(t.description) + '</span>' +
+        '<span class="tg-tags">' + (t.perPlayer ? perPlayerTag() : '') + (t.hidden ? '<span class="mg-tag hidden">' + withIcon('hidden', 'starts hidden') + '</span>' : '') + '</span>' +
+      '</button></li>').join('') + '</ul>' +
+    '<iframe class="tg-preview" title="Preview" src="/api/admin/templates/' + enc(list[0].file) + '"></iframe></div>';
+  let at = 0;
+  const v = await overlay({
+    title: 'Add a page from a template', icon: 'template', wide: true, body,
+    actions: [{ label: 'cancel', value: null, kind: 'quiet', icon: 'close' }, { label: 'add for the ' + SCOPE[scope].label, value: 'add', kind: 'primary ' + SCOPE[scope].cls, icon: 'add' }],
+    onOpen: (d) => {
+      d.classList.add('tg-dialog');
+      body.addEventListener('click', (e) => {
+        const b = e.target.closest('.tg-item');
+        if (!b) return;
+        at = +b.dataset.i;
+        body.querySelectorAll('.tg-item').forEach((x) => x.setAttribute('aria-selected', String(x === b)));
+        body.querySelector('.tg-preview').src = '/api/admin/templates/' + enc(list[at].file);
+      });
+    }
+  });
+  if (v !== 'add') return;
+  const t = list[at];
+  const r = await api('POST', '/api/admin/sessions/' + enc(A.current.id) + '/templates', { template: t.file, scope });
+  toast('Added ' + t.title + ' (' + r.name + ') for the ' + SCOPE[scope].label + (r.meta && r.meta.hidden ? ': hidden until you reveal it' : ''));
+  app.refresh();
+}
+
+// ---- who sees a players' page ---------------------------------------------------------
+
+// The "who can see it" part of a players' page's info: everyone or only some
+// players, and whether it is hidden until revealed (the audience is kept).
+function visibilityFields(s, f) {
+  const players = s.players || [];
+  const only = isOnly(f);
+  const allowed = new Set(f.allowed || []);
+  return '<fieldset class="mg-choice vis"><legend>Who can see it <span class="hint">the referee always can</span></legend>' +
+    '<label><input type="radio" name="audience" value=""' + (only ? '' : ' checked') + '><span>every player</span></label>' +
+    '<label><input type="radio" name="audience" value="only"' + (only ? ' checked' : '') + '><span>only these players' +
+      '<span class="hint">for a clue or note meant for some of them. Ticking nobody keeps it for you alone.</span></span></label>' +
+    '<div class="vis-players">' + (players.length
+      ? players.map((p) => '<label class="vis-p"><input type="checkbox" name="allowed" value="' + esc(p.id) + '"' + (allowed.has(p.id) ? ' checked' : '') + '>' +
+          ic('player', 'deco') + '<span>' + esc(p.name) + '</span></label>').join('')
+      : '<span class="mg-muted">No players in the party yet: add them under PARTY in the campaign panel.</span>') + '</div>' +
+    '</fieldset>' +
+    '<label class="pp-toggle hide-toggle"><input type="checkbox" name="hidden"' + (isHidden(f) ? ' checked' : '') + '>' +
+      '<span><b>' + ic('hidden', 'deco') + ' Hidden until I reveal it</b><span class="hint">No player sees it, not even its name. ' +
+      'Reveal it from its row when the moment comes; it then goes to whoever is chosen above.</span></span></label>';
+}
+
+// toggleHidden hides a players' page, or reveals it, from its row.
+export async function toggleHidden(scope, name) {
+  const f = (A.current.files[scope] || []).find((x) => x.name === name);
+  if (!f) return;
+  const hide = !isHidden(f);
+  await api('PUT', fileBase(A.current, scope, name) + '/meta', { hidden: hide });
+  toast(hide ? 'Hid ' + titleOf(f) + ' from players' : 'Revealed ' + titleOf(f) + ' to ' + audienceText(f, A.current.players));
+  app.refresh();
+}
+
+// showPage asks every player who can see a page to look at it now.
+export async function showPage(scope, name) {
+  const f = (A.current.files[scope] || []).find((x) => x.name === name);
+  if (!f) return;
+  const r = await api('POST', fileBase(A.current, scope, name) + '/show');
+  const n = r && r.devices || 0;
+  toast(n ? 'Asked ' + n + ' device' + (n === 1 ? '' : 's') + ' to look at ' + titleOf(f) : 'No player\'s device is connected to see ' + titleOf(f), !n);
 }
 
 // ---- the party -------------------------------------------------------------------------

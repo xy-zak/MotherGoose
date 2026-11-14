@@ -58,13 +58,14 @@ There are three kinds of client. They all load their code from the server and ke
 
 | Client | Loaded from | Sockets | What it does |
 |---|---|---|---|
-| **Referee dashboard** | `/admin` (`web/admin/`) | `/ws/events` | Manages sessions, pages and the roster over the HTTP API. Refetches everything it shows when told something changed. |
-| **Player view** (the "shell") | `/` (`web/shell/`) | `/ws/events` | Shows the live session's pages as tabs, each in an `<iframe>`. Refetches `/api/active` when told something changed. |
+| **Referee dashboard** | `/admin` (`web/admin/`) | `/ws/events` | Manages campaigns, pages and the roster over the HTTP API. Refetches everything it shows when told something changed. |
+| **Player view** (the "shell") | `/` (`web/shell/`) | `/ws/events` | Shows the live campaign's pages as tabs, each in an `<iframe>`. Refetches `/api/active` when told something changed. |
 | **Page frames** | `/s/<session>/<scope>/<file>` (HTML) or `/_mg/viewer/pdf.html?src=…` (PDF) | `/ws/file` | One per open HTML page or PDF. Syncs field values live. Images have no entries and no socket. |
 
-On every connection the server decides two things:
+On every connection the server decides three things:
 
 - **Is this the host?** A request counts as the host if its remote IP is loopback or one of the machine's own addresses (`isHostRequest`, `internal/server/netinfo.go`). The host can open everything. Other devices can only open shared pages of the live session.
+- **May this device see the page at all?** A players' page can be hidden (from every player) or shown only to some players (`PageMeta.Hidden`, `Audience`, `Allowed`). For other devices, `canSee` (`internal/server/http.go`) checks it, by the player the device picked; a page it may not see is left out of `/api/active` and answers 404 everywhere else, so players can't tell it exists.
 - **Which copy of the page?** On a per-player page, a player's device works on the copy of the player it picked. That pick is kept in the `mg_who` cookie, set through `POST /api/me`. The host can open the template or any player's copy (`copyFor`, `internal/server/players.go`).
 
 ### The guard
@@ -83,23 +84,29 @@ Everything returns JSON except the pages themselves. Routes marked *host* answer
 
 | Method and path | Who | Purpose |
 |---|---|---|
-| `GET /api/active` | anyone | The live session, its files (shared files only, unless you are the host), roster and `me` (this device's player). |
+| `GET /api/active` | anyone | The live campaign, its files (shared files this device may see, unless you are the host), roster and `me` (this device's player). For players, `hidden`, `audience` and `allowed` are blanked, and `modified` is when the file itself changed (not anyone's entries). |
 | `POST /api/me` | anyone | `{"player": "<id>" \| null}`: pick or forget this device's player in the live session. Sets `mg_who`. |
-| `GET /api/info` | host | Port, LAN URLs and data folder. |
-| `GET /api/qr.png` | host | QR code of the players' address. |
+| `GET /api/info` | host | Port, LAN URLs, `localUrl` (`http://<name>.local:<port>/`, or empty) and data folder. |
+| `GET /api/qr.png[?u=]` | host | QR code of the players' address, or of `u` if it is one of the LAN URLs or the `.local` one. |
+| `GET /api/admin/templates` | host | The built-in templates (`web/templates/templates.json`). |
+| `GET /api/admin/templates/{file}` | host | A template, in the referee's theme, for the gallery's preview. |
+| `POST /api/admin/sessions/{id}/templates` | host | `{"template", "scope"?}`: adds a template as a new page, under a free name, with its details. |
 | `GET /api/admin/sessions` | host | Every session, as summaries. |
 | `GET /api/admin/sessions/{id}` | host | One session: files per scope, `hasState`, `playerState`, `lastEdited`. |
 | `POST / PATCH / DELETE /api/admin/sessions/{id}` | host | Create, rename or change game type, delete. |
 | `POST /api/admin/sessions/{id}/reveal`, `POST /api/admin/data/reveal` | host | Open the session's folder, or the whole data folder, in the computer's file explorer. |
 | `POST /api/admin/sessions/{id}/activate`, `DELETE /api/admin/active` | host | Go live, end the session. |
-| `POST /api/admin/sessions/{id}/files` | host | Multipart upload: `scope` plus one or more `files`. |
+| `POST /api/admin/sessions/{id}/files` | host | Multipart upload: `scope` plus one or more `files`. Answers `{saved, errors, warnings}`: an HTML or Markdown page that loads files from beside it is refused (in `errors`); `warnings` maps a saved page to what checking it found (`web` hosts it loads from, `unnamed` fields). |
 | `PUT /api/admin/sessions/{id}/order` | host | `{"scope", "names": [...]}`: page order. |
 | `PATCH / DELETE /api/admin/sessions/{id}/files/{scope}/{file}` | host | Move or rename, delete. |
-| `PUT …/files/{scope}/{file}/meta` | host | Description, tags, per-player switch. |
+| `PUT …/files/{scope}/{file}/meta` | host | Any of `description`, `tags`, `perPlayer`, `hidden`, `audience` (`""` or `"only"`), `allowed` (player ids). Fields left out stay as they are. |
+| `GET …/files/{scope}/{file}/check` | host | What checking an HTML or Markdown page finds: `{report: {local, web, fields, unnamed}, error?}`. |
+| `POST …/files/{scope}/{file}/show` | host | Asks every player's device that can see the page to look at it: sends `show` on `/ws/events`. The campaign must be live and the page not hidden. Answers `{devices}`. |
 | `DELETE …/files/{scope}/{file}/state[?player=]` | host | Reset entries. |
-| `GET …/files/{scope}/{file}/export[?player=]` | host | Filled-in HTML download. |
+| `GET …/files/{scope}/{file}/export[?player=]` | host | Filled-in HTML download (Markdown pages export as HTML). |
 | `POST / PATCH / DELETE /api/admin/sessions/{id}/players[/{player}]` | host | Roster. |
-| `GET /s/{session}/{scope}/{file}[?player=]` | per access rules | The page. HTML pages come back with their saved entries and the page script added before `</body>`. PDFs and images are sent as they are, with Range support. |
+| `GET /s/{session}/{scope}/{file}[?player=]` | per access rules | The page. HTML pages come back with their saved entries and the page script added before `</body>` (and, with `<meta name="mothergoose" content="theme">`, `tokens.css` and `page-theme.js` added to the `<head>`). Markdown pages are turned into HTML first. PDFs and images are sent as they are, with Range support. |
+| `GET /_mg/guide/` | anyone | The guide to making pages, as a page. `/_mg/guide/SKILL.md` is the file itself (an AI skill). |
 | `GET /_mg/inject.js` | anyone | The page script: `sync.js` and `inject.js` as one script, wrapped in a function. |
 | `GET /_mg/…` | anyone | Static files: scripts, styles, fonts, the PDF viewer. |
 
@@ -125,7 +132,7 @@ All messages are JSON text frames.
 | `{"type":"set","key":k,"value":v}` | Another client in the same room changed a field. Senders don't get their own sets echoed back. `null` means cleared. |
 | `{"type":"ack","seq":n}` | The server has handled this client's set number `n`, and every earlier one. Sent even when the value was refused (a bad key, or larger than 1 MiB), because sending it again wouldn't help. |
 | `{"type":"reload"}` | The page's file was replaced, its entries were reset, it was switched to or from per-player, or the player was renamed. The client reloads. |
-| `{"type":"gone"}` | The page was deleted or moved, the session was deleted or ended (players only), or the player was removed. The client shows "closed", closes its socket and stops reconnecting. What's typed after that stays on the device. |
+| `{"type":"gone"}` | The page was deleted or moved, hidden or no longer shown to this device's player, the campaign was deleted or its session ended (players only), or the player was removed. The client shows "closed", closes its socket and stops reconnecting. What's typed after that stays on the device. |
 | `{"type":"ping"}` | A heartbeat every 25 s, so the client can tell a quiet connection from a dead one. |
 
 ### Client → server
@@ -178,12 +185,13 @@ This socket is opened by the referee dashboard and by every player view. It carr
 | Message | Meaning |
 |---|---|
 | `{"type":"changed"}` | Something the dashboards show has changed. Refetch. |
+| `{"type":"show","key":"shared/<file>"}` | The referee asks this device's player to look at a page. Sent only to players' devices that can see it, judged by the `mg_who` cookie the socket connected with: the player view reconnects this socket after picking a name. The player view asks the player; it never switches tabs by itself. |
 | `{"type":"ping"}` | A heartbeat every 25 s. Ignored apart from the 60 s dead-connection check. |
 
 On every (re)connect, and on every `changed`, the client refetches:
 
 - **The referee dashboard** fetches `GET /api/admin/sessions` and the selected session, then redraws. It waits while the referee is typing in a text field, while a page is being dragged, or while the tutorial runs, and catches up afterwards.
-- **The player view** fetches `GET /api/active`, then adds or drops tabs, and reloads a PDF or image frame whose file changed.
+- **The player view** fetches `GET /api/active`, then adds or drops tabs, and reloads a PDF or image frame whose file changed. A page that appeared or was replaced since its last fetch (while connected) gets a notice with "open", and tabs it hasn't opened on this device are marked (kept in `localStorage`, `mg-seen:<campaign>`).
 
 Anything the client sends on this socket is read and ignored.
 

@@ -16,6 +16,12 @@ type client struct {
 	send chan []byte
 	once sync.Once
 	host bool // connected from the server machine
+	// player is, on /ws/file, the player this device had picked in the
+	// page's session when it connected ("" for none).
+	player string
+	// who is, on /ws/events, the device's picks when it connected: session
+	// id -> player id. The shell reconnects after picking a name.
+	who map[string]string
 }
 
 func newClient(c *websocket.Conn) *client {
@@ -165,22 +171,55 @@ func (h *Hub) toRooms(match func(string) bool, msg any) {
 
 // kickPlayers tells non-host clients in matching rooms that the page is gone.
 func (h *Hub) kickPlayers(prefix string) {
-	b, _ := json.Marshal(map[string]string{"type": "gone"})
+	h.kick(func(k string) bool { return strings.HasPrefix(k, prefix) },
+		func(_ string, c *client) bool { return !c.host },
+		map[string]string{"type": "gone"}, websocket.StatusNormalClosure, "session is no longer live")
+}
+
+// kick sends msg (unless nil) to the chosen clients of matching rooms, then
+// closes their sockets, so a client that ignores the message can't go on
+// hearing a page it may no longer see. The pause lets the message arrive.
+// It returns how many clients it chose.
+func (h *Hub) kick(match func(room string) bool, choose func(room string, c *client) bool, msg any, code websocket.StatusCode, reason string) int {
+	var b []byte
+	if msg != nil {
+		b, _ = json.Marshal(msg)
+	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
+	n := 0
 	for k, cs := range h.rooms {
-		if strings.HasPrefix(k, prefix) {
-			for c := range cs {
-				if !c.host {
-					c.queue(b)
-					cc := c
-					time.AfterFunc(500*time.Millisecond, func() {
-						cc.close(websocket.StatusNormalClosure, "session is no longer live")
-					})
-				}
+		if !match(k) {
+			continue
+		}
+		for c := range cs {
+			if !choose(k, c) {
+				continue
 			}
+			n++
+			if b != nil {
+				c.queue(b)
+			}
+			cc := c
+			time.AfterFunc(500*time.Millisecond, func() {
+				cc.close(code, reason)
+			})
 		}
 	}
+	return n
+}
+
+// roomsWithPrefix lists the rooms open under a key prefix.
+func (h *Hub) roomsWithPrefix(prefix string) []string {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	var out []string
+	for k := range h.rooms {
+		if strings.HasPrefix(k, prefix) {
+			out = append(out, k)
+		}
+	}
+	return out
 }
 
 // RoomSize is the number of clients viewing a file.
@@ -200,6 +239,23 @@ func (h *Hub) removeListener(c *client) {
 	h.mu.Lock()
 	delete(h.events, c)
 	h.mu.Unlock()
+}
+
+// EventTo sends msg to the shells and dashboards it chooses, and returns
+// how many it reached. Decide what choose needs before calling: it runs
+// under the hub's lock, so it mustn't call the store.
+func (h *Hub) EventTo(msg any, choose func(*client) bool) int {
+	b, _ := json.Marshal(msg)
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	n := 0
+	for c := range h.events {
+		if choose(c) {
+			c.queue(b)
+			n++
+		}
+	}
+	return n
 }
 
 // Event is pushed to every shell and admin page.

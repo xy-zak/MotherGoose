@@ -1,5 +1,5 @@
 // The player tutorial. It tours this screen as it is right now: parts that
-// aren't showing (no session yet, no party) are explained without a
+// aren't showing (nothing live yet, no party) are explained without a
 // highlight, or left out.
 import { $, esc, ic, lastDialog, liveTag } from '/_mg/ui.js';
 import { activeFile, app, meName, S } from './state.js';
@@ -29,34 +29,39 @@ function tourSteps() {
       '<p>' + (S.me ? 'This device is <b>' + esc(meName()) + '</b>. Tap here to pick another name, or to forget it.' : 'Pick your name from the referee\'s party.') + '</p>' +
       '<p>Pages marked <b class="players">per player</b>, like character sheets, then show you your own copy: only you and the referee see what you type in it.</p>', '#whoBtn');
   }
-  add('Top bar', 'The session', () =>
-    '<p>' + (S.session ? 'The session that is live: <b>' + esc(S.session.name) + '</b>' + (S.session.gameType ? ', playing ' + esc(S.session.gameType) : '') + '.' : 'The live session\'s name shows here once the referee starts one.') + '</p>' +
-    '<p>Click it for the session details (shortcut <kbd>i</kbd>).</p>', '#sessionBtn', { optional: true });
+  add('Top bar', 'The campaign', () =>
+    '<p>' + (S.session ? 'The campaign that is live: <b>' + esc(S.session.name) + '</b>' + (S.session.gameType ? ', playing ' + esc(S.session.gameType) : '') + '.' : 'The campaign\'s name shows here once the referee starts the session.') + '</p>' +
+    '<p>Click it for the campaign details (shortcut <kbd>i</kbd>).</p>', '#sessionBtn', { optional: true });
   add('Top bar', 'Connection', '<p>Whether this device is connected and syncing:</p>' +
     '<ul><li>' + liveTag() + ' connected: what you type is saved and shared</li>' +
     '<li><b style="color: var(--warn-ink)">connecting</b> / <b style="color: var(--warn-ink)">reconnecting</b>: hold on, it catches up by itself</li>' +
     '<li><b style="color: var(--danger)">OFFLINE</b>: the referee\'s computer can\'t be reached</li></ul>' +
-    '<p>Click it for the session details' + (shown($('sessionBtn')) ? '' : ': the session, who you are and the open page') + '.</p>', '#syncBtn');
+    '<p>Click it for the campaign details' + (shown($('sessionBtn')) ? '' : ': the campaign, who you are and the open page') + '.</p>', '#syncBtn');
   if (shown($('adminLink'))) {
-    add('Top bar', 'Referee\'s dashboard', '<p>Back to the <b class="referee">referee\'s dashboard</b>, where sessions, pages and the party are managed. It only opens on this computer.</p>', '#adminLink');
+    add('Top bar', 'Referee\'s dashboard', '<p>Back to the <b class="referee">referee\'s dashboard</b>, where campaigns, pages and the party are managed. It only opens on this computer.</p>', '#adminLink');
   }
   add('Top bar', 'Display and help', '<p>' + ic('settings') + ' <b>display</b>: colour theme, font (including fonts for low vision and dyslexia), and whether buttons show icons, text or both. Settings belong to this device only.</p>' +
     '<p>' + ic('help') + ' <b>help</b>: keyboard shortcuts, and this tutorial (<kbd>?</kbd>).</p>', ['#info [data-prefs]', '#helpBtn']);
 
-  add('Session details', 'Session details', '<p>Opened from the session name or the connection button: the session, the game, who this device is, and the server it is connected to.</p>' +
+  add('Campaign details', 'Campaign details', '<p>Opened from the campaign name or the connection button: the campaign, the game, who this device is, and the server it is connected to.</p>' +
     (f ? '<p>Then the page in the open tab: its description and tags, who it is for, ' + (f.perPlayer ? 'whose copy is shown, ' : '') +
       'its type and size, when it last changed, and whether it is saving and syncing.</p>' : ''),
     (d) => d && d.querySelector('.mg-kv'), { scene: 'details' });
   add('Pages', 'Tabs', has
-    ? '<p>Each page of the session has a tab. Click one to open it: every tab keeps its place when you switch.</p>' +
+    ? '<p>Each page of the campaign has a tab. Click one to open it: every tab keeps its place when you switch.</p>' +
       '<ul><li>the number is its key: <kbd>1</kbd> – <kbd>9</kbd> jump straight to it, <kbd>[</kbd> <kbd>]</kbd> step through</li>' +
       '<li>' + ic('kind-pdf') + ' PDFs and ' + ic('kind-image') + ' images have an icon</li>' +
-      '<li>' + ic('player') + ' marks a <b class="players">per-player</b> page: you get your own copy</li></ul>' +
+      '<li>' + ic('player') + ' marks a <b class="players">per-player</b> page: you get your own copy</li>' +
+      '<li>a dot means a page you haven\'t opened yet on this device; a ring, one that changed since you last opened it</li></ul>' +
+      '<p>When the referee adds or reveals a page, a note says so, with a button to open it. <kbd>Ctrl</kbd> <kbd>K</kbd> or <kbd>/</kbd> finds a page by name or tag.</p>' +
       '<p>Hover a tab to read its description. Drag tabs into your own order; right-click one (or hold it) to <b>shrink</b> it. When they don\'t all fit, the last ones shrink by themselves.</p>'
-    : '<p>The session\'s pages appear here as tabs, as soon as the referee adds them. You don\'t need to reload.</p>',
+    : '<p>The campaign\'s pages appear here as tabs, as soon as the referee adds them. You don\'t need to reload.</p>',
     has ? '#tabs' : '.tabbar');
   if (document.querySelector('.tab-group')) {
     add('Pages', 'Players and referee', '<p>On the host, tabs come in two groups: <b class="players">players</b> pages, which every player has, and <b class="referee">referee</b> pages, which open only on this computer.</p>', '.tab-group');
+  }
+  if (shown($('filterBtn'))) {
+    add('Pages', 'Filter', '<p>Shows only the tabs with the tags you pick, for example only the maps. This device remembers it; <b>show all</b> brings every tab back. Shortcut: <kbd>t</kbd>.</p>', '#filterBtn');
   }
   add('Pages', 'Full screen', '<p>Hides the top bar so the page gets the whole screen, leaving only a slim row of tabs. Press it again, or <kbd>esc</kbd>, to get the bar back.</p>' +
     '<p>Shortcut: <kbd>f</kbd>.</p>', '#fullBtn');
@@ -73,7 +78,7 @@ function tourSteps() {
       (f && f.perPlayer ? ' (for a per-player page: you and the referee)' : '') + '.</p>' +
       '<p>PDFs and images open in a viewer, with its own controls to zoom and turn pages.</p>', '#frames');
   } else {
-    add('The page', 'Waiting', '<p>' + (S.session ? 'The referee is still setting things up.' : 'No session is running yet.') +
+    add('The page', 'Waiting', '<p>' + (S.session ? 'The referee is still setting things up.' : 'Nothing is live yet.') +
       ' Keep this page open: it updates by itself when there is something to see.</p>', '#empty .mg-notice');
   }
 

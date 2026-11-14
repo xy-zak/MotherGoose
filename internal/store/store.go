@@ -53,6 +53,7 @@ const (
 	KindHTML  Kind = "html"  // a page with fields that are saved and synced
 	KindPDF   Kind = "pdf"   // shown in the bundled PDF viewer
 	KindImage Kind = "image" // a PNG or JPEG
+	KindMD    Kind = "md"    // Markdown, shown as a page; task-list boxes are saved and synced
 )
 
 // Session is the metadata stored in session.json.
@@ -167,11 +168,11 @@ func slugify(name string) string {
 
 func (s *Store) checkSession(id string) error {
 	if !validName(id) {
-		return fmt.Errorf("%w: bad session id", ErrInvalid)
+		return fmt.Errorf("%w: bad campaign id", ErrInvalid)
 	}
 	fi, err := os.Stat(s.dir(id))
 	if err != nil || !fi.IsDir() {
-		return fmt.Errorf("session %q: %w", id, ErrNotFound)
+		return fmt.Errorf("campaign %q: %w", id, ErrNotFound)
 	}
 	return nil
 }
@@ -272,6 +273,15 @@ func (s *Store) GetSession(id string) (Summary, error) {
 			files[i].Description = pm.Description
 			if pm.Tags != nil {
 				files[i].Tags = pm.Tags
+			}
+			if a := accessOf(pm, sc, files[i].Name, meta.Players); sc == Shared {
+				files[i].Hidden = a.Hidden
+				if a.Restricted {
+					files[i].Audience = AudienceOnly
+				}
+				if a.Allowed != nil {
+					files[i].Allowed = a.Allowed
+				}
 			}
 			if files[i].PerPlayer = pm.PerPlayer && CanBePerPlayer(sc, files[i].Kind); files[i].PerPlayer {
 				files[i].PlayerState = map[string]bool{}

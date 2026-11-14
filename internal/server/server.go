@@ -68,6 +68,7 @@ func (s *Server) routes() *http.ServeMux {
 	m.HandleFunc("GET /admin", s.hostOnly(s.page("admin/index.html")))
 	m.HandleFunc("GET /admin/", s.hostOnly(s.page("admin/index.html")))
 	m.HandleFunc("GET /_mg/inject.js", s.serveInject)
+	m.HandleFunc("GET /_mg/guide/{$}", s.serveGuide)
 	m.Handle("GET /_mg/", http.StripPrefix("/_mg/", staticHandler()))
 
 	m.HandleFunc("GET /s/{session}/{scope}/{file}", s.serveGameFile)
@@ -77,6 +78,9 @@ func (s *Server) routes() *http.ServeMux {
 	m.HandleFunc("GET /api/info", s.hostOnly(s.apiInfo))
 	m.HandleFunc("GET /api/qr.png", s.hostOnly(s.apiQR))
 
+	m.HandleFunc("GET /api/admin/templates", s.hostOnly(s.apiTemplates))
+	m.HandleFunc("GET /api/admin/templates/{file}", s.hostOnly(s.apiTemplatePreview))
+	m.HandleFunc("POST /api/admin/sessions/{id}/templates", s.hostOnly(s.apiAddTemplate))
 	m.HandleFunc("GET /api/admin/sessions", s.hostOnly(s.apiListSessions))
 	m.HandleFunc("POST /api/admin/sessions", s.hostOnly(s.apiCreateSession))
 	m.HandleFunc("GET /api/admin/sessions/{id}", s.hostOnly(s.apiGetSession))
@@ -96,6 +100,8 @@ func (s *Server) routes() *http.ServeMux {
 	m.HandleFunc("DELETE /api/admin/sessions/{id}/files/{scope}/{file}/state", s.hostOnly(s.apiResetState))
 	m.HandleFunc("PUT /api/admin/sessions/{id}/files/{scope}/{file}/meta", s.hostOnly(s.apiSetPageMeta))
 	m.HandleFunc("GET /api/admin/sessions/{id}/files/{scope}/{file}/export", s.hostOnly(s.apiExport))
+	m.HandleFunc("POST /api/admin/sessions/{id}/files/{scope}/{file}/show", s.hostOnly(s.apiShowPage))
+	m.HandleFunc("GET /api/admin/sessions/{id}/files/{scope}/{file}/check", s.hostOnly(s.apiCheckPage))
 
 	m.HandleFunc("GET /ws/file", s.wsFile)
 	m.HandleFunc("GET /ws/events", s.wsEvents)

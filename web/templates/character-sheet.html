@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="mothergoose" content="theme">
+<title>Character sheet</title>
+<style>
+  /* MotherGoose look: its theme's tokens when MotherGoose serves the page,
+     Catppuccin Latte / Mocha when the page is opened on its own. */
+  :root {
+    --bg: #eff1f5; --bar: #e6e9ef; --deep: #dce0e8; --surface: #ccd0da; --line: #bcc0cc; --line-strong: #acb0be;
+    --text: #4c4f69; --muted: #6c6f85; --accent: #8839ef; --on-accent: #eff1f5;
+    --players: #1e66f5; --referee: #fe640b; --live: #40a02b; --warn: #df8e1d; --danger: #d20f39;
+    --font: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+    --fs-title: 14px; --fs-body: 13px; --fs-small: 11.5px;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #1e1e2e; --bar: #181825; --deep: #11111b; --surface: #313244; --line: #45475a; --line-strong: #585b70;
+      --text: #cdd6f4; --muted: #a6adc8; --accent: #cba6f7; --on-accent: #11111b;
+      --players: #89b4fa; --referee: #fab387; --live: #a6e3a1; --warn: #f9e2af; --danger: #f38ba8;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 400 var(--fs-body)/1.5 var(--font); }
+  .page { max-width: 900px; margin: 0 auto; padding: 14px 14px 40px; display: grid; gap: 14px; }
+  .head { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+  .head .grow { flex: 1 1 220px; }
+  .big { font-size: calc(var(--fs-title) + 6px); font-weight: 700; width: 100%; }
+  /* Panels: a 1px box with its title sitting on the top line. */
+  .panel { position: relative; border: 1px solid var(--line); padding: 16px 10px 10px; }
+  .panel > .t {
+    position: absolute; top: -.75em; left: 8px; padding: 0 6px; background: var(--bg);
+    font-size: var(--fs-small); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted);
+  }
+  .grid { display: grid; gap: 8px; grid-template-columns: repeat(auto-fill, minmax(var(--min, 150px), 1fr)); }
+  .row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+  .muted { color: var(--muted); }
+  .small { font-size: var(--fs-small); }
+  label.f { display: grid; gap: 3px; }
+  label.f > span { font-size: var(--fs-small); font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+  input, textarea, select {
+    font: inherit; color: var(--text); background: var(--deep);
+    border: 1px solid var(--line); border-radius: 0; padding: 4px 6px; min-width: 0;
+  }
+  input::placeholder, textarea::placeholder { color: var(--muted); opacity: .7; }
+  textarea { width: 100%; min-height: 6em; resize: vertical; line-height: 1.5; }
+  input[type=number] { text-align: center; }
+  input[type=checkbox], input[type=radio] { accent-color: var(--accent); width: 15px; height: 15px; margin: 0; }
+  input:focus, textarea:focus, select:focus, [contenteditable]:focus { outline: none; border-color: var(--accent); }
+  button {
+    font: inherit; color: var(--text); background: var(--surface); border: 1px solid var(--line);
+    border-radius: 0; padding: 3px 10px; cursor: pointer; min-height: 26px;
+  }
+  button:hover { border-color: var(--accent); }
+  button:focus-visible { outline: 1px solid var(--accent); outline-offset: 1px; }
+  button.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 700; }
+  button.quiet { background: none; }
+  table { width: 100%; border-collapse: collapse; }
+  th { font-size: var(--fs-small); font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; text-align: left; padding: 0 4px 4px; }
+  td { padding: 2px; }
+  td input { width: 100%; }
+  .stats { --min: 110px; }
+  .stat { display: grid; gap: 4px; padding: 6px; border: 1px solid var(--line); background: var(--bar); text-align: center; }
+  .stat input.lbl { background: none; border-color: transparent; text-align: center; font-size: var(--fs-small); font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); padding: 2px; }
+  .stat input.lbl:focus { border-color: var(--accent); }
+  .stat input.val { font-size: calc(var(--fs-title) + 8px); font-weight: 700; padding: 4px 2px; }
+  .res { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 6px; align-items: center; padding: 6px; border: 1px solid var(--line); }
+  .res input.lbl { font-weight: 700; }
+  .res .count { display: flex; align-items: center; gap: 4px; }
+  .res .count input { width: 4.2em; font-weight: 700; }
+  .res .bar { grid-column: 1 / -1; height: 6px; background: var(--deep); border: 1px solid var(--line); }
+  .res .bar span { display: block; height: 100%; width: 0; background: var(--accent); transition: width .2s; }
+  .two { display: grid; gap: 14px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+  .inv td:nth-child(2) input { width: 4em; }
+</style>
+</head>
+<body>
+<main class="page">
+  <header class="head">
+    <div class="grow"><input class="big" id="name" placeholder="Character name" aria-label="Character name"></div>
+    <label class="f"><span>Player</span><input id="player" placeholder="who plays them" size="14"></label>
+    <label class="f"><span>Level</span><input id="level" type="number" min="0" value="1" style="width:5em"></label>
+  </header>
+
+  <div class="grid" style="--min: 200px">
+    <label class="f"><span>Concept</span><input id="concept" placeholder="class, calling, archetype…"></label>
+    <label class="f"><span>Origin</span><input id="origin" placeholder="people, background, home"></label>
+    <label class="f"><span>Conditions</span><input id="conditions" placeholder="hurt, tired, inspired…"></label>
+  </div>
+
+  <section class="panel"><span class="t">Stats</span>
+    <div class="grid stats">
+      <div class="stat"><input class="lbl" id="stat1-label" value="Strength" aria-label="Stat 1 name"><input class="val" id="stat1" type="number" value="0" aria-label="Stat 1"></div>
+      <div class="stat"><input class="lbl" id="stat2-label" value="Agility" aria-label="Stat 2 name"><input class="val" id="stat2" type="number" value="0" aria-label="Stat 2"></div>
+      <div class="stat"><input class="lbl" id="stat3-label" value="Toughness" aria-label="Stat 3 name"><input class="val" id="stat3" type="number" value="0" aria-label="Stat 3"></div>
+      <div class="stat"><input class="lbl" id="stat4-label" value="Wits" aria-label="Stat 4 name"><input class="val" id="stat4" type="number" value="0" aria-label="Stat 4"></div>
+      <div class="stat"><input class="lbl" id="stat5-label" value="Will" aria-label="Stat 5 name"><input class="val" id="stat5" type="number" value="0" aria-label="Stat 5"></div>
+      <div class="stat"><input class="lbl" id="stat6-label" value="Presence" aria-label="Stat 6 name"><input class="val" id="stat6" type="number" value="0" aria-label="Stat 6"></div>
+    </div>
+    <p class="small muted" style="margin:8px 0 0">Rename the stats to match your game: click a name to change it.</p>
+  </section>
+
+  <section class="panel"><span class="t">Resources</span>
+    <div class="grid" style="--min: 230px">
+      <div class="res" data-res="res1">
+        <input class="lbl" id="res1-label" value="Health" aria-label="Resource 1 name">
+        <span class="count"><button type="button" data-step="-1" aria-label="One less">−</button><input id="res1" type="number" value="10" aria-label="Current"><span class="muted">/</span><input id="res1-max" type="number" value="10" aria-label="Maximum"><button type="button" data-step="1" aria-label="One more">+</button></span>
+        <div class="bar"><span></span></div>
+      </div>
+      <div class="res" data-res="res2">
+        <input class="lbl" id="res2-label" value="Energy" aria-label="Resource 2 name">
+        <span class="count"><button type="button" data-step="-1" aria-label="One less">−</button><input id="res2" type="number" value="5" aria-label="Current"><span class="muted">/</span><input id="res2-max" type="number" value="5" aria-label="Maximum"><button type="button" data-step="1" aria-label="One more">+</button></span>
+        <div class="bar"><span></span></div>
+      </div>
+      <div class="res" data-res="res3">
+        <input class="lbl" id="res3-label" value="Luck" aria-label="Resource 3 name">
+        <span class="count"><button type="button" data-step="-1" aria-label="One less">−</button><input id="res3" type="number" value="3" aria-label="Current"><span class="muted">/</span><input id="res3-max" type="number" value="3" aria-label="Maximum"><button type="button" data-step="1" aria-label="One more">+</button></span>
+        <div class="bar"><span></span></div>
+      </div>
+    </div>
+  </section>
+
+  <div class="two">
+    <section class="panel"><span class="t">Abilities and skills</span>
+      <textarea id="abilities" placeholder="What can they do? Talents, spells, moves, training…" style="min-height:12em"></textarea>
+    </section>
+    <section class="panel"><span class="t">Inventory</span>
+      <table class="inv"><thead><tr><th>Item</th><th>Qty</th></tr></thead><tbody id="inv"></tbody></table>
+    </section>
+  </div>
+
+  <section class="panel"><span class="t">Notes</span>
+    <textarea id="notes" placeholder="Bonds, goals, secrets, what happened last time…" style="min-height:8em"></textarea>
+  </section>
+</main>
+<script>
+  // Inventory rows: each field has its own id, so every row is saved.
+  (function () {
+    var body = document.getElementById('inv');
+    for (var i = 1; i <= 10; i++) {
+      var tr = document.createElement('tr');
+      tr.innerHTML = '<td><input id="inv' + i + '" aria-label="Item ' + i + '"></td><td><input id="inv' + i + '-qty" type="number" min="0" aria-label="Quantity ' + i + '"></td>';
+      body.appendChild(tr);
+    }
+  })();
+
+  // Resources: − and + change the current value (as typing would, so it is
+  // saved and synced), and the bar shows how full it is.
+  document.addEventListener('DOMContentLoaded', function () {
+    document.querySelectorAll('.res').forEach(function (box) {
+      var id = box.dataset.res;
+      var cur = document.getElementById(id), max = document.getElementById(id + '-max');
+      var bar = box.querySelector('.bar span');
+      function draw() {
+        var c = parseFloat(cur.value) || 0, m = parseFloat(max.value) || 0;
+        bar.style.width = (m > 0 ? Math.max(0, Math.min(100, c / m * 100)) : 0) + '%';
+      }
+      box.querySelectorAll('[data-step]').forEach(function (b) {
+        b.addEventListener('click', function () {
+          cur.value = (parseFloat(cur.value) || 0) + Number(b.dataset.step);
+          cur.dispatchEvent(new Event('input', { bubbles: true }));
+          cur.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+      });
+      cur.addEventListener('input', draw);
+      max.addEventListener('input', draw);
+      draw();
+    });
+  });
+</script>
+</body>
+</html>

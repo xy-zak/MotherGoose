@@ -46,6 +46,21 @@ body { display: flex; flex-direction: column; height: 100dvh; overflow: hidden; 
   outline: 1px dashed var(--accent); outline-offset: -3px;
 }
 .tab .n { color: var(--ctp-overlay1); font-weight: 400; }
+/* New (never opened on this device) or updated since: a dot after the name. */
+.tab .seen { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
+.tab .seen.updated { background: none; border: 2px solid var(--accent); width: 8px; height: 8px; box-sizing: border-box; }
+/* The referee's own view: a page hidden from players, or shown only to some. */
+.tab .vis { color: var(--muted); }
+/* Notices sit under the two bars (only the tab row in full screen). */
+body { --notice-top: calc(var(--head-h) + 38px); }
+body.mg-full { --notice-top: 30px; }
+/* The tag filter button: shaded while a filter is on. */
+#filterBtn.on { color: var(--text); background: color-mix(in srgb, var(--accent) 22%, var(--bg)); font-weight: 700; }
+#filterBtn .lbl { max-width: 22ch; overflow: hidden; text-overflow: ellipsis; }
+.tf-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.tf-chips .tf { cursor: pointer; font: inherit; font-size: var(--fs-body); height: 24px; }
+.tf-chips .tf[aria-pressed="true"] { background: color-mix(in srgb, var(--accent) 24%, var(--bg)); border-color: var(--accent); font-weight: 700; }
+.show-title { font-weight: 700; font-size: var(--fs-title); }
 .tab .who { color: var(--scope); }
 .tab:hover { color: var(--text); background: var(--surface); }
 /* The open tab: filled with its audience's colour (lines stay 1px). */
@@ -136,4 +151,7 @@ body.mg-full .pick-btn { font-size: var(--fs-small); }
   .info .whoami .lbl { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   :root[data-labels="text"] .info .whoami.ask .lbl { position: static; width: auto; height: auto; clip-path: none; }
   .info .whoami .sm-name { display: inline; max-width: 9ch; overflow: hidden; text-overflow: ellipsis; font-weight: 700; color: var(--text); }
+}
+@media (max-width: 560px) {
+  #filterBtn .lbl { display: none; }   /* the icon, shaded while a filter is on */
 }
