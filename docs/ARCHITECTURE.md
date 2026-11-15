@@ -29,8 +29,8 @@ flowchart TB
     subgraph server["internal/server: HTTP, access, live updates"]
       guard["guard.go<br/>Host header · CSRF · framing"]
       routes["server.go<br/>routes · Watch · changed()"]
-      api["api_sessions.go · api_files.go · players.go<br/>the JSON API"]
-      pages["pages.go<br/>UI files · game pages · the page script"]
+      api["api_sessions.go · api_files.go · players.go · templates.go<br/>the JSON API"]
+      pages["pages.go<br/>UI files · game pages · Markdown pages · the theme · the page script"]
       ws["ws.go<br/>/ws/file · /ws/events"]
       hub["hub.go<br/>rooms · fan-out · heartbeats"]
       notify["notify.go<br/>gathers 'changed' events"]
@@ -43,6 +43,7 @@ flowchart TB
       roster["players.go<br/>party · per-player access"]
       fsu["fsutil.go<br/>atomic writes · broken files kept aside"]
     end
+    pg["internal/pages<br/>Markdown to HTML · the self-contained check"]
     webfs["web (embed.FS)"]
   end
   disk[("data/")]
@@ -64,6 +65,7 @@ flowchart TB
   state -. "entries saved" .-> notify
   notify --> hub
   pages --> webfs
+  pages & store --> pg
   store --> fsu --> disk
   adminui & shellui -- "fetch /api" --> api
   adminui & shellui -- "/ws/events" --> ws
@@ -73,7 +75,7 @@ flowchart TB
 
 The dependency rules are these:
 
-- **`cmd` → `server` → `store`. Nothing goes the other way.** The store imports neither `net/http` nor WebSockets. The server never opens a file in the data folder itself: it has no `os.Open`, `os.ReadDir` or `filepath` of its own, and asks the store instead. The only file it reads directly is from the embedded `web.FS`.
+- **`cmd` → `server` → `store`, and both → `pages`. Nothing goes the other way.** `internal/pages` works on bytes in memory only (Markdown in, HTML and reports out): no files, no HTTP, nothing of MotherGoose's own. The store imports neither `net/http` nor WebSockets. The server never opens a file in the data folder itself: it has no `os.Open`, `os.ReadDir` or `filepath` of its own, and asks the store instead. The only file it reads directly is from the embedded `web.FS`.
 - **The store tells the server about saved entries through one callback** (`OnEntriesSaved`), registered at startup. The callback must return at once and never call back into the store.
 - **The browser code depends on the server only through HTTP and the two WebSockets.** It has no shared code with Go, so the wire format in NETWORK.md is the contract.
 
@@ -126,19 +128,22 @@ These are the rules the code follows. A change that breaks one should change the
 
     The exceptions are the classic scripts, which can't import modules:
     - `prefs.js` and `tips.js` run before any module, on every page.
-    - `sync.js` and `inject.js` run inside other people's HTML pages.
+    - `sync.js`, `inject.js` and `page-theme.js` run inside other people's HTML pages.
 
-    The few helpers these repeat (`esc` in `prefs.js`) say so in a comment.
+    The few helpers these repeat (`esc` in `prefs.js`, the display settings' keys and values in `page-theme.js`) say so in a comment.
+
+    Bigger shared modules sit beside `ui.js` and are imported by both pages: `fx.js` (boot screens), `tour.js` (guided tours) and `jump.js` (quick jump).
 12. **Views are HTML strings, and every value from data goes through `esc()`.** Text set from data uses `textContent`. HTML typed by players into editable areas is cleaned against an allowlist before it is shown (`inject.js`), because it can come from any device.
 13. **Listeners on redrawn content are attached once, to the container,** and find their target with `closest()`. A redraw never adds listeners.
 14. **One sync client.**
     - `sync.js` holds everything about the `/ws/file` connection: batching, acks, echo suppression, reconnecting and dead-connection checks.
     - `inject.js` (HTML pages) and `pdf.js` (PDFs) only read and write their fields.
     - The server serves `sync.js` and `inject.js` as one script, wrapped in a function, so a game page gets exactly one global: `window.MotherGoose`.
-15. **Styles:** `theme.css` holds everything shared (palettes, tokens, components, motion). Each page's own layout is in its own stylesheet (`admin/admin.css`, `shell/shell.css`, `viewer/viewer.css`).
+15. **Styles:** `tokens.css` holds the palettes, the semantic tokens and the fonts, with no styles of their own, so pages that ask for the theme (and Markdown pages) can have them too. `theme.css` imports it and holds everything else shared (components, notices, motion). Each page's own layout is in its own stylesheet (`admin/admin.css`, `shell/shell.css`, `viewer/viewer.css`); Markdown pages use `md.css`.
 
     Display settings work as attributes on `<html>`:
     - `prefs.js` sets `data-theme`, `data-font`, `data-labels`, `data-motion` and `data-anim` before the first paint.
+    - `page-theme.js` sets `data-theme` and `data-font` the same way in pages that follow the theme.
     - CSS keys off those attributes.
 16. **Every dialog animates closed.** `prefs.js` patches `HTMLDialogElement.prototype.close` once, for every page. Code just calls `dialog.close()`. The tutorial opts a dialog out with the `mg-toured` class.
 
@@ -162,13 +167,13 @@ erDiagram
     string name
     string gameType
     time created
-    map pages "per page: description, tags, perPlayer"
+    map pages "per page: description, tags, perPlayer, hidden, audience, allowed"
     map order "per scope: the referee's page order"
   }
   PAGE {
     string scope "shared (players) or gm (referee)"
-    string name "file name: .html .htm .pdf .png .jpg .jpeg"
-    string kind "html, pdf or image"
+    string name "file name: .html .htm .md .markdown .pdf .png .jpg .jpeg"
+    string kind "html, md, pdf or image"
   }
   PLAYER {
     string id "slug of the name, kept on rename"
@@ -188,7 +193,7 @@ On disk:
 data/
   config.json                         which session is live
   sessions/<id>/
-    session.json                      name, game type, players, page details, order
+    session.json                      name, game type, players, page details (who sees them too), order
     shared/<page>                     players' pages
     gm/<page>                         referee's pages
     state/<scope>/<page>.json         a page's entries (the template, when per player)
@@ -197,12 +202,14 @@ data/
 
 These rules follow from the model:
 
-- **Only HTML pages and PDFs have entries.** Images have none (`HasState`).
+- **HTML pages, Markdown pages (their task-list boxes) and PDFs have entries.** Images have none (`HasState`).
 - **Only players' HTML pages and PDFs can be per player** (`CanBePerPlayer`).
+- **Only players' pages can be hidden or shown to some players.** "Only" with nobody allowed means the referee alone; a player removed from the party is taken off every list, so a page never falls open to everyone. A page moved to the referee's side loses these settings.
+- **HTML and Markdown pages are one file.** `CheckPage` refuses one that loads files from beside it, on upload; a page copied in by hand is reported in its info instead.
 - **A copy starts from the template.** A player's copy that doesn't exist yet reads as the template. It becomes a file the first time that player writes to it.
 - **Switching per player off keeps the copies,** and so does removing a player unless the referee says otherwise. They come back when the switch or the player does.
 - **Deleting a page deletes its entries and every copy,** so a new page with the same name starts empty.
-- **Limits:** names up to 120 characters, game types 60, descriptions 1,000, 12 tags of 32, 24 players with names of 40. Each field value is up to 1 MiB, HTML pages and images up to 32 MB, and PDFs up to 100 MB.
+- **Limits:** names up to 120 characters, game types 60, descriptions 1,000, 12 tags of 32, 24 players with names of 40. Each field value is up to 1 MiB, HTML pages and images up to 32 MB, Markdown pages up to 8 MB, and PDFs up to 100 MB.
 
 ---
 
@@ -262,18 +269,23 @@ flowchart LR
   ui["ui.js<br/>shared helpers"]
   fx["fx.js<br/>boot screens · switch links"]
   tour["tour.js<br/>guided tours"]
+  jump["jump.js<br/>quick jump"]
   subgraph admin["Referee dashboard: admin/"]
     aj["admin.js"] --> ast["state.js"]
     aj --> aov["overlays.js"]
     aj --> apg["pages.js"]
     aj --> atu["tutorial.js"]
     atu --> aov
+    apg --> aov
   end
   subgraph shell["Player view: shell/"]
     sj["shell.js"] --> sst["state.js"]
     sj --> stb["tabs.js"]
     sj --> swh["who.js"]
     sj --> stu["tutorial.js"]
+    sj --> sno["notices.js"]
+    sj --> sse["seen.js"]
+    sno --> sse
   end
   pdf["viewer/pdf.js"]
   aj & aov & apg & atu & ast --> ui
@@ -282,6 +294,9 @@ flowchart LR
   stb --> fx
   atu & stu --> tour
   aj & sj --> tour
+  aj & sj --> jump
+  aov --> tour
+  jump --> ui
   fx --> ui
   tour --> ui
   pdf --> ui
@@ -291,9 +306,9 @@ flowchart LR
 
 | Page | Loads | Entry | Owns |
 |---|---|---|---|
-| `/admin` | `theme.css`, `admin/admin.css`, `prefs.js`, `tips.js` | `admin/admin.js` | Sessions list, the open session, party, page columns, actions, keyboard |
-| `/` | `theme.css`, `shell/shell.css`, `prefs.js`, `tips.js` | `shell/shell.js` | Loading the live session, tabs and frames, sync status, full screen, keyboard |
-| `/_mg/viewer/pdf.html` | `theme.css`, PDF.js's `pdf_viewer.css`, `viewer/viewer.css`, `prefs.js`, `tips.js`, `sync.js` | `viewer/pdf.js` | PDF.js viewer, zoom and pages, form fields, filled export |
+| `/admin` | `theme.css` (with `tokens.css`), `admin/admin.css`, `prefs.js`, `tips.js` | `admin/admin.js` | Campaigns list, the open campaign, party, tag filter, page columns, actions, keyboard |
+| `/` | `theme.css` (with `tokens.css`), `shell/shell.css`, `prefs.js`, `tips.js` | `shell/shell.js` | Loading the live campaign, tabs and frames, sync status, full screen, keyboard |
+| `/_mg/viewer/pdf.html` | `theme.css`, PDF.js's `pdf_viewer.css`, `viewer/viewer.css`, `prefs.js`, `tips.js`, `sync.js` | `viewer/pdf.js` | PDF.js viewer, zoom and pages, search, contents, form fields, filled export |
 | `/_mg/viewer/image.html` | `theme.css`, `viewer/viewer.css`, `prefs.js`, `tips.js` | `viewer/image.js` | Fit to screen, actual size |
 | `/s/<session>/<scope>/<page>.html` | the referee's own page, plus `/_mg/inject.js` (and `tokens.css` with `page-theme.js` when the page asks to follow the theme) | `inject.js` | Saving and syncing the page's fields; `window.MotherGoose` |
 | `/s/<session>/<scope>/<page>.md` | the Markdown, turned into HTML by `internal/pages`, with `md.css` inlined, the theme and `/_mg/inject.js` | `inject.js` | The same: task-list boxes are fields |
@@ -307,8 +322,9 @@ What each feature module does:
 | `admin/pages.js` | Uploads and what checking them found, files dropped from the computer, dragging pages to reorder or move them (the tag filter hides rows but never changes the order of the hidden ones) |
 | `admin/tutorial.js` | The referee tutorial, with its example campaign |
 | `shell/seen.js` | Which pages this device has opened, for the new and updated marks on tabs |
+| `shell/notices.js` | Notices for pages that appear or change while a player watches, and the "look at this" prompt |
 | `jump.js` | Quick jump (Ctrl+K or /), used by both dashboards |
-| `shell/tabs.js` | This device's tab order and sizes, shrink-to-fit, the tab menu, dragging tabs |
+| `shell/tabs.js` | This device's tab order and sizes, shrink-to-fit, the tag filter, the tab menu, dragging tabs (the filter never changes the order of the tabs it hides) |
 | `shell/who.js` | The name in the top bar, picking or changing it, the "who are you?" panel, the referee's whose-copy strip |
 | `shell/tutorial.js` | The player tutorial |
 
@@ -324,7 +340,7 @@ How the dashboard and the player view manage their state:
 ## Adding things
 
 **A new API route**
-1. Add the handler to the file for its topic (`api_sessions.go`, `api_files.go`, `players.go`) and register it in `routes()`. Wrap it in `hostOnly` unless players must reach it.
+1. Add the handler to the file for its topic (`api_sessions.go`, `api_files.go`, `players.go`, `templates.go`) and register it in `routes()`. Wrap it in `hostOnly` unless players must reach it.
 2. Read the body with `decodeBody`/`bodyError`, and report store errors with `storeError`.
 3. Put the rule in the store, not the handler, if it's about the data.
 4. After the change: broadcast to the rooms affected (under `syncMu` if it touches entries, or whether a page exists), then call `s.changed()`.
@@ -354,7 +370,8 @@ How the dashboard and the player view manage their state:
 
 - **Go:** `go test -race ./...`.
   - The store tests cover sessions, files, entries, copies, broken files, saving without blocking, and concurrent creates.
-  - The server tests cover access, CSRF and rebinding, the API routes, live sync, acks, joining while someone writes, edits after a delete or move, the notifier, and the page script.
+  - The server tests cover access, CSRF and rebinding, the API routes, live sync, acks, joining while someone writes, edits after a delete or move, the notifier, the page script, who sees what (every route, for each kind of device), sockets closed when access is lost, "show to players", Markdown pages, the self-contained check on upload, the theme opt-in and the templates.
+  - The `pages` tests cover Markdown (task boxes, links, what is left out) and the self-contained check.
 - **Browsers:** there is no automated browser test in the repository. Changes to the UI or the sync clients should be tried in a browser: both dashboards, both tutorials, an HTML page, a Markdown page and a fillable PDF on two devices, a hidden and a restricted page as two different players, and an exported copy offline.
 
 ---

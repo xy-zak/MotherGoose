@@ -1,8 +1,9 @@
 // The player view's tab row: this device's own order and sizes for the tabs,
-// shrinking them to fit, the tab menu, and dragging tabs into a new order.
+// shrinking them to fit, the tag filter, the tab menu, and dragging tabs into
+// a new order.
 // Kept on this device, per session: { order: [fileKey…], small: [fileKey…] }.
 // Pages not in the order (added since) follow it, in the referee's order.
-import { $, esc, ic, titleOf } from '/_mg/ui.js';
+import { $, allTags, esc, hasTags, ic, overlay, savedTags, saveList, tagToggles, titleOf, toggleTag, withIcon } from '/_mg/ui.js';
 import { app, fileKey, S } from './state.js';
 import { motion } from '/_mg/fx.js';
 
@@ -83,6 +84,49 @@ export function fitTabs() {
 let fitFrame = 0;
 new ResizeObserver(() => { cancelAnimationFrame(fitFrame); fitFrame = requestAnimationFrame(fitTabs); }).observe($('tabs'));
 if (document.fonts) document.fonts.ready.then(fitTabs);
+
+// ---- the tag filter: only the tabs with every chosen tag (this device, per campaign) -------
+
+const filterKey = () => 'mg-tabfilter:' + (S.session ? S.session.id : '');
+const tabFilter = () => savedTags(filterKey(), S.files);
+
+/** visibleFiles is the tabs on show: those matching the filter, and always the open one. */
+export function visibleFiles() {
+  const filter = tabFilter();
+  return filter.length ? S.files.filter((f) => hasTags(f, filter) || fileKey(f) === S.active) : S.files;
+}
+
+/** drawFilterBtn shows the filter button when pages have tags, shaded while filtering. */
+export function drawFilterBtn() {
+  const filter = tabFilter();
+  const b = $('filterBtn');
+  b.hidden = !allTags(S.files).length;
+  b.classList.toggle('on', filter.length > 0);
+  b.setAttribute('aria-pressed', String(filter.length > 0));
+  b.innerHTML = withIcon('filter', filter.length ? filter.join(' + ') : 'filter');
+  b.title = filter.length ? 'Showing only pages tagged ' + filter.join(' and ') + ' (t)' : 'Show only pages with a tag (t)';
+}
+
+/** filterOverlay picks the filter's tags; the tabs follow as they are picked. */
+export async function filterOverlay() {
+  const tags = allTags(S.files);
+  if (!tags.length) return;
+  const body = document.createElement('div');
+  const draw = () => {
+    body.innerHTML = '<p class="mg-muted">Show only the tabs with every tag you pick. Kept on this device.</p>' +
+      '<div class="tf-chips">' + tagToggles(tags, tabFilter()) + '</div>';
+  };
+  draw();
+  body.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-tag]');
+    if (!b) return;
+    saveList(filterKey(), toggleTag(tabFilter(), b.dataset.tag));
+    draw();
+    app.render();
+  });
+  const v = await overlay({ title: 'Filter tabs', icon: 'filter', body, actions: [{ label: 'show all', value: 'all', kind: 'quiet', icon: 'close' }, { label: 'done', value: null, kind: 'primary', icon: 'check' }] });
+  if (v === 'all') { saveList(filterKey(), []); app.render(); }
+}
 
 // ---- the tab menu: right-click, the menu key, or hold on a touch screen ---------------
 

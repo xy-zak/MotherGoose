@@ -22,9 +22,9 @@ type Report struct {
 	Unnamed int `json:"unnamed"`
 }
 
-// maxListed keeps reports short: a page with a hundred images needs to hear
+// MaxListed keeps reports short: a page with a hundred images needs to hear
 // about a few to know what's wrong.
-const maxListed = 12
+const MaxListed = 12
 
 var (
 	commentRe = regexp.MustCompile(`(?s)<!--.*?-->`)
@@ -68,7 +68,7 @@ func CheckHTML(doc []byte) Report {
 		case "local":
 			if !local[u] {
 				local[u] = true
-				if len(r.Local) < maxListed {
+				if len(r.Local) < MaxListed {
 					r.Local = append(r.Local, u)
 				}
 			}
@@ -82,7 +82,7 @@ func CheckHTML(doc []byte) Report {
 			}
 			if !web[host] {
 				web[host] = true
-				if len(r.Web) < maxListed {
+				if len(r.Web) < MaxListed {
 					r.Web = append(r.Web, host)
 				}
 			}

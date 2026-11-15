@@ -283,20 +283,24 @@ Close codes the server uses:
 | File | Contents |
 |---|---|
 | `internal/server/server.go` | Routes, `Watch`, `changed()` |
-| `internal/server/api_sessions.go`, `api_files.go` | The HTTP API |
+| `internal/server/api_sessions.go`, `api_files.go` | The HTTP API, including `show` and the page check |
+| `internal/server/templates.go` | The built-in templates: list, preview, add |
 | `internal/server/ws.go` | `/ws/file` (`joinCopy`, `handleSet`) and `/ws/events` |
-| `internal/server/pages.go` | Game pages, the page script (`/_mg/inject.js`) |
+| `internal/server/pages.go` | Game pages, Markdown pages, the theme for pages that ask, the guide, the page script (`/_mg/inject.js`) |
+| `internal/server/http.go` | Access checks (`canView`, `canSee`), JSON in and out, error pages |
 | `internal/server/hub.go` | Rooms, fan-out, per-socket write loop and heartbeat |
 | `internal/server/notify.go` | Gathering `changed` events |
-| `internal/server/players.go` | `mg_who` cookie, which copy a request gets, roster API |
+| `internal/server/players.go` | `mg_who` cookie, which copy a request gets, closing sockets that lost a page (`enforceAccess`), roster API |
 | `internal/server/guard.go` | Host header, CSRF, framing |
-| `internal/server/netinfo.go` | Host detection, LAN addresses |
+| `internal/server/netinfo.go` | Host detection, LAN addresses, the `.local` address |
+| `internal/pages/` | Markdown to HTML, the self-contained check |
 | `internal/store/state.go` | Entries: the cache, saving outside the lock, copies |
 | `internal/store/files.go` | Pages, and the fingerprint `Watch` compares |
 | `web/sync.js` | `createSync`: the `/ws/file` client, shared by both below |
 | `web/inject.js` | HTML pages' fields |
 | `web/viewer/pdf.js` | PDF viewer and its form fields |
 | `web/ui.js` | `listenEvents`, shared by both dashboards |
+| `web/shell/notices.js` | Notices for new pages, and the prompt for `show` |
 | `web/admin/admin.js` | Referee dashboard |
 | `web/shell/shell.js` | Player view |
 

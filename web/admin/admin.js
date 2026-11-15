@@ -8,7 +8,7 @@
 // The rest is in its own modules: state.js (what's loaded), overlays.js,
 // pages.js (uploads and drag and drop) and tutorial.js.
 import {
-  $, ago, agoText, allTags, api, attempt, chips, confirmDialog, enc, hasTags, savedList, saveList,
+  $, ago, agoText, allTags, api, attempt, chips, confirmDialog, enc, hasTags, savedTags, saveList, tagToggles, toggleTag,
   esc, ftype, gameTag, ic, keysList, kindTag, listenEvents, overlay,
   isHidden, perPlayerTag, SCOPE, shortcutAllowed, size, term, titleOf, toast, uiBtn,
   viewUrl, visTags, withIcon
@@ -153,19 +153,13 @@ function welcome() {
 
 // ---- tag filter: show only the pages with every chosen tag (this device) ------------------
 const filterKey = (s) => 'mg-filter:' + s.id;
-function tagFilter(s) {
-  const tags = allTags([].concat(s.files.shared || [], s.files.gm || []));
-  const lower = tags.map((t) => t.toLowerCase());
-  return savedList(filterKey(s)).filter((t) => lower.includes(t.toLowerCase()));
-}
+const campaignFiles = (s) => [].concat(s.files.shared || [], s.files.gm || []);
+const tagFilter = (s) => savedTags(filterKey(s), campaignFiles(s));
 function filterBar(s, filter) {
-  const tags = allTags([].concat(s.files.shared || [], s.files.gm || []));
+  const tags = allTags(campaignFiles(s));
   if (!tags.length) return '';
-  const on = new Set(filter.map((t) => t.toLowerCase()));
   return '<div class="tagfilter" role="group" aria-label="Show only pages tagged">' +
-    '<span class="tf-label">' + withIcon('filter', 'filter') + '</span>' +
-    tags.map((t) => '<button type="button" class="mg-chip tf" data-act="filter-tag" data-tag="' + esc(t) + '" aria-pressed="' + on.has(t.toLowerCase()) + '" title="' +
-      (on.has(t.toLowerCase()) ? 'Stop filtering by ' : 'Show only pages tagged ') + esc(t) + '">' + esc(t) + '</button>').join('') +
+    '<span class="tf-label">' + withIcon('filter', 'filter') + '</span>' + tagToggles(tags, filter, ' data-act="filter-tag"') +
     (filter.length ? '<button type="button" class="mg-btn quiet small compact" data-act="filter-clear" title="Show every page again">' + withIcon('close', 'clear') + '</button>' : '') +
     '</div>';
 }
@@ -363,10 +357,7 @@ document.addEventListener('click', attempt(async (e) => {
   } else if (act === 'file-info') {
     await fileOverlay(row.dataset.scope, row.dataset.name);
   } else if (act === 'filter-tag') {
-    const t = btn.dataset.tag, now = tagFilter(A.current);
-    const i = now.findIndex((x) => x.toLowerCase() === t.toLowerCase());
-    if (i >= 0) now.splice(i, 1); else now.push(t);
-    saveList(filterKey(A.current), now);
+    saveList(filterKey(A.current), toggleTag(tagFilter(A.current), btn.dataset.tag));
     renderRight();
   } else if (act === 'filter-clear') {
     saveList(filterKey(A.current), []);

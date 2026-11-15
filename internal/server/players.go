@@ -215,13 +215,6 @@ func (s *Server) enforceAccess(id string) {
 		}, map[string]string{"type": "gone"}, websocket.StatusPolicyViolation, "this page is no longer shown to you")
 }
 
-// isPlayerRoom reports whether a room is one of a player's copies in a session.
-func isPlayerRoom(room, id, player string) bool {
-	rest, ok := strings.CutPrefix(room, id+"/")
-	parts := strings.Split(rest, "/")
-	return ok && len(parts) == 3 && parts[2] == player
-}
-
 // ---- roster (referee only) ---------------------------------------------------
 
 func (s *Server) apiAddPlayer(w http.ResponseWriter, r *http.Request) {

@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/url"
-	"path/filepath"
+	"path"
 	"strings"
 
 	"github.com/coder/websocket"
@@ -268,7 +268,7 @@ func (s *Server) apiCheckPage(w http.ResponseWriter, r *http.Request) {
 	rep, err := store.CheckPage(name, k, doc)
 	resp := map[string]any{"report": rep}
 	if err != nil {
-		resp["error"] = strings.TrimPrefix(err.Error(), store.ErrInvalid.Error()+": ")
+		resp["error"] = err.Error()
 	}
 	writeJSON(w, http.StatusOK, resp)
 }
@@ -331,7 +331,7 @@ func (s *Server) apiExport(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	tag := stateTag(st) + "<script>\n" + string(s.injectJS) + "\n</script>\n"
-	base := strings.TrimSuffix(name, filepath.Ext(name))
+	base := strings.TrimSuffix(name, path.Ext(name))
 	if player != "" {
 		base += "-" + player
 	}

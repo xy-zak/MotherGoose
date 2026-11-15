@@ -14,17 +14,18 @@
 // the keyboard and full screen. state.js holds what's loaded; tabs.js, who.js
 // and tutorial.js are the rest.
 import {
-  $, agoText, allTags, api, isPage, attempt, audienceText, chips, esc, gameTag, hasTags, ic, isHidden, isOnly, savedList, saveList,
-  keysList, KIND_NAME, kv, listenEvents, liveTag, notice, overlay, PER_PLAYER_HINT, perPlayerTag,
+  $, agoText, allTags, api, isPage, attempt, audienceText, chips, esc, gameTag, ic, isHidden, isOnly,
+  keysList, KIND_NAME, kv, listenEvents, liveTag, overlay, PER_PLAYER_HINT, perPlayerTag,
   playerName, SCOPE, scopeTag, serverPort, shortcutAllowed, SHORTCUTS_NOTE, size, titleOf,
   viewUrl, when, withIcon
 } from '/_mg/ui.js';
 import { tourRunning } from '/_mg/tour.js';
 import { bootScreen, switchLinks } from '/_mg/fx.js';
 import { activeFile, app, fileKey, frameKey, meName, S } from './state.js';
-import { arrange, fitTabs, tabPrefs, redrawWhenFree } from './tabs.js';
+import { arrange, drawFilterBtn, filterOverlay, fitTabs, tabPrefs, redrawWhenFree, visibleFiles } from './tabs.js';
 import { renderWho, renderPick, renderAsk, pickName } from './who.js';
 import { markSeen, primeSeen, seenState } from './seen.js';
+import { announce, dismissNotice, onServerMessage } from './notices.js';
 import { tutorial } from './tutorial.js';
 import { isJumpKey, quickJump } from '/_mg/jump.js';
 
@@ -106,44 +107,6 @@ async function load() {
 }
 
 let wasUp = false;  // the events socket was up at the last load
-const notices = new Map();  // fileKey -> closes its notice, once the page is opened
-
-// Tells the player about pages that appeared or were replaced since the last
-// load, each with a button to open it. The open tab needs no notice.
-function announce(before) {
-  if (tourRunning()) return;
-  S.files.forEach((f) => {
-    const k = fileKey(f);
-    if (k === S.active) { if (before.get(k) !== f.modified) markSeen(f); return; }
-    const was = before.get(k);
-    if (was === undefined) notices.set(k, notice({ text: 'New page:', strong: titleOf(f), action: { label: 'open', run: () => show(k, true) } }));
-    else if (was !== f.modified) notices.set(k, notice({ text: 'Updated:', strong: titleOf(f), icon: 'reset', action: { label: 'open', run: () => show(k, true) } }));
-  });
-}
-
-// The referee asked every player who can see a page to look at it. The
-// player chooses: nothing switches by itself.
-let showing = null;
-async function onServerMessage(m) {
-  if (m.type !== 'show' || typeof m.key !== 'string' || S.isHost) return;
-  let f = S.files.find((x) => fileKey(x) === m.key);
-  if (!f) { await load(); f = S.files.find((x) => fileKey(x) === m.key); }
-  if (!f || showing === m.key || tourRunning()) return;
-  if (S.active === m.key && !document.hidden) {
-    notice({ text: 'The referee is pointing at this page:', strong: titleOf(f), icon: 'show' });
-    return;
-  }
-  showing = m.key;
-  const body = document.createElement('div');
-  body.innerHTML = '<p>The referee wants everyone to look at:</p><p class="show-title"></p>';
-  body.querySelector('.show-title').textContent = titleOf(f);
-  const v = await overlay({
-    title: 'Look at this', icon: 'show', body,
-    actions: [{ label: 'later', value: null, kind: 'quiet', icon: 'close' }, { label: 'go to it', value: 'go', kind: 'primary', icon: 'open' }]
-  });
-  showing = null;
-  if (v === 'go' && S.files.some((x) => fileKey(x) === m.key)) show(m.key, true);
-}
 
 // What the boot and shutdown screens say (fx.js types them out).
 function liveScreen() {
@@ -163,49 +126,6 @@ function endScreen(was) {
     lines: [{ k: 'saving your entries', ok: 'OK' }, { k: 'closing "' + (was ? was.name : 'the session') + '"', ok: 'OK' }, { k: 'waiting for the referee' }],
     big: 'SESSION ENDED'
   };
-}
-
-// ---- tag filter: only the tabs with every chosen tag (this device, per campaign) ----------
-const filterKey = () => 'mg-tabfilter:' + (S.session ? S.session.id : '');
-function tabFilter() {
-  const lower = allTags(S.files).map((t) => t.toLowerCase());
-  return savedList(filterKey()).filter((t) => lower.includes(t.toLowerCase()));
-}
-// The tabs on show: those matching the filter, and always the open one.
-function visibleFiles() {
-  const filter = tabFilter();
-  return filter.length ? S.files.filter((f) => hasTags(f, filter) || fileKey(f) === S.active) : S.files;
-}
-function drawFilterBtn() {
-  const tags = allTags(S.files), filter = tabFilter();
-  const b = $('filterBtn');
-  b.hidden = !tags.length;
-  b.classList.toggle('on', filter.length > 0);
-  b.setAttribute('aria-pressed', String(filter.length > 0));
-  b.innerHTML = withIcon('filter', filter.length ? filter.join(' + ') : 'filter');
-  b.title = filter.length ? 'Showing only pages tagged ' + filter.join(' and ') + ' (t)' : 'Show only pages with a tag (t)';
-}
-async function filterOverlay() {
-  const tags = allTags(S.files);
-  if (!tags.length) return;
-  const body = document.createElement('div');
-  const draw = () => {
-    const on = new Set(tabFilter().map((t) => t.toLowerCase()));
-    body.innerHTML = '<p class="mg-muted">Show only the tabs with every tag you pick. Kept on this device.</p>' +
-      '<div class="tf-chips">' + tags.map((t) => '<button type="button" class="mg-chip tf" data-tag="' + esc(t) + '" aria-pressed="' + on.has(t.toLowerCase()) + '">' + esc(t) + '</button>').join('') + '</div>';
-  };
-  draw();
-  body.addEventListener('click', (e) => {
-    const b = e.target.closest('[data-tag]');
-    if (!b) return;
-    const now = tabFilter(), i = now.findIndex((x) => x.toLowerCase() === b.dataset.tag.toLowerCase());
-    if (i >= 0) now.splice(i, 1); else now.push(b.dataset.tag);
-    saveList(filterKey(), now);
-    draw();
-    render();
-  });
-  const v = await overlay({ title: 'Filter tabs', icon: 'filter', body, actions: [{ label: 'show all', value: 'all', kind: 'quiet', icon: 'close' }, { label: 'done', value: null, kind: 'primary', icon: 'check' }] });
-  if (v === 'all') { saveList(filterKey(), []); render(); }
 }
 
 function render() {
@@ -302,7 +222,7 @@ function show(key, focusTab) {
     $('frames').appendChild(fr);
   }
   S.shown = fk;
-  if (notices.has(key)) { notices.get(key)(); notices.delete(key); }
+  dismissNotice(key);
   if (!S.isHost && seenState(f)) {
     markSeen(f);
     const mark = document.querySelector('.tab[data-key="' + CSS.escape(key) + '"] .seen');

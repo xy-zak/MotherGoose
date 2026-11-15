@@ -99,7 +99,7 @@ func CheckPage(name string, k Kind, doc []byte) (pages.Report, error) {
 	rep := pages.CheckHTML(doc)
 	if len(rep.Local) > 0 {
 		more := ""
-		if len(rep.Local) >= 12 {
+		if len(rep.Local) >= pages.MaxListed {
 			more = " and more"
 		}
 		return rep, fmt.Errorf("%w: %q loads files that aren't inside it: %s%s. A page must be one file: put them inside it "+

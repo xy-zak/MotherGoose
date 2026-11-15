@@ -111,13 +111,16 @@ func (h *Hub) toFile(session, scope, file string, msg any) {
 	h.toRooms(func(k string) bool { return k == base || strings.HasPrefix(k, base+"/") }, msg)
 }
 
+// isPlayerRoom reports whether a room is one of a player's copies in a session.
+func isPlayerRoom(room, session, player string) bool {
+	rest, ok := strings.CutPrefix(room, session+"/")
+	parts := strings.Split(rest, "/")
+	return ok && len(parts) == 3 && parts[2] == player
+}
+
 // toPlayer sends msg to everyone viewing one player's copies in a session.
 func (h *Hub) toPlayer(session, player string, msg any) {
-	h.toRooms(func(k string) bool {
-		rest, ok := strings.CutPrefix(k, session+"/")
-		parts := strings.Split(rest, "/")
-		return ok && len(parts) == 3 && parts[2] == player
-	}, msg)
+	h.toRooms(func(k string) bool { return isPlayerRoom(k, session, player) }, msg)
 }
 
 func (h *Hub) join(room string, c *client) {

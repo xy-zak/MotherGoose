@@ -223,6 +223,21 @@ func (s *Store) ReadFile(id string, sc Scope, name string) ([]byte, error) {
 	return b, err
 }
 
+// FreeName is name, or name with -2, -3… before its extension: the first
+// that neither side of the campaign uses yet.
+func (s *Store) FreeName(id, name string) (string, error) {
+	if err := s.checkSession(id); err != nil {
+		return "", err
+	}
+	ext := filepath.Ext(name)
+	stem := strings.TrimSuffix(name, ext)
+	free := name
+	for i := 2; s.Exists(id, Shared, free) || s.Exists(id, GM, free); i++ {
+		free = fmt.Sprintf("%s-%d%s", stem, i, ext)
+	}
+	return free, nil
+}
+
 // SaveFile writes an uploaded file. An existing file with the same name is
 // replaced but its saved state is kept. Returns the cleaned name.
 func (s *Store) SaveFile(id string, sc Scope, name string, r io.Reader) (string, error) {

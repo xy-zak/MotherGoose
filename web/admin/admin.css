@@ -201,8 +201,6 @@ body { display: flex; flex-direction: column; min-height: 100dvh; }
 /* The tag filter, between the campaign panel and the columns. */
 .tagfilter { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; margin: 0 0 10px; }
 .tagfilter .tf-label { display: inline-flex; align-items: center; gap: 5px; margin-right: 4px; font-size: var(--fs-small); font-weight: 700; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
-.tagfilter .tf { cursor: pointer; font: inherit; font-size: var(--fs-small); }
-.tagfilter .tf[aria-pressed="true"] { background: color-mix(in srgb, var(--accent) 24%, var(--bg)); border-color: var(--accent); color: var(--text); font-weight: 700; }
 .files .none.filtered { color: var(--muted); }
 .join { display: grid; gap: 10px; }
 .join .mg-section-label { margin: 0; }

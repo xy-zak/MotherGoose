@@ -234,6 +234,10 @@ textarea.mg-input { height: auto; min-height: 84px; padding: 6px 8px; line-heigh
   color: var(--text); background: var(--surface); border: 1px solid var(--line);
 }
 .mg-chip::before { content: "#"; color: var(--muted); }
+/* A tag as a filter switch (ui.js tagToggles): shaded while on. */
+.mg-chip.tf { cursor: pointer; font: inherit; font-size: var(--fs-small); }
+.mg-chip.tf:hover { border-color: var(--accent); }
+.mg-chip.tf[aria-pressed="true"] { background: color-mix(in srgb, var(--accent) 24%, var(--bg)); border-color: var(--accent); font-weight: 700; }
 
 /* ---- key / value lists (used in overlays) ------------------------------------- */
 

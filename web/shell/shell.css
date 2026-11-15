@@ -58,8 +58,7 @@ body.mg-full { --notice-top: 30px; }
 #filterBtn.on { color: var(--text); background: color-mix(in srgb, var(--accent) 22%, var(--bg)); font-weight: 700; }
 #filterBtn .lbl { max-width: 22ch; overflow: hidden; text-overflow: ellipsis; }
 .tf-chips { display: flex; flex-wrap: wrap; gap: 6px; }
-.tf-chips .tf { cursor: pointer; font: inherit; font-size: var(--fs-body); height: 24px; }
-.tf-chips .tf[aria-pressed="true"] { background: color-mix(in srgb, var(--accent) 24%, var(--bg)); border-color: var(--accent); font-weight: 700; }
+.tf-chips .tf { font-size: var(--fs-body); height: 24px; }
 .show-title { font-weight: 700; font-size: var(--fs-title); }
 .tab .who { color: var(--scope); }
 .tab:hover { color: var(--text); background: var(--surface); }

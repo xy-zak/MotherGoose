@@ -5,6 +5,9 @@
 // Display settings while the page is open. The page's own CSS uses the
 // tokens (--bg, --text, --accent, --font…) with fallbacks of its own, which
 // is what a copy opened without MotherGoose (an export) shows.
+//
+// A classic script inside other people's pages, so it can't import prefs.js:
+// the keys, values and old-value mapping below repeat prefs.js's PREFS.
 (function () {
   'use strict';
   var THEMES = { latte: 1, frappe: 1, macchiato: 1, mocha: 1 };

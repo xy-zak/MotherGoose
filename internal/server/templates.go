@@ -7,9 +7,6 @@ import (
 	"encoding/json"
 	"io/fs"
 	"net/http"
-	"path"
-	"strconv"
-	"strings"
 
 	"mothergoose/internal/store"
 	"mothergoose/web"
@@ -106,7 +103,7 @@ func (s *Server) apiAddTemplate(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, http.StatusInternalServerError, err.Error())
 		return
 	}
-	name, err := s.freeName(id, t.File)
+	name, err := s.store.FreeName(id, t.File)
 	if err != nil {
 		storeError(w, err)
 		return
@@ -126,19 +123,4 @@ func (s *Server) apiAddTemplate(w http.ResponseWriter, r *http.Request) {
 	}
 	s.changed()
 	writeJSON(w, http.StatusCreated, map[string]any{"name": name, "scope": sc, "meta": pm})
-}
-
-// freeName is file, or file with -2, -3… before its extension: the first
-// that neither side of the campaign uses yet.
-func (s *Server) freeName(id, file string) (string, error) {
-	if _, err := s.store.SessionDir(id); err != nil {
-		return "", err
-	}
-	ext := path.Ext(file)
-	stem := strings.TrimSuffix(file, ext)
-	name := file
-	for i := 2; s.store.Exists(id, store.Shared, name) || s.store.Exists(id, store.GM, name); i++ {
-		name = stem + "-" + strconv.Itoa(i) + ext
-	}
-	return name, nil
 }

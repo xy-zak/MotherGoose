@@ -202,7 +202,7 @@ export async function fileOverlay(scope, name) {
       const rep = c.report || {};
       el.innerHTML = notes
         ? '<div class="mg-section-label">' + ic('warning') + ' Checked</div>' + notes + '<button type="button" class="mg-btn quiet small" data-guide>' + withIcon('guide', 'Making HTML pages') + '</button>'
-        : '<p class="mg-muted check-ok">' + ic('check') + ' One self-contained file' + (rep.fields ? ', ' + rep.fields + ' field' + (rep.fields === 1 ? '' : 's') + ' saved and synced' : '') + '.</p>';
+        : '<p class="mg-muted check-ok">' + ic('check') + ' One self-contained file' + (rep.fields ? ', ' + esc(rep.fields) + ' field' + (rep.fields === 1 ? '' : 's') + ' saved and synced' : '') + '.</p>';
     }).catch(() => {});
   }
   const copiesEl = body.querySelector('#fcopies');
@@ -350,7 +350,7 @@ export function checkNotes(rep) {
   const notes = [];
   if (rep.local && rep.local.length) notes.push('<span class="bad">' + ic('warning') + ' loads files that aren\'t inside it, so they never load: ' + rep.local.map(esc).join(', ') + '</span>');
   if (rep.web && rep.web.length) notes.push(ic('server') + ' loads from the internet (' + rep.web.map(esc).join(', ') + '): it only works while the device viewing it has internet');
-  if (rep.unnamed) notes.push(ic('warning') + ' ' + rep.unnamed + ' of ' + rep.fields + ' fields have no <code>id</code> or <code>name</code>: their saved values are lost if the page\'s layout changes');
+  if (rep.unnamed) notes.push(ic('warning') + ' ' + esc(rep.unnamed) + ' of ' + esc(rep.fields) + ' fields have no <code>id</code> or <code>name</code>: their saved values are lost if the page\'s layout changes');
   return notes.length ? '<ul class="check-notes">' + notes.map((n) => '<li>' + n + '</li>').join('') + '</ul>' : '';
 }
 

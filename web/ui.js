@@ -83,6 +83,22 @@ export function allTags(files) {
 }
 /** hasTags: the page has every one of the tags (ignoring case). */
 export const hasTags = (f, tags) => tags.every((t) => (f.tags || []).some((x) => x.toLowerCase() === t.toLowerCase()));
+/** savedTags is a tag filter kept on this device under key, less tags no page has any more. */
+export function savedTags(key, files) {
+  const lower = allTags(files).map((t) => t.toLowerCase());
+  return savedList(key).filter((t) => lower.includes(t.toLowerCase()));
+}
+/** toggleTag adds a tag to a filter, or takes it out (ignoring case). */
+export function toggleTag(list, tag) {
+  const i = list.findIndex((x) => x.toLowerCase() === tag.toLowerCase());
+  return i >= 0 ? list.filter((_, j) => j !== i) : list.concat([tag]);
+}
+/** tagToggles draws a filter's tags as buttons, pressed when in the filter. */
+export function tagToggles(tags, filter, attrs = '') {
+  const on = new Set(filter.map((t) => t.toLowerCase()));
+  return tags.map((t) => '<button type="button" class="mg-chip tf"' + attrs + ' data-tag="' + esc(t) + '" aria-pressed="' + on.has(t.toLowerCase()) + '" title="' +
+    (on.has(t.toLowerCase()) ? 'Stop filtering by ' : 'Show only pages tagged ') + esc(t) + '">' + esc(t) + '</button>').join('');
+}
 /** savedList reads a list kept on this device; saveList keeps one (empty: forgets it). */
 export function savedList(key) {
   try { const v = JSON.parse(localStorage.getItem(key) || '[]'); return Array.isArray(v) ? v.filter((x) => typeof x === 'string') : []; } catch (e) { return []; }
