@@ -25,9 +25,9 @@ function tourSteps() {
     '<p>This tour shows every part of the screen, one at a time. Use <b>next</b> and <b>back</b>' + key(' (or <kbd>←</kbd> <kbd>→</kbd>)') + ', or ' + click.toLowerCase() + ' the timeline at the bottom to jump.' + key(' <kbd>esc</kbd> ends the tour.') + '</p>');
 
   add('Top bar', 'Where you are', () =>
-    '<p>The <span class="players">blue</span> label says this is the <b class="players">player view</b>' + (meName() ? ', and who you are on this device: <b>' + esc(meName()) + '</b>' : '') + '.</p>' +
+    '<p>' + ic('info') + ' <b>about</b> says what MotherGoose is and who made it. The <span class="players">blue</span> label says this is the <b class="players">player view</b>' + (meName() ? ', and who you are on this device: <b>' + esc(meName()) + '</b>' : '') + '.</p>' +
     (S.players.length || host ? '' : '<p>When the referee adds players to the party, a <b>who are you?</b> button appears next to it, to pick your name.</p>'),
-    ['#info .mg-brand', '#where']);
+    ['#aboutBtn', '#where']);
   if (shown($('whoBtn'))) {
     add('Top bar', S.me ? 'Not you?' : 'Who are you?', () =>
       '<p>' + (S.me ? 'This device is <b>' + esc(meName()) + '</b>. Tap here to pick another name, or to forget it.' : 'Pick your name from the referee\'s party.') + '</p>' +

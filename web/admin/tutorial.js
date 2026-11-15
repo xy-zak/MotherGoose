@@ -47,7 +47,7 @@ function tourSteps() {
       '<p>To show everything, it opens an example campaign, <b>The Sunken Keep</b>. Nothing in it is saved, and your own campaigns aren\'t touched. <kbd>esc</kbd> ends the tour.</p>' },
 
     { section: 'Top bar', title: 'The top bar', target: 'header.top', text:
-      '<ul><li><b>MOTHERGOOSE</b>: back to the start, with no campaign open</li>' +
+      '<ul><li>' + ic('info') + ' <b>about</b>: what MotherGoose is and who made it, with <b>getting started</b> to close the open campaign</li>' +
       '<li>the <b class="referee">referee\'s dashboard</b> label: this page only opens on this computer, the host</li>' +
       '<li>' + ic('join') + ' <b>join info</b>: the address players open (<kbd>j</kbd>)</li>' +
       '<li>' + ic('view') + ' <b class="players">player view</b>: see exactly what players see</li>' +

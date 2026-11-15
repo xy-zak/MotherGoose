@@ -68,6 +68,14 @@ export const SCOPE = {
 };
 export const scopeTag = (scope) => '<span class="mg-tag ' + SCOPE[scope].cls + '" title="For the ' + SCOPE[scope].label + '">' + withIcon(SCOPE[scope].icon, SCOPE[scope].label) + '</span>';
 export const kindTag = (kind) => '<span class="mg-tag kind" title="' + KIND_NAME[kind] + '">' + withIcon('kind-' + kind, KIND_LABEL[kind]) + '</span>';
+/**
+ * campaignTitle is a campaign's name and game type, shown the one way
+ * everywhere: NAME [ GAME TYPE ], in the accent colour, the game type moving
+ * to its own line when there isn't room. (The brackets and capitals are CSS,
+ * so the text itself stays as typed.)
+ */
+export const campaignTitle = (name, gameType) => '<span class="mg-camp"><span class="cn">' + esc(name) + '</span>' +
+  (gameType ? '<span class="cg" title="Game / rules">' + esc(gameType) + '</span>' : '') + '</span>';
 export const gameTag = (gameType) => gameType ? '<span class="mg-game" title="Game / rules"><span>' + esc(gameType) + '</span></span>' : '';
 // "Live" is always shown the same way: the word LIVE, filled green.
 export const liveTag = () => '<span class="mg-live" title="A session is on: players can join">LIVE</span>';
@@ -589,8 +597,8 @@ export const kv = (rows) => '<dl class="mg-kv">' + rows.map((r) => '<dt>' + r[0]
 /**
  * fitBar keeps a top bar on one line, whatever the width or the font: when
  * it doesn't fit, its buttons show only their icons (fit-1), then the
- * "where" label and the game type go (fit-2), then the brand shortens to MG
- * and the campaign name gives way (fit-3). The campaign name never shrinks
+ * "where" label goes and the game type moves under the campaign's name
+ * (fit-2), then the campaign name gives way (fit-3). The campaign name never shrinks
  * before the button words have gone. It returns a function to call when the
  * bar's content changes.
  */
@@ -610,6 +618,24 @@ export function fitBar(bar) {
   new MutationObserver(later).observe(bar, { childList: true, characterData: true, subtree: true, attributes: true, attributeFilter: ['hidden'] });
   if (document.fonts) document.fonts.ready.then(fit);
   return fit;
+}
+
+/**
+ * aboutOverlay says what MotherGoose is and who made it: the purple info
+ * button at the top left of both headers opens it. actions are extra
+ * buttons for the page's footer.
+ */
+export function aboutOverlay(actions = []) {
+  return overlay({
+    title: 'About', icon: 'info',
+    body: '<div class="mg-about-box">' +
+      '<p class="mg-about-name">MOTHERGOOSE</p>' +
+      '<p class="mg-muted">by Zak Silver-Lennard</p>' +
+      '<p>MotherGoose runs tabletop role-playing games from the referee\'s computer. It shares a campaign\'s pages (character sheets, handouts, maps, rules) with the players\' phones, tablets and laptops over the local Wi-Fi or network.</p>' +
+      '<p>Anything typed into a page is saved and synced live to everyone viewing it. Pages can be hidden until the moment comes, shown to only some players, or given to each player as their own copy. No internet or accounts are needed.</p>' +
+      '<p class="mg-muted mg-small">Free software, under the MIT licence.</p></div>',
+    actions: actions.concat([{ label: 'close', value: null, kind: 'primary', icon: 'check' }])
+  });
 }
 
 /** keysList is kv for keyboard shortcuts: [[key, what it does], …]. */

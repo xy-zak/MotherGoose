@@ -9,7 +9,7 @@
 // pages.js (uploads and drag and drop) and tutorial.js.
 import {
   $, ago, agoText, allTags, api, attempt, chips, confirmDialog, enc, hasTags, savedTags, saveList, tagToggles, toggleTag,
-  esc, fitBar, ftype, gameTag, ic, keysList, kindTag, listenEvents, overlay,
+  aboutOverlay, campaignTitle, esc, fitBar, ftype, ic, keysList, kindTag, listenEvents, overlay,
   isHidden, perPlayerTag, SCOPE, shortcutAllowed, size, term, titleOf, toast, uiBtn,
   viewUrl, visTags, withIcon
 } from '/_mg/ui.js';
@@ -91,7 +91,7 @@ function renderLeft() {
     return '<a class="srow" href="#/s/' + enc(s.id) + '" data-id="' + esc(s.id) + '"' +
       (s.id === A.selectedId ? ' aria-current="true"' : '') +
       ' title="' + esc(s.name) + (s.gameType ? ' (' + esc(s.gameType) + ')' : '') + ': ' + sh + ' for players, ' + gm + ' for the referee, edited ' + esc(agoText(s.lastEdited)) + '">' +
-      '<span class="what"><span class="name">' + esc(s.name) + '</span>' + gameTag(s.gameType) + '</span>' +
+      '<span class="what">' + campaignTitle(s.name, s.gameType) + '</span>' +
       '<span class="meta"><span>' + plural(sh + gm, 'page') + ' · ' + esc(ago(s.lastEdited)) + '</span>' + (s.active ? livePort() : '') + '</span></a>';
   }).join('');
 
@@ -101,7 +101,7 @@ function renderLeft() {
       '<div class="mg-panel-title"><span class="t">' + ic('sessions') + 'Campaigns</span><span class="side"><span class="count">' + A.sessions.length + '</span></span></div>' +
       // On medium screens the list folds up behind this, above the open campaign.
       '<button type="button" class="mg-btn list-toggle" data-act="toggle-list" aria-expanded="' + left.classList.contains('open') + '">' +
-        withIcon('sessions', cur ? cur.name : 'choose a campaign') + '<span class="mg-muted">' + (left.classList.contains('open') ? '▴' : '▾') + '</span></button>' +
+        (cur ? ic('sessions') + '<span class="lbl">' + campaignTitle(cur.name, cur.gameType) + '</span>' : withIcon('sessions', 'choose a campaign')) + '<span class="mg-muted">' + (left.classList.contains('open') ? '▴' : '▾') + '</span></button>' +
       '<form class="new-form" id="newForm">' +
         '<input class="mg-input" name="name" placeholder="new campaign name" maxlength="120" required aria-label="New campaign name" title="New campaign (n)">' +
         '<input class="mg-input game" name="gameType" placeholder="game type" maxlength="60" autocomplete="off" list="gameTypes" aria-label="Game type (optional)">' +
@@ -282,7 +282,7 @@ function renderRight() {
     '<div class="mg-panel session">' +
       '<div class="mg-panel-title"><span class="t">Campaign</span>' +
         (s.active ? '<span class="side">' + livePort() + '</span>' : '') + '</div>' +
-      '<div class="head-row"><h1>' + esc(s.name) + '</h1>' + (s.gameType ? gameTag(s.gameType) : '<span class="mg-muted mg-small">no game type</span>') + '</div>' +
+      '<div class="head-row"><h1>' + campaignTitle(s.name, s.gameType) + '</h1>' + (s.gameType ? '' : '<span class="mg-muted mg-small">no game type</span>') + '</div>' +
       '<div class="head-meta">' + sh + ' for players · ' + gm + ' for the referee · edited ' + esc(agoText(s.lastEdited)) + '</div>' +
       '<div class="actions">' +
         '<button class="mg-btn quiet" data-act="edit-session" title="Change the name or game type">' + withIcon('edit', 'edit') + '</button>' +
@@ -349,6 +349,10 @@ document.addEventListener('click', attempt(async (e) => {
   if (act === 'join') joinOverlay();
   else if (act === 'data') await dataOverlay();
   else if (act === 'help') await helpOverlay();
+  else if (act === 'about') {
+    // The about button replaces the brand, which led back to the start.
+    if (await aboutOverlay([{ label: 'getting started', value: 'start', kind: 'quiet', icon: 'help', side: 'left' }]) === 'start') location.hash = '#/';
+  }
   else if (act === 'tour') tutorial();
   else if (act === 'activate') {
     await goLive(btn.dataset.id, { start: startScreen });
@@ -525,9 +529,7 @@ function drawHead() {
   const seg = $('liveSeg');
   seg.href = live ? '#/s/' + enc(live.id) : '#/';
   seg.title = live ? 'The live campaign: ' + live.name + ' (open it)' : 'No campaign is live';
-  $('liveName').textContent = live ? live.name : 'nothing live';
-  $('liveName').classList.toggle('mg-muted', !live);
-  $('liveGame').innerHTML = live && live.gameType ? gameTag(live.gameType) : '';
+  seg.innerHTML = live ? campaignTitle(live.name, live.gameType) : '<span class="label mg-muted">nothing live</span>';
   $('liveTag').hidden = !live;
   fitHead();
 }

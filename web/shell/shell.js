@@ -13,7 +13,7 @@
 // the keyboard and full screen. state.js holds what's loaded; tabs.js, who.js
 // and tutorial.js are the rest.
 import {
-  $, agoText, allTags, api, enc, isPage, attempt, audienceText, chips, esc, fitBar, gameTag, ic, isHidden, isOnly,
+  $, aboutOverlay, agoText, allTags, api, campaignTitle, enc, isPage, attempt, audienceText, chips, esc, fitBar, ic, isHidden, isOnly,
   keysList, KIND_NAME, kv, listenEvents, liveTag, notice, overlay, PER_PLAYER_HINT, perPlayerTag,
   playerName, popMenu, SCOPE, scopeTag, shortcutAllowed, SHORTCUTS_NOTE, size, titleOf,
   viewUrl, when, withIcon
@@ -185,9 +185,7 @@ function render() {
   const has = !!S.session && S.files.length > 0;
   $('stage').hidden = !has;
   $('empty').hidden = has;
-  $('sessionName').textContent = S.session ? S.session.name : 'nothing live';
-  $('sessionName').classList.toggle('mg-muted', !S.session);
-  $('sessionGame').innerHTML = S.session ? gameTag(S.session.gameType) : '';
+  $('sessionBtn').innerHTML = S.session ? campaignTitle(S.session.name, S.session.gameType) : '<span class="label mg-muted">nothing live</span>';
   fitHead();
   document.title = S.session ? S.session.name + ' · MotherGoose' : 'MotherGoose';
 
@@ -468,8 +466,7 @@ function detailsOverlay() {
   const f = activeFile();
   const st = syncState();
   const rows = [
-    ['campaign', S.session ? esc(S.session.name) + ' <span class="mg-muted">live now</span>' : '<span class="mg-muted">none live</span>'],
-    ['game', S.session && S.session.gameType ? gameTag(S.session.gameType) : '<span class="mg-muted">not set</span>'],
+    ['campaign', S.session ? campaignTitle(S.session.name, S.session.gameType) + ' <span class="mg-muted">live now</span>' : '<span class="mg-muted">none live</span>'],
     ['you are', S.isHost ? 'the referee (this is the host computer)'
       : S.me ? '<b>' + esc(meName()) + '</b> <span class="mg-muted">a player, on this device</span>'
       : 'a player' + (S.players.length ? ' <span class="mg-muted">no name picked yet: use "who are you?" at the top</span>' : '')],
@@ -537,6 +534,7 @@ async function helpOverlay() {
 $('sessionBtn').addEventListener('click', detailsOverlay);
 $('syncBtn').addEventListener('click', detailsOverlay);
 $('helpBtn').addEventListener('click', helpOverlay);
+$('aboutBtn').addEventListener('click', () => aboutOverlay());
 $('whoBtn').addEventListener('click', attempt(pickName));
 $('filterBtn').addEventListener('click', filterOverlay);
 $('pagesBtn').addEventListener('click', () => jump());

@@ -168,8 +168,6 @@ body.mg-full .pick-btn { font-size: var(--fs-small); }
 .desc { white-space: pre-wrap; }
 
 @media (max-width: 560px) {
-  .mg-brand .b-full { display: none; }
-  .mg-brand .b-short { display: inline; }
   /* The name button gives way before the status and the buttons on the right do. */
   .info .whoami { min-width: 0; flex-shrink: 1; overflow: hidden; }
   .info .whoami .lbl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

@@ -13,11 +13,11 @@
 </head>
 <body>
   <header class="mg-bar mg-head info" id="info">
-    <a class="mg-brand" href="/" title="MotherGoose" aria-label="MotherGoose"><span class="b-full">MOTHERGOOSE</span><span class="b-short" aria-hidden="true">MG</span></a>
+    <button class="mg-btn mg-about" id="aboutBtn" type="button" title="About MotherGoose" aria-label="About MotherGoose"><svg class="mg-i" aria-hidden="true"><use href="/_mg/icons.svg#info"></use></svg></button>
     <span class="mg-seg where players hide-sm" id="where"><svg class="mg-i" aria-hidden="true"><use href="/_mg/icons.svg#players"></use></svg><span class="wl">player view</span><span id="meName" hidden></span></span>
     <button class="mg-btn players whoami" id="whoBtn" type="button" hidden></button>
     <button class="mg-seg session" id="sessionBtn" type="button" title="Details (i)">
-      <span class="label" id="sessionName">nothing live</span><span id="sessionGame" class="hide-sm"></span>
+      <span class="label mg-muted">nothing live</span>
     </button>
     <button class="mg-btn mg-state warn" id="syncBtn" type="button" title="Details (i)"><span id="syncLabel">connecting</span></button>
     <button class="mg-btn referee" id="viewAsBtn" type="button" hidden aria-haspopup="menu" title="See this view as a player's device would"></button>
