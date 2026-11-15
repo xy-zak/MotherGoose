@@ -109,12 +109,11 @@
 
   function open(from) {
     var d = document.createElement('dialog');
-    d.className = 'mg-dialog';
-    d.style.width = 'min(640px, calc(100vw - 24px))';
+    d.className = 'mg-dialog wide';
     d.innerHTML = '<div class="mg-dialog-head">' + icon('settings') + '<span class="t">Display settings</span>' +
-      '<button type="button" class="mg-btn quiet small" data-close aria-label="Close">esc</button></div>' +
+      '<button type="button" class="mg-btn quiet small x" data-close aria-label="Close" title="Close (esc)">' + icon('close') + '</button></div>' +
       '<div class="mg-dialog-body mg-prefs">' + section('theme') + section('font') + section('labels') + section('motion') +
-      '<p class="mg-muted" style="font-size: var(--fs-small)">Saved on this device only. Pages added to a campaign keep their own fonts and colours, unless they ask to follow these.</p></div>' +
+      '<p class="mg-muted mg-small">Saved on this device only. Pages added to a campaign keep their own fonts and colours, unless they ask to follow these.</p></div>' +
       '<div style="height:10px"></div>';
     document.body.appendChild(d);
     d.addEventListener('click', function (e) {

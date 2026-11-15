@@ -117,7 +117,7 @@ export function startTour({ name = 'Tutorial', steps, scenes = {}, onEnd }) {
     '<div class="mg-tour-spot" aria-hidden="true"></div>' +
     '<section class="mg-tour-card" tabindex="-1" aria-live="polite">' +
       '<div class="mg-tour-head"><span class="name">' + ic('tutorial') + '<span>' + esc(name) + '</span></span><span class="count"></span>' +
-        '<button type="button" class="mg-btn small" data-tour="end" aria-label="End the tutorial">esc</button></div>' +
+        '<button type="button" class="mg-btn small" data-tour="end" aria-label="End the tutorial" title="End the tutorial (esc)">' + ic('close') + '</button></div>' +
       '<div class="mg-tour-scene" hidden></div>' +
       '<div class="mg-tour-body"><div class="sec"></div><h2></h2><div class="txt"></div></div>' +
       '<div class="mg-tour-foot">' +

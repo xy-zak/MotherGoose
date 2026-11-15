@@ -5,7 +5,7 @@ body.viewer { position: relative; height: 100dvh; overflow: hidden; background: 
 /* Floating controls, bottom right: the viewers add nothing to the top of the
    screen, which belongs to the shell's info and tab bars. */
 .vtools {
-  position: fixed; z-index: 5;
+  position: fixed; z-index: var(--z-viewer-tools);
   right: max(10px, env(safe-area-inset-right)); bottom: max(10px, env(safe-area-inset-bottom));
   display: flex; align-items: center; gap: 3px;
   padding: 3px 4px; font-size: var(--fs-body);
@@ -18,7 +18,8 @@ body.viewer { position: relative; height: 100dvh; overflow: hidden; background: 
 .standalone .vtools .vname { display: inline-flex; }
 .vtools .vname #name { overflow: hidden; text-overflow: ellipsis; }
 .vtools .vsep { width: 1px; align-self: stretch; background: var(--line); margin: 0 3px; }
-.vtools .page { width: 4.5ch; height: 20px; padding: 0 4px; text-align: center; }
+.vtools .page { width: 4.5ch; height: calc(var(--btn-h-small) - 4px); padding: 0 4px; text-align: center; }
+@media (pointer: coarse) { .vtools .page { width: 5ch; font-size: 16px; } }
 .vtools .zoom { min-width: 4.5ch; text-align: center; color: var(--muted); }
 .vtools #dims { padding: 0 4px; }
 .vtools [hidden] { display: none; }
@@ -36,7 +37,7 @@ body.viewer { position: relative; height: 100dvh; overflow: hidden; background: 
 .pdfViewer .page::before {
   content: attr(data-page-number);
   position: absolute; right: 100%; top: 0; margin-right: 6px;
-  font-size: var(--fs-small); color: var(--ctp-overlay1);
+  font-size: var(--fs-small); color: var(--muted);
 }
 .pdfViewer .page.loadingIcon::after { display: none; }
 
@@ -93,7 +94,7 @@ body.viewer { position: relative; height: 100dvh; overflow: hidden; background: 
 
 /* The search bar, top right, clear of the toolbar at the bottom. */
 .vfind {
-  position: fixed; z-index: 6;
+  position: fixed; z-index: var(--z-viewer-panel);
   top: max(10px, env(safe-area-inset-top)); right: max(10px, env(safe-area-inset-right));
   display: flex; align-items: center; gap: 4px; padding: 3px 4px 3px 8px;
   max-width: calc(100vw - 20px);
@@ -101,13 +102,14 @@ body.viewer { position: relative; height: 100dvh; overflow: hidden; background: 
 }
 .vfind[hidden] { display: none; }
 .vfind > .mg-i { flex: none; color: var(--accent); }
-.vfind input { width: min(240px, 46vw); height: 22px; }
+.vfind input { width: min(240px, 46vw); height: var(--btn-h-small); }
+@media (pointer: coarse) { .vfind input { font-size: 16px; } }
 .vfind input::-webkit-search-cancel-button { display: none; }
 .vfind .vcount { min-width: 6ch; text-align: center; white-space: nowrap; }
 
 /* Contents: the PDF's outline, in a panel on the left. */
 .voutline {
-  position: fixed; z-index: 6; left: 0; top: 0; bottom: 0;
+  position: fixed; z-index: var(--z-viewer-panel); left: 0; top: 0; bottom: 0;
   width: min(320px, 85vw); overflow: auto;
   background: var(--bg); border-right: 1px solid var(--line-strong);
   font-size: var(--fs-body);
@@ -135,7 +137,7 @@ body.viewer { position: relative; height: 100dvh; overflow: hidden; background: 
 
 /* Short notes: an XFA form, an export done. Bottom left, clear of the toolbar. */
 .vnote {
-  position: fixed; z-index: 5; margin: 0;
+  position: fixed; z-index: var(--z-viewer-tools); margin: 0;
   left: max(10px, env(safe-area-inset-left)); bottom: max(10px, env(safe-area-inset-bottom));
   max-width: min(440px, calc(100vw - 20px));
   display: flex; align-items: center; gap: 8px; padding: 4px 4px 4px 10px;

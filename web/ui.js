@@ -166,20 +166,66 @@ export function visTags(f, players) {
   return out;
 }
 
-let toastTimer;
-export function toast(msg, isError) {
-  let el = document.querySelector('.mg-toast');
-  if (!el) {
-    el = document.createElement('div');
-    el.className = 'mg-toast';
-    el.setAttribute('role', 'status');
-    document.body.appendChild(el);
+// ---- toasts and notices ---------------------------------------------------------------
+// One stack, in the top layer (a popover), so a message shows above any open
+// popup: it is shown again each time a message arrives, which puts it on top
+// of popups opened since. Timers pause while the page is hidden, so nothing
+// expires on a locked tablet.
+
+function messageStack() {
+  let s = document.querySelector('.mg-notices');
+  if (!s) {
+    s = document.createElement('div');
+    s.className = 'mg-notices';
+    s.setAttribute('aria-live', 'polite');
+    if (typeof s.showPopover === 'function') s.setAttribute('popover', 'manual');
+    document.body.appendChild(s);
   }
-  el.textContent = msg;
-  el.classList.toggle('err', !!isError);
-  el.hidden = false;
-  clearTimeout(toastTimer);
-  toastTimer = setTimeout(() => { el.hidden = true; }, isError ? 6000 : 3500);
+  try {
+    if (s.showPopover) {
+      if (s.matches(':popover-open')) s.hidePopover();
+      s.showPopover();
+    }
+  } catch (e) { /* not supported: it stays a fixed box */ }
+  return s;
+}
+
+/** later runs fn after ms of the page being visible; it returns a cancel function. */
+function later(ms, fn) {
+  let t = 0, done = false;
+  const wake = () => {
+    if (document.hidden) return;
+    document.removeEventListener('visibilitychange', wake);
+    t = setTimeout(fire, 2500);   // a moment to read it after coming back
+  };
+  const fire = () => {
+    if (done) return;
+    if (document.hidden) { document.addEventListener('visibilitychange', wake); return; }
+    done = true;
+    fn();
+  };
+  t = setTimeout(fire, ms);
+  return () => { done = true; clearTimeout(t); document.removeEventListener('visibilitychange', wake); };
+}
+
+/**
+ * toast says how something went. A success replaces the one before and goes
+ * after a few seconds; an error stays until dismissed, and is announced at once.
+ */
+export function toast(msg, isError) {
+  const stack = messageStack();
+  if (!isError) stack.querySelectorAll('.mg-toast:not(.err)').forEach((el) => el.remove());
+  while (stack.querySelectorAll('.mg-toast.err').length >= 3) stack.querySelector('.mg-toast.err').remove();
+  const el = document.createElement('div');
+  el.className = 'mg-toast' + (isError ? ' err' : '');
+  el.setAttribute('role', isError ? 'alert' : 'status');
+  el.innerHTML = (isError ? ic('warning') : '') + '<span class="msg"></span>' +
+    (isError ? '<button type="button" class="mg-btn small quiet x" aria-label="Dismiss" title="Dismiss">' + ic('close') + '</button>' : '');
+  el.querySelector('.msg').textContent = msg;
+  stack.appendChild(el);
+  const close = () => { cancel(); el.remove(); };
+  const cancel = isError ? () => {} : later(3500, close);
+  if (isError) el.querySelector('.x').addEventListener('click', close);
 }
 
 /**
@@ -188,44 +234,54 @@ export function toast(msg, isError) {
  *   text:   the message (plain text); strong: a part shown in bold after it
  *   action: { label, icon, run } — the button, which also closes the notice
  *   icon:   shown before the text
+ *   ms:     how long it stays (while the page is visible)
  */
 export function notice({ text, strong = '', action = null, icon = 'new', ms = 7000 }) {
-  let stack = document.querySelector('.mg-notices');
-  if (!stack) {
-    stack = document.createElement('div');
-    stack.className = 'mg-notices';
-    stack.setAttribute('role', 'status');
-    stack.setAttribute('aria-live', 'polite');
-    document.body.appendChild(stack);
-  }
+  const stack = messageStack();
   // A few at most: the oldest go first.
-  while (stack.children.length >= 3) stack.firstElementChild.remove();
+  const pops = stack.querySelectorAll('.mg-notice-pop');
+  if (pops.length >= 3) pops[0].remove();
   const el = document.createElement('div');
   el.className = 'mg-notice-pop';
+  el.setAttribute('role', 'status');
   el.innerHTML = ic(icon) + '<span class="msg"></span>' +
-    (action ? '<button type="button" class="mg-btn small primary">' + withIcon(action.icon || 'open', action.label) + '</button>' : '') +
-    '<button type="button" class="mg-btn small quiet x" aria-label="Dismiss">' + ic('close') + '</button>';
+    (action ? '<button type="button" class="mg-btn small go">' + withIcon(action.icon || 'open', action.label) + '</button>' : '') +
+    '<button type="button" class="mg-btn small quiet x" aria-label="Dismiss" title="Dismiss">' + ic('close') + '</button>';
   const msg = el.querySelector('.msg');
   msg.textContent = text;
   if (strong) { const b = document.createElement('b'); b.textContent = ' ' + strong; msg.appendChild(b); }
-  const close = () => { clearTimeout(timer); el.remove(); };
-  const timer = setTimeout(close, ms);
+  const close = () => { cancel(); el.remove(); };
+  const cancel = later(ms, close);
   el.querySelector('.x').addEventListener('click', close);
-  if (action) el.querySelector('.primary').addEventListener('click', () => { close(); action.run(); });
+  if (action) el.querySelector('.go').addEventListener('click', () => { close(); action.run(); });
   stack.appendChild(el);
   return close;
+}
+
+/**
+ * plainError turns what the server or the browser said into a sentence for
+ * people: without the store's "invalid: " prefix, and "Can't reach
+ * MotherGoose" for a request that never got there.
+ */
+export function plainError(msg) {
+  const m = String(msg || '').replace(/^(invalid|not found|already exists): /, '');
+  if (/failed to fetch|networkerror|load failed/i.test(m)) return 'Can\'t reach MotherGoose: check this device is still on the same network.';
+  return m.charAt(0).toUpperCase() + m.slice(1);
 }
 
 export async function api(method, path, body) {
   const opts = { method, headers: {} };
   if (body instanceof FormData) opts.body = body;
   else if (body !== undefined) { opts.body = JSON.stringify(body); opts.headers['Content-Type'] = 'application/json'; }
-  const r = await fetch(path, opts);
+  let r;
+  try { r = await fetch(path, opts); } catch (e) { throw new Error(plainError(e.message)); }
   let data = null;
   if (r.status !== 204) { try { data = await r.json(); } catch (e) {} }
   // An upload where some files were saved is a partial success, not an error.
   if (!r.ok && !(data && data.saved && data.saved.length)) {
-    throw new Error((data && (data.error || (data.errors || []).join('; '))) || r.statusText);
+    const err = new Error(plainError((data && (data.error || (data.errors || [])[0])) || r.statusText));
+    if (data && data.errors) err.errors = data.errors.map(plainError);
+    throw err;
   }
   return data;
 }
@@ -240,20 +296,27 @@ export function attempt(fn) {
 /**
  * overlay shows a modal panel and resolves with the value of the action
  * pressed, or null when it is closed (Esc, the close button, the backdrop).
- *   title:   heading text
- *   body:    HTML string or a Node
- *   actions: [{ label, value, kind: 'primary'|'danger solid'|'quiet'|'', href?, download? }]
- *   tone:    'danger' frames the whole overlay in red
- *   onOpen:  called with the dialog element once it is shown
+ *   title:    heading text
+ *   body:     HTML string or a Node
+ *   actions:  [{ label, value, kind: 'primary'|'danger solid'|'quiet'|'', icon,
+ *                href?, download?, side: 'left', more: true, keepOpen: true }]
+ *             The footer follows R3: side 'left' actions on the left, "more"
+ *             actions in a "more…" menu beside them, the rest on the right.
+ *             A link with keepOpen opens without closing the popup.
+ *   size:     '' | 'wide' | 'xwide' (wide: true is the same as 'wide')
+ *   tone:     'danger' frames the whole overlay in red
+ *   onOpen:   called with the dialog element once it is shown
+ *   canClose: called with the value it would close with (null for Esc, the
+ *             close button or the backdrop); resolve false to keep it open
  */
-export function overlay({ title, body, actions = [], tone = '', onOpen, wide = false, icon = '' }) {
+export function overlay({ title, body, actions = [], tone = '', onOpen, wide = false, size = '', icon = '', canClose = null }) {
   return new Promise((resolve) => {
     const d = document.createElement('dialog');
-    d.className = 'mg-dialog' + (tone ? ' ' + tone : '');
-    if (wide) d.style.width = 'min(760px, calc(100vw - 24px))';
+    const sz = size || (wide ? 'wide' : '');
+    d.className = 'mg-dialog' + (tone ? ' ' + tone : '') + (sz ? ' ' + sz : '');
     d.innerHTML =
       '<div class="mg-dialog-head">' + (icon ? ic(icon) : '') + '<span class="t"></span>' +
-      '<button type="button" class="mg-btn quiet small" data-close aria-label="Close">esc</button></div>' +
+      '<button type="button" class="mg-btn quiet small x" data-close aria-label="Close" title="Close (esc)">' + ic('close') + '</button></div>' +
       '<div class="mg-dialog-body"></div>' +
       (actions.length ? '<div class="mg-dialog-foot"></div>' : '<div style="height:10px"></div>');
     d.querySelector('.t').textContent = title;
@@ -261,32 +324,99 @@ export function overlay({ title, body, actions = [], tone = '', onOpen, wide = f
     if (typeof body === 'string') b.innerHTML = body; else if (body) b.appendChild(body);
     const foot = d.querySelector('.mg-dialog-foot');
     let result = null;
-    actions.forEach((a) => {
+    const choose = (v) => { result = v; d.close(); };
+    const button = (a) => {
       const el = document.createElement(a.href ? 'a' : 'button');
       el.className = 'mg-btn ' + (a.kind || '');
       if (a.icon) el.innerHTML = withIcon(a.icon, a.label); else el.textContent = a.label;
-      el.title = a.label;
+      el.title = a.title || a.label;
       if (a.href) {
         el.href = a.href;
         if (a.download) el.setAttribute('download', '');
         else { el.target = '_blank'; el.rel = 'noopener'; }
-        el.addEventListener('click', () => d.close());
+        if (!a.keepOpen) el.addEventListener('click', () => d.close());
       } else {
         el.type = 'button';
-        el.addEventListener('click', () => { result = a.value; d.close(); });
+        el.addEventListener('click', () => choose(a.value));
       }
-      foot.appendChild(el);
-    });
+      return el;
+    };
+    if (foot) {
+      const left = document.createElement('div');
+      left.className = 'left';
+      actions.filter((a) => a.side === 'left' && !a.more).forEach((a) => left.appendChild(button(a)));
+      const more = actions.filter((a) => a.more);
+      if (more.length) left.appendChild(moreButton(more, choose));
+      if (left.children.length) foot.appendChild(left);
+      actions.filter((a) => a.side !== 'left' && !a.more).forEach((a) => foot.appendChild(button(a)));
+    }
+    // The backdrop closes it only for a click that started there too, so a
+    // text selection that ends outside the popup doesn't close it.
+    let downOnBackdrop = false;
+    d.addEventListener('mousedown', (e) => { downOnBackdrop = e.target === d; });
     d.addEventListener('click', (e) => {
-      if (e.target.closest('[data-close]') || e.target === d) d.close();
+      if (e.target.closest('[data-close]') || (e.target === d && downOnBackdrop)) choose(null);
     });
+    // Every way of closing goes through close(): the animated one from
+    // prefs.js, after canClose agrees.
+    const animatedClose = HTMLDialogElement.prototype.close;
+    let allowed = !canClose;
+    d.close = function (v) {
+      if (allowed) return animatedClose.call(d, v);
+      const wanted = result;
+      Promise.resolve(canClose(wanted)).then((ok) => {
+        if (ok) { allowed = true; result = wanted; animatedClose.call(d, v); }
+        else result = null;
+      });
+    };
     d.addEventListener('close', () => { d.remove(); resolve(result); });
     document.body.appendChild(d);
     d.showModal();
-    const first = foot && (foot.querySelector('.primary, .danger') || foot.lastElementChild);
+    const first = foot && (foot.querySelector('.primary') || foot.lastElementChild);
     if (first && !first.matches('.danger')) first.focus();
     if (onOpen) onOpen(d);
   });
+}
+
+// moreButton is a footer's "more…" button: a menu of the rarer and more
+// dangerous actions, so they don't sit next to save.
+function moreButton(items, choose) {
+  const btn = document.createElement('button');
+  btn.type = 'button';
+  btn.className = 'mg-btn quiet';
+  btn.setAttribute('aria-haspopup', 'menu');
+  btn.innerHTML = withIcon('more', 'more…');
+  btn.title = 'More: ' + items.map((a) => a.label).join(', ');
+  btn.addEventListener('click', () => {
+    const menu = document.createElement('div');
+    menu.className = 'mg-menu';
+    menu.setAttribute('role', 'menu');
+    if (typeof menu.showPopover === 'function') menu.setAttribute('popover', 'auto');
+    items.forEach((a) => {
+      const el = document.createElement(a.href ? 'a' : 'button');
+      el.setAttribute('role', 'menuitem');
+      el.className = /danger/.test(a.kind || '') ? 'danger' : '';
+      el.innerHTML = ic(a.icon || 'more') + '<span></span>';
+      el.querySelector('span').textContent = a.label;
+      if (a.href) {
+        el.href = a.href;
+        if (a.download) el.setAttribute('download', ''); else { el.target = '_blank'; el.rel = 'noopener'; }
+        el.style.cssText = 'display:flex;align-items:center;gap:8px;padding:4px 10px;color:inherit;text-decoration:none';
+      } else el.type = 'button';
+      el.addEventListener('click', () => { gone(); if (!a.href) choose(a.value); });
+      menu.appendChild(el);
+    });
+    const gone = () => { try { menu.hidePopover(); } catch (e) {} menu.remove(); };
+    menu.addEventListener('toggle', (e) => { if (e.newState === 'closed') menu.remove(); });
+    btn.closest('dialog').appendChild(menu);
+    try { menu.showPopover(); } catch (e) {}
+    const r = btn.getBoundingClientRect(), m = menu.getBoundingClientRect();
+    menu.style.left = Math.max(4, Math.min(r.left, innerWidth - m.width - 4)) + 'px';
+    menu.style.top = Math.max(4, r.top - m.height - 4) + 'px';
+    const first = menu.querySelector('button, a');
+    if (first) first.focus();
+  });
+  return btn;
 }
 
 /**
@@ -294,8 +424,10 @@ export function overlay({ title, body, actions = [], tone = '', onOpen, wide = f
  * true or false; with opts.choice it offers options above the buttons
  * (the first is the default) and resolves with the chosen value, or null.
  *   choice: { label, options: [{ value, label, hint }] }
+ *   icon:   the action button's icon
  */
 export async function confirmDialog(title, message, actionLabel, opts = {}) {
+  // opts.icon: the action's icon (default: delete), so it says what happens.
   const c = opts.choice;
   const choice = c ? '<fieldset class="mg-choice"><legend>' + esc(c.label) + '</legend>' + c.options.map((o, i) =>
     '<label><input type="radio" name="mg-choice" value="' + esc(o.value) + '"' + (i === 0 ? ' checked' : '') + '>' +
@@ -308,7 +440,7 @@ export async function confirmDialog(title, message, actionLabel, opts = {}) {
     body: '<p>' + esc(message) + '</p>' + choice,
     actions: [
       { label: 'cancel', value: false, kind: 'quiet', icon: 'close' },
-      { label: actionLabel, value: true, kind: 'danger solid', icon: 'delete' }
+      { label: actionLabel, value: true, kind: 'danger solid', icon: opts.icon || 'delete' }
     ],
     onOpen: (d) => {
       if (!c) return;

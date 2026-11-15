@@ -2,7 +2,7 @@
 
 html, body { height: 100%; }
 body { display: flex; flex-direction: column; min-height: 100dvh; }
-.top { position: sticky; top: 0; z-index: 10; }
+.top { position: sticky; top: 0; z-index: var(--z-head); }
 
 /* Two panes: the sessions list, and the selected session. */
 .layout {
@@ -219,8 +219,6 @@ body { display: flex; flex-direction: column; min-height: 100dvh; }
 }
 @media (max-width: 560px) {
   .layout { padding: 8px; }
-  .hide-sm { display: none !important; }
-  :root[data-labels="text"] .mg-actions .lbl.hide-sm { display: inline !important; } /* text only: a button needs its word */
   /* Narrow: actions go on their own line under the page's details. */
   .file { grid-template-columns: auto minmax(0, 1fr); }
   .file .row-actions { grid-column: 2; margin-top: 4px; }
@@ -248,7 +246,6 @@ body { display: flex; flex-direction: column; min-height: 100dvh; }
 .guide-frame { width: 100%; height: min(62vh, 640px); border: 1px solid var(--line); background: var(--bg); }
 
 /* The template gallery: the list beside a live preview. */
-.tg-dialog { width: min(980px, calc(100vw - 24px)) !important; }
 .tgallery { display: grid; gap: 10px; }
 .tg-wrap { display: grid; grid-template-columns: minmax(220px, 300px) minmax(0, 1fr); gap: 10px; }
 .tg-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; align-content: start; max-height: min(60vh, 560px); overflow: auto; }
@@ -259,7 +256,7 @@ body { display: flex; flex-direction: column; min-height: 100dvh; }
 .tg-tags { display: flex; gap: 4px; flex-wrap: wrap; }
 .tg-tags:empty { display: none; }
 .tg-preview { width: 100%; height: min(60vh, 560px); border: 1px solid var(--line); background: var(--bg); }
-@media (max-width: 700px) {
+@media (max-width: 560px) {
   .tg-wrap { grid-template-columns: 1fr; }
   .tg-list { max-height: none; }
   .tg-preview { height: 46vh; }

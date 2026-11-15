@@ -257,7 +257,7 @@ function renderRight() {
     '<div class="mg-panel session">' +
       '<div class="mg-panel-title"><span class="t">Campaign</span>' +
         (s.active ? '<span class="side">' + livePort() + '</span>' : '') + '</div>' +
-      '<div class="head-row"><h1>' + esc(s.name) + '</h1>' + (s.gameType ? gameTag(s.gameType) : '<span class="mg-muted" style="font-size: var(--fs-small)">no game type</span>') + '</div>' +
+      '<div class="head-row"><h1>' + esc(s.name) + '</h1>' + (s.gameType ? gameTag(s.gameType) : '<span class="mg-muted mg-small">no game type</span>') + '</div>' +
       '<div class="head-meta">' + sh + ' for players · ' + gm + ' for the referee · edited ' + esc(agoText(s.lastEdited)) + '</div>' +
       '<div class="actions">' +
         '<button class="mg-btn quiet" data-act="edit-session" title="Change the name or game type">' + withIcon('edit', 'edit') + '</button>' +

@@ -48,6 +48,8 @@
   --ctp-referee-ink: #b5470b; /* likewise peach */
   --ctp-live-fill: #2f7d1f;   /* Latte's green is too light to put text on */
   --ctp-on-live: #eff1f5;
+  --ctp-muted: #5c5f77;       /* secondary text: subtext0 is under 4.5:1 on Latte's base */
+  --ctp-players-ink: #1650cc; /* the players' blue as text: blue is under 4.5:1 on Latte */
   color-scheme: light;
 }
 :root[data-theme="frappe"] {
@@ -60,6 +62,7 @@
   --ctp-surface2: #626880; --ctp-surface1: #51576d; --ctp-surface0: #414559;
   --ctp-base: #303446; --ctp-mantle: #292c3c; --ctp-crust: #232634;
   --ctp-on-accent: #232634; --ctp-warn-ink: #e5c890; --ctp-referee-ink: #ef9f76; --ctp-live-fill: #a6d189; --ctp-on-live: #232634;
+  --ctp-muted: #a5adce; --ctp-players-ink: #8caaee;
   color-scheme: dark;
 }
 :root[data-theme="macchiato"] {
@@ -72,6 +75,7 @@
   --ctp-surface2: #5b6078; --ctp-surface1: #494d64; --ctp-surface0: #363a4f;
   --ctp-base: #24273a; --ctp-mantle: #1e2030; --ctp-crust: #181926;
   --ctp-on-accent: #181926; --ctp-warn-ink: #eed49f; --ctp-referee-ink: #f5a97f; --ctp-live-fill: #a6da95; --ctp-on-live: #181926;
+  --ctp-muted: #a5adcb; --ctp-players-ink: #8aadf4;
   color-scheme: dark;
 }
 :root[data-theme="mocha"] {
@@ -84,6 +88,7 @@
   --ctp-surface2: #585b70; --ctp-surface1: #45475a; --ctp-surface0: #313244;
   --ctp-base: #1e1e2e; --ctp-mantle: #181825; --ctp-crust: #11111b;
   --ctp-on-accent: #11111b; --ctp-warn-ink: #f9e2af; --ctp-referee-ink: #fab387; --ctp-live-fill: #a6e3a1; --ctp-on-live: #11111b;
+  --ctp-muted: #a6adc8; --ctp-players-ink: #89b4fa;
   color-scheme: dark;
 }
 @media (prefers-color-scheme: dark) {
@@ -97,6 +102,7 @@
     --ctp-surface2: #585b70; --ctp-surface1: #45475a; --ctp-surface0: #313244;
     --ctp-base: #1e1e2e; --ctp-mantle: #181825; --ctp-crust: #11111b;
     --ctp-on-accent: #11111b; --ctp-warn-ink: #f9e2af; --ctp-referee-ink: #fab387; --ctp-live-fill: #a6e3a1; --ctp-on-live: #11111b;
+    --ctp-muted: #a6adc8; --ctp-players-ink: #89b4fa;
     color-scheme: dark;
   }
 }
@@ -111,7 +117,7 @@
   --line: var(--ctp-surface1);    /* panel borders and dividers */
   --line-strong: var(--ctp-surface2);
   --text: var(--ctp-text);
-  --muted: var(--ctp-subtext0);   /* secondary text (overlay0 is too faint for text) */
+  --muted: var(--ctp-muted);      /* secondary text: at least 4.5:1 on --bg in every flavour */
   --accent: var(--ctp-mauve);     /* primary actions, focus, the active tab */
   --on-accent: var(--ctp-on-accent);
   --live: var(--ctp-green);
@@ -123,9 +129,20 @@
   --info: var(--ctp-blue);
   /* Who a page is for. Used for tags, buttons, panel fills and tabs. */
   --players: var(--ctp-blue);
-  --players-ink: var(--ctp-blue);
+  --players-ink: var(--ctp-players-ink);
   --referee: var(--ctp-peach);
   --referee-ink: var(--ctp-referee-ink);
+  --code: var(--ctp-teal);        /* inline code */
+  --ftype: var(--ctp-pink);       /* file types named in help text */
+  --on-warn: #232634;             /* text on the warning yellow, which is light in every flavour */
+  --screen-off: #050608;          /* the CRT effects' switched-off screen */
+  /* The tutorial's own colour, teal, used for nothing else. Filled with text
+     on it, it is darker on light themes, so the text keeps its contrast. */
+  --tour: var(--ctp-teal);
+  --tour-fill: var(--ctp-teal);
+  --tour-fill: light-dark(color-mix(in srgb, var(--ctp-teal) 80%, #000), var(--ctp-teal));
+  --on-tour: var(--ctp-on-accent);
+  --tour-bg: color-mix(in srgb, var(--ctp-teal) 13%, var(--bg));
 
   --font: "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
   /* The only three text sizes in the app. Everything uses one of these. */
@@ -133,9 +150,50 @@
   --fs-body: 13px;    /* text, buttons, inputs, tabs, bars */
   --fs-small: 11.5px; /* metadata, hints, tags, counts */
   --track: 0;  /* extra letter spacing, for the fonts that read better with it */
+
+  /* Sizes of controls. Touch screens step them up (below). */
   --bar-h: 28px;
-  --head-h: 40px;   /* page headers: tall enough for full-size buttons */
+  --head-h: 40px;      /* page headers: tall enough for full-size buttons */
+  --tab-h: 30px;       /* the player view's tab row */
+  --btn-h: 26px;
+  --btn-h-small: 24px;
+  --input-h: 26px;
+  --check: 15px;       /* checkboxes and radio buttons */
   --focus: 0 0 0 1px var(--bg), 0 0 0 2px var(--accent);
+
+  /* Dialog widths: one per kind of popup. */
+  --dialog-w: 560px;        /* questions and small forms */
+  --dialog-w-wide: 760px;   /* a page's info, Join Info, the guide */
+  --dialog-w-xwide: 980px;  /* galleries with a preview */
+
+  /* Layers, lowest first. Toasts, notices, menus, hints, the tutorial and the
+     boot screen are also in the browser's top layer, above any open dialog;
+     these keep them in order where that isn't available. */
+  --z-sticky: 1;        /* sticky heads and feet inside a scrolling box */
+  --z-viewer-tools: 5;  /* the viewers' floating toolbars */
+  --z-viewer-panel: 6;  /* the PDF search bar and contents */
+  --z-head: 10;         /* the dashboard's sticky top bar */
+  --z-notice: 100;      /* toasts and notices */
+  --z-tip: 1000;
+  --z-menu: 1500;
+  --z-tour: 2000;
+  --z-boot: 2500;
+  --z-static: 3000;
+}
+
+/* ---- touch screens -------------------------------------------------------------
+ * On a coarse pointer (tablets, phones) everything you touch is at least 40px
+ * and the text a step bigger, so play at the table doesn't need precise taps.
+ * Inputs stay at 16px or more, or iOS zooms in on every field. Pages that
+ * follow the theme (templates, Markdown) get this too.
+ */
+@media (pointer: coarse) {
+  :root {
+    --fs-title: 16px; --fs-body: 15px; --fs-small: 13px;
+    --bar-h: 40px; --head-h: 52px; --tab-h: 44px;
+    --btn-h: 40px; --btn-h-small: 36px; --input-h: 40px;
+    --check: 22px;
+  }
 }
 
 /* ---- fonts ------------------------------------------------------------------
@@ -160,4 +218,7 @@
 /* OpenDyslexic runs large, so the whole scale steps down together and the
    sizes stay consistent with each other. */
 :root[data-font="dyslexic"] { --fs-title: 13px; --fs-body: 12px; --fs-small: 10.5px; }
+@media (pointer: coarse) {
+  :root[data-font="dyslexic"] { --fs-title: 15px; --fs-body: 14px; --fs-small: 12px; }
+}
 

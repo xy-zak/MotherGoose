@@ -77,7 +77,7 @@ export async function dataOverlay() {
     title: 'Data folder',
     icon: 'data',
     wide: true,
-    actions: [{ label: 'open folder', value: 'reveal', icon: 'folder', kind: 'primary' }],
+    actions: [{ label: 'open folder', value: 'reveal', icon: 'folder' }],
     body: kv([['location', '<code>' + esc(A.info ? A.info.dataDir : '') + '</code>']]) +
       '<pre class="tree">data/\n  config.json              which campaign is live\n  sessions/                one folder per campaign\n    the-sunken-keep/\n      session.json         name, game type, party, page details and who sees them\n' +
       '      shared/              players\' pages\n      gm/                  referee\'s pages (this computer only)\n      state/               what people typed (managed for you)\n        players/           each player\'s copy of per-player pages</pre>' +
@@ -133,7 +133,7 @@ function copiesList(s, f) {
         '<a class="mg-btn quiet small compact" href="' + viewUrl(s.id, f, '', who) + '" target="_blank" rel="noopener" title="Open ' + esc(who ? name + '\'s copy' : 'the template') + '">' + withIcon('open', 'open') + '</a>' +
         '<a class="mg-btn quiet small compact" href="' + filledUrl(s.id, f, who) + '"' + (f.kind === 'pdf' ? ' target="_blank" rel="noopener"' : ' download') +
           ' title="Export ' + esc(who ? name + '\'s copy' : 'the template') + ' filled in' + (f.kind === 'pdf' ? ' (opens the viewer, which downloads it)' : '') + '">' + withIcon('export', 'export filled') + '</a>' +
-        '<button type="button" class="mg-btn quiet small compact" data-copy-reset="' + esc(who) + '"' + (filled ? '' : ' disabled') + ' title="Clear ' + esc(who ? name + '\'s entries' : 'the template\'s entries') + '">' + withIcon('reset', 'reset') + '</button>' +
+        '<button type="button" class="mg-btn danger small compact" data-copy-reset="' + esc(who) + '"' + (filled ? '' : ' disabled') + ' title="Clear ' + esc(who ? name + '\'s entries' : 'the template\'s entries') + '">' + withIcon('reset', 'clear entries') + '</button>' +
       '</span></li>';
   const players = s.players || [];
   return '<div><div class="mg-section-label">' + ic('player') + ' Copies</div>' +
@@ -262,13 +262,16 @@ export async function fileOverlay(scope, name) {
   }
 
   const actions = [];
-  if (scope === 'shared' && s.active && !isHidden(f)) actions.push({ label: 'show to players', value: 'show', kind: 'quiet', icon: 'show' });
-  if (!per) actions.push({ label: 'open', href: viewUrl(s.id, f), kind: 'quiet', icon: 'open' });
-  if (!per && hasEntries(f)) actions.push({ label: 'export filled', href: filledUrl(s.id, f), download: f.kind !== 'pdf', icon: 'export', kind: 'quiet' });
-  if (!per && f.hasState) actions.push({ label: 'reset entries', value: 'reset', kind: 'danger', icon: 'reset' });
+  // The footer (R3): looking at the page on the left, rarer and dangerous
+  // actions under "more…", cancel and save on the right.
+  if (scope === 'shared' && s.active && !isHidden(f)) actions.push({ label: 'show to players', value: 'show', kind: 'quiet', icon: 'show', side: 'left' });
+  if (!per) actions.push({ label: 'open', href: viewUrl(s.id, f), kind: 'quiet', icon: 'open', side: 'left', keepOpen: true });
+  if (!per && hasEntries(f)) actions.push({ label: 'export filled', href: filledUrl(s.id, f), download: f.kind !== 'pdf', icon: 'export', kind: 'quiet', side: 'left', keepOpen: true });
   const to = other(scope);
-  actions.push({ label: 'move to ' + SCOPE[to].label, value: 'move', kind: SCOPE[to].cls, icon: to === 'gm' ? 'to-referee' : 'to-players' });
-  actions.push({ label: 'delete', value: 'delete', kind: 'danger', icon: 'delete' });
+  actions.push({ label: 'move to ' + SCOPE[to].label, value: 'move', icon: to === 'gm' ? 'to-referee' : 'to-players', more: true });
+  if (!per && f.hasState) actions.push({ label: 'clear entries', value: 'reset', kind: 'danger', icon: 'reset', more: true });
+  actions.push({ label: 'delete', value: 'delete', kind: 'danger', icon: 'delete', more: true });
+  actions.push({ label: 'cancel', value: null, kind: 'quiet', icon: 'close' });
   actions.push({ label: 'save', value: 'save', kind: 'primary', icon: 'check' });
 
   let reset;  // a copy to reset, from the list: '' is the template
@@ -404,10 +407,9 @@ export async function templateOverlay(scope) {
     '<iframe class="tg-preview" title="Preview" src="/api/admin/templates/' + enc(list[0].file) + '"></iframe></div>';
   let at = 0;
   const v = await overlay({
-    title: 'Add a page from a template', icon: 'template', wide: true, body,
-    actions: [{ label: 'cancel', value: null, kind: 'quiet', icon: 'close' }, { label: 'add for the ' + SCOPE[scope].label, value: 'add', kind: 'primary ' + SCOPE[scope].cls, icon: 'add' }],
+    title: 'Add a page from a template', icon: 'template', size: 'xwide', body,
+    actions: [{ label: 'cancel', value: null, kind: 'quiet', icon: 'close' }, { label: 'add for the ' + SCOPE[scope].label, value: 'add', kind: 'primary', icon: 'add' }],
     onOpen: (d) => {
-      d.classList.add('tg-dialog');
       body.addEventListener('click', (e) => {
         const b = e.target.closest('.tg-item');
         if (!b) return;

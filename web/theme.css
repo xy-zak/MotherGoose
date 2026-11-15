@@ -19,13 +19,21 @@ body {
 h1, h2, h3 { font: 700 var(--fs-title)/1.3 var(--font); margin: 0; letter-spacing: var(--track); }
 p { margin: 0; }
 a { color: var(--accent); text-underline-offset: 3px; }
-code { font-family: var(--font); color: var(--ctp-teal); }
+code { font-family: var(--font); color: var(--code); }
 button, input, select, textarea { font: inherit; color: inherit; }
 ::selection { background: var(--accent); color: var(--on-accent); }
-:focus-visible { outline: none; box-shadow: var(--focus); }
+/* Focus: an outline drawn just inside the edge, so it shows in forced-colour
+   modes and isn't clipped by scrolling rows (tabs, bars). */
+:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 [hidden] { display: none !important; }
 .mg-muted { color: var(--muted); }
+.mg-small { font-size: var(--fs-small); }
 .mg-grow { flex: 1; min-width: 0; }
+/* Narrow screens (560px and less) leave these out. */
+@media (max-width: 560px) {
+  .hide-sm { display: none !important; }
+  :root[data-labels="text"] .mg-actions .lbl.hide-sm { display: inline !important; } /* text only: a button needs its word */
+}
 
 /* ---- bars: one-line strips of information ------------------------------------- */
 
@@ -121,17 +129,17 @@ button.mg-seg:hover { background: var(--surface); }
 .mg-panel.players:focus-within { border-color: var(--players); }
 .mg-panel.referee:focus-within { border-color: var(--referee); }
 
-/* ---- buttons: four kinds that look different at a glance -------------------
+/* ---- buttons: each kind has one job (docs/ARCHITECTURE.md, R2) --------------
  *   .mg-btn          default   - framed, filled surface
- *   .mg-btn.primary  primary   - solid accent, bold; one per area
- *   .mg-btn.quiet    quiet     - no frame; toolbar and secondary actions
- *   .mg-btn.danger   danger    - red frame; .solid inside confirm dialogs
- *   .mg-btn.warn     caution   - yellow frame
- *   .mg-btn.end-session  ending a live session - filled in the referee's orange
+ *   .mg-btn.primary  primary   - solid accent, bold; the main action, at most one per area
+ *   .mg-btn.quiet    quiet     - no frame; toolbars and secondary actions
+ *   .mg-btn.danger   danger    - red frame; for what can't be undone. .solid inside confirm dialogs
+ *   .mg-btn.go-live / .end-session  starting and ending a session
+ *   .mg-btn.players / .referee      who a page is for (never with .primary)
  */
 .mg-btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
-  height: 26px; padding: 0 10px;
+  height: var(--btn-h); padding: 0 10px;
   font: 500 var(--fs-body)/1 var(--font);
   color: var(--text); background: var(--surface);
   border: 1px solid var(--line-strong); border-radius: 0;
@@ -139,15 +147,14 @@ button.mg-seg:hover { background: var(--surface); }
 }
 .mg-btn:hover { border-color: var(--text); }
 .mg-btn:disabled { opacity: .5; cursor: default; }
-.mg-btn.small { height: 24px; padding: 0 7px; }
+.mg-btn.small { height: var(--btn-h-small); padding: 0 7px; }
+@media (pointer: coarse) { .mg-btn.small { padding: 0 10px; min-width: var(--btn-h-small); } }
 .mg-btn.primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 700; }
 .mg-btn.primary:hover { filter: brightness(1.08); border-color: var(--accent); }
 .mg-btn.quiet { background: transparent; border-color: transparent; color: var(--muted); }
 .mg-btn.quiet:hover { color: var(--text); background: var(--surface); border-color: transparent; }
 .mg-btn.danger { background: transparent; border-color: var(--danger); color: var(--danger); }
 .mg-btn.danger:hover, .mg-btn.danger.solid { background: var(--danger); color: var(--on-accent); }
-.mg-btn.warn { background: transparent; border-color: var(--warn); color: var(--warn-ink); }
-.mg-btn.warn:hover { background: var(--warn); color: var(--on-accent); }
 .mg-btn.end-session { background: var(--referee); border-color: var(--referee); color: var(--on-accent); }
 .mg-btn.end-session:hover { background: color-mix(in srgb, var(--referee) 85%, var(--text)); border-color: color-mix(in srgb, var(--referee) 85%, var(--text)); }
 /* Who-it's-for buttons: moving a page to the players or the referee. */
@@ -167,12 +174,14 @@ button.mg-seg:hover { background: var(--surface); }
 /* ---- inputs --------------------------------------------------------------- */
 
 .mg-input {
-  height: 26px; padding: 0 8px; min-width: 0;
+  height: var(--input-h); padding: 0 8px; min-width: 0;
   font: 400 var(--fs-body)/1 var(--font);
   color: var(--text); background: var(--deep);
   border: 1px solid var(--line); border-radius: 0;
 }
-.mg-input::placeholder { color: var(--ctp-overlay1); }
+.mg-input::placeholder { color: var(--muted); opacity: .8; }
+/* Touch: 16px or more, or iOS zooms in on the field. */
+@media (pointer: coarse) { .mg-input, select, textarea { font-size: max(16px, var(--fs-body)); } }
 .mg-input:focus { outline: none; border-color: var(--accent); }
 textarea.mg-input { height: auto; min-height: 84px; padding: 6px 8px; line-height: 1.5; resize: vertical; }
 
@@ -184,7 +193,7 @@ textarea.mg-input { height: auto; min-height: 84px; padding: 6px 8px; line-heigh
 .mg-field.check { grid-template-columns: auto minmax(0, 1fr); align-items: start; gap: 8px; cursor: pointer; }
 .mg-field.check > span { font-size: var(--fs-body); color: var(--text); }
 .mg-field.check .hint { display: block; margin-top: 2px; }
-.mg-field.check input, .mg-choice input { width: 15px; height: 15px; margin: 2px 0 0; accent-color: var(--accent); }
+.mg-field.check input, .mg-choice input { width: var(--check); height: var(--check); margin: 2px 0 0; accent-color: var(--accent); }
 
 /* A choice inside a confirmation (e.g. keep or delete entries): the chosen
    option is shaded, its outline stays 1px. */
@@ -250,7 +259,7 @@ textarea.mg-input { height: auto; min-height: 84px; padding: 6px 8px; line-heigh
 /* ---- overlays (built on <dialog>) --------------------------------------------- */
 
 .mg-dialog {
-  width: min(560px, calc(100vw - 24px)); max-height: calc(100dvh - 48px);
+  width: min(var(--dialog-w), calc(100vw - 24px)); max-height: calc(100dvh - 48px);
   padding: 0; overflow: auto;
   color: var(--text); background: var(--bg);
   border: 1px solid var(--accent); border-radius: 0;
@@ -263,8 +272,10 @@ textarea.mg-input { height: auto; min-height: 84px; padding: 6px 8px; line-heigh
     color-mix(in srgb, var(--line-strong, #585b70) 55%, transparent) 0 1px,
     transparent 1px 7px);
 }
+.mg-dialog.wide { width: min(var(--dialog-w-wide), calc(100vw - 24px)); }
+.mg-dialog.xwide { width: min(var(--dialog-w-xwide), calc(100vw - 24px)); }
 .mg-dialog-head {
-  position: sticky; top: 0; z-index: 1;
+  position: sticky; top: 0; z-index: var(--z-sticky);
   display: flex; align-items: center; gap: 8px;
   height: var(--bar-h); padding: 0 4px 0 12px;
   background: var(--bar); border-bottom: 1px solid var(--line);
@@ -272,39 +283,50 @@ textarea.mg-input { height: auto; min-height: 84px; padding: 6px 8px; line-heigh
 }
 .mg-dialog-head .t { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mg-dialog-body { padding: 14px 14px 4px; display: grid; gap: 12px; }
-.mg-dialog-foot { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 6px; padding: 12px 14px 14px; }
+/* The footer stays in view however long the popup is (R3): secondary actions
+   on the left, a "more…" menu for the dangerous ones, cancel and the main
+   action on the right. */
+.mg-dialog-foot {
+  position: sticky; bottom: 0; z-index: var(--z-sticky);
+  display: flex; justify-content: flex-end; align-items: center; flex-wrap: wrap; gap: 6px;
+  margin-top: 10px; padding: 10px 14px 12px;
+  background: var(--bg); border-top: 1px solid var(--line);
+}
+.mg-dialog-foot .left { display: flex; flex-wrap: wrap; gap: 6px; margin-right: auto; }
+.mg-dialog-head .x { margin-left: auto; }
 .mg-dialog.danger { border-color: var(--danger); }
 .mg-dialog.danger .mg-dialog-head { color: var(--danger); }
 
-/* ---- toast ----------------------------------------------------------------- */
-
-.mg-toast {
-  position: fixed; right: 12px; bottom: 12px; z-index: 100;
-  max-width: min(460px, calc(100vw - 24px));
-  padding: 6px 10px;
-  background: var(--bar); color: var(--text);
-  border: 1px solid var(--accent);
-  font-size: var(--fs-body);
+/* ---- toasts and notices -------------------------------------------------------
+ * One stack, bottom left, in the top layer (a popover) so it shows above any
+ * open popup. Bottom left keeps clear of the viewers' toolbars (bottom right)
+ * and their search bar (top right). On narrow screens, where the PDF toolbar
+ * is centred at the bottom, the stack moves under the page's bars.
+ */
+.mg-notices, .mg-notices[popover] {
+  position: fixed; inset: auto auto calc(12px + env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  z-index: var(--z-notice); margin: 0; padding: 0; border: 0; background: none; overflow: visible;
+  display: grid; gap: 6px; justify-items: start;
+  width: max-content; max-width: min(460px, calc(100vw - 24px));
 }
-.mg-toast.err { border-color: var(--danger); }
-
-/* Notices: a short message with a button ("New page: Map  [open]"), stacked
-   under the bars. Pages set --notice-top to clear their own bars. */
-.mg-notices {
-  position: fixed; right: 12px; top: var(--notice-top, 12px); z-index: 99;
-  display: grid; gap: 6px; justify-items: end;
-  max-width: min(460px, calc(100vw - 24px));
+.mg-notices:empty { display: none; }
+@media (max-width: 560px) {
+  .mg-notices, .mg-notices[popover] { inset: var(--notice-top, 12px) auto auto 12px; }
 }
-.mg-notice-pop {
+.mg-toast, .mg-notice-pop {
   display: flex; align-items: center; gap: 8px;
-  padding: 5px 5px 5px 10px; min-height: 32px;
+  min-height: 32px; padding: 5px 5px 5px 10px;
   background: var(--bar); color: var(--text);
   border: 1px solid var(--accent);
+  box-shadow: 3px 3px 0 color-mix(in srgb, var(--deep) 70%, transparent);
   font-size: var(--fs-body);
 }
-.mg-notice-pop > .mg-i { flex: none; color: var(--accent); }
-.mg-notice-pop .msg { flex: 1; min-width: 0; overflow-wrap: anywhere; }
-.mg-notice-pop .x { padding: 0 4px; }
+.mg-toast { padding-right: 10px; }
+.mg-toast.err { border-color: var(--danger); padding-right: 5px; }
+.mg-toast.err > .mg-i { color: var(--danger); }
+.mg-toast > .mg-i, .mg-notice-pop > .mg-i { flex: none; color: var(--accent); }
+.mg-toast .msg, .mg-notice-pop .msg { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.mg-toast .x, .mg-notice-pop .x { padding: 0 4px; }
 
 /* ---- centred notice pages (403, waiting) ------------------------------------- */
 
@@ -326,9 +348,9 @@ textarea.mg-input { height: auto; min-height: 84px; padding: 6px 8px; line-heigh
 .mg-ftype {
   display: inline-block; padding: 0 4px; line-height: 17px;
   font: 700 var(--fs-small)/17px var(--font);
-  color: var(--ctp-pink);
-  color: light-dark(color-mix(in srgb, var(--ctp-pink) 70%, #000), var(--ctp-pink));  /* darker on light themes, for contrast */
-  background: color-mix(in srgb, var(--ctp-pink) 8%, var(--deep)); border: 1px solid color-mix(in srgb, var(--ctp-pink) 45%, var(--line));
+  color: var(--ftype);
+  color: light-dark(color-mix(in srgb, var(--ftype) 70%, #000), var(--ftype));  /* darker on light themes, for contrast */
+  background: color-mix(in srgb, var(--ftype) 8%, var(--deep)); border: 1px solid color-mix(in srgb, var(--ftype) 45%, var(--line));
   white-space: nowrap;
 }
 .mg-ui {
@@ -353,7 +375,7 @@ textarea.mg-input { height: auto; min-height: 84px; padding: 6px 8px; line-heigh
 /* ---- right-click menus (e.g. on the player dashboard's tabs) ----------------- */
 
 .mg-menu, .mg-menu[popover] {
-  position: fixed; inset: auto; margin: 0; z-index: 1500;
+  position: fixed; inset: auto; margin: 0; z-index: var(--z-menu);
   min-width: 190px; padding: 3px 0;
   color: var(--text); background: var(--bar);
   border: 1px solid var(--accent);
@@ -366,6 +388,8 @@ textarea.mg-input { height: auto; min-height: 84px; padding: 6px 8px; line-heigh
   padding: 4px 10px; border: 0; background: none; color: var(--text);
   font: 500 var(--fs-body)/1.4 var(--font); text-align: left; cursor: pointer;
 }
+@media (pointer: coarse) { .mg-menu button { min-height: 40px; } }
+.mg-menu button.danger { color: var(--danger); }
 .mg-menu button:hover, .mg-menu button:focus-visible { background: color-mix(in srgb, var(--accent) 20%, var(--bar)); box-shadow: none; }
 .mg-menu button:disabled { opacity: .45; cursor: default; background: none; }
 .mg-menu button kbd { margin-left: auto; }
@@ -421,9 +445,9 @@ textarea.mg-input { height: auto; min-height: 84px; padding: 6px 8px; line-heigh
 :root[data-anim="full"] .mg-menu.mg-closing { animation: mg-crt-pop-off 150ms cubic-bezier(.6, 0, .8, .4) both !important; pointer-events: none; }
 :root[data-anim="full"] .mg-menu:popover-open, :root[data-anim="full"] .mg-menu.fx-on { animation: mg-crt-pop 170ms cubic-bezier(.2, .7, .3, 1) both; transform-origin: top left; }
 :root[data-anim="full"] .mg-tour-card.fx-on { animation: mg-crt-pop 300ms cubic-bezier(.2, .7, .3, 1) both; }
-:root[data-anim="full"] .mg-toast:not([hidden]), :root[data-anim="full"] .mg-notice-pop { animation: mg-crt-pop 200ms cubic-bezier(.2, .7, .3, 1) both; }
+:root[data-anim="full"] .mg-toast, :root[data-anim="full"] .mg-notice-pop { animation: mg-crt-pop 200ms cubic-bezier(.2, .7, .3, 1) both; }
 :root[data-anim="reduced"] .mg-dialog[open]:not(.mg-toured), :root[data-anim="reduced"] .mg-dialog[open]::backdrop,
-:root[data-anim="reduced"] .mg-menu:popover-open, :root[data-anim="reduced"] .mg-toast:not([hidden]), :root[data-anim="reduced"] .mg-notice-pop {
+:root[data-anim="reduced"] .mg-menu:popover-open, :root[data-anim="reduced"] .mg-toast, :root[data-anim="reduced"] .mg-notice-pop {
   animation: mg-fade-in 140ms ease-out both !important;
 }
 :root[data-anim="reduced"] .mg-dialog[open].mg-closing:not(.mg-toured), :root[data-anim="reduced"] .mg-dialog[open].mg-closing:not(.mg-toured)::backdrop, :root[data-anim="reduced"] .mg-menu.mg-closing {
@@ -447,15 +471,15 @@ textarea.mg-input { height: auto; min-height: 84px; padding: 6px 8px; line-heigh
   100% { transform: none; filter: none; }
 }
 @keyframes mg-static { 0% { background-position: 0 0; } 25% { background-position: -37px 23px; } 50% { background-position: 61px -11px; } 75% { background-position: -13px -47px; } 100% { background-position: 29px 41px; } }
-:root.mg-leave, :root.mg-arrive { background: #050608; overflow: hidden; }
+:root.mg-leave, :root.mg-arrive { background: var(--screen-off); overflow: hidden; }
 :root[data-anim="full"].mg-leave body { animation: mg-crt-off 340ms cubic-bezier(.6, 0, .8, .4) both; pointer-events: none; }
 :root[data-anim="full"].mg-arrive body { animation: mg-crt-on 620ms cubic-bezier(.2, .7, .3, 1) both; }
 :root[data-anim="reduced"].mg-leave body { animation: mg-fade-out 140ms ease-in both !important; }
 :root[data-anim="reduced"].mg-arrive body { animation: mg-fade-in 180ms ease-out both !important; }
 /* Static: grey noise drawn by an SVG filter, jumping about. */
 .mg-static {
-  position: fixed; inset: 0; z-index: 3000; pointer-events: none;
-  background-color: #050608;
+  position: fixed; inset: 0; z-index: var(--z-static); pointer-events: none;
+  background-color: var(--screen-off);
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .8 0 0 0 0 .82 0 0 0 0 .86 0 0 0 1.6 -.35'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)'/%3E%3C/svg%3E"),
     repeating-linear-gradient(0deg, rgba(0, 0, 0, .45) 0 1px, transparent 1px 3px);
   background-size: 160px 160px, auto;
@@ -468,14 +492,14 @@ textarea.mg-input { height: auto; min-height: 84px; padding: 6px 8px; line-heigh
    for going live, the warning yellow for ending. */
 .mg-boot, .mg-boot[popover] {
   --b-ink: var(--live); --b-fill: var(--live-fill); --b-on: var(--on-live);
-  position: fixed; inset: 0; z-index: 2500;
+  position: fixed; inset: 0; z-index: var(--z-boot);
   width: auto; height: auto; max-width: none; max-height: none; margin: 0; border: 0;
   display: grid; place-items: center; padding: 24px 16px; overflow: hidden;
   background: var(--deep); color: var(--text);
   font: 400 var(--fs-body)/1.5 var(--font); letter-spacing: var(--track);
   cursor: pointer;
 }
-.mg-boot.end { --b-ink: var(--warn-ink); --b-fill: var(--warn); --b-on: #232634; }  /* the yellow is light in every flavour: dark text on it */
+.mg-boot.end { --b-ink: var(--warn-ink); --b-fill: var(--warn); --b-on: var(--on-warn); }
 .mg-boot .scr {
   width: min(560px, 100%); display: grid; gap: 2px; padding: 0 14px 14px;
   background: var(--bg); border: 1px solid var(--b-ink);
@@ -603,7 +627,7 @@ textarea.mg-input { height: auto; min-height: 84px; padding: 6px 8px; line-heigh
 .mg-bar.mg-head { height: var(--head-h); }
 .mg-head .mg-actions { display: inline-flex; align-items: center; gap: 6px; padding: 0 8px; border-left: 1px solid var(--line); }
 .mg-head .mg-actions > *, .mg-head .mg-btn, .mg-head .mg-btn.quiet {
-  align-self: center; height: 26px; padding: 0 10px; margin: 0;
+  align-self: center; height: var(--btn-h); padding: 0 10px; margin: 0;
   color: var(--text); background: var(--surface);
   border: 1px solid var(--line-strong);
 }
@@ -624,18 +648,10 @@ textarea.mg-input { height: auto; min-height: 84px; padding: 6px 8px; line-heigh
  * can't be mistaken for the page's. Everything outside the highlight is
  * hatched out (the hatching has cut-outs, made with clip-path); a popup being
  * toured is framed and hatched more lightly, and the button that opened it
- * gets a dashed outline.
+ * gets a dashed outline. Its colours (--tour…) are tokens, in tokens.css.
  */
-:root {
-  --tour: var(--ctp-teal);
-  /* Filled with text on it: darker on light themes, so the text keeps its contrast. */
-  --tour-fill: var(--ctp-teal);
-  --tour-fill: light-dark(color-mix(in srgb, var(--ctp-teal) 80%, #000), var(--ctp-teal));
-  --on-tour: var(--ctp-on-accent);
-  --tour-bg: color-mix(in srgb, var(--ctp-teal) 13%, var(--bg));
-}
 .mg-tour, .mg-tour[popover] {
-  position: fixed; inset: 0; z-index: 2000;
+  position: fixed; inset: 0; z-index: var(--z-tour);
   width: auto; height: auto; max-width: none; max-height: none;
   margin: 0; padding: 0; border: 0; overflow: hidden;
   background: transparent; color: var(--text);
@@ -696,7 +712,7 @@ textarea.mg-input { height: auto; min-height: 84px; padding: 6px 8px; line-heigh
 .mg-tour-head .name { display: inline-flex; align-items: center; gap: 6px; min-width: 0; font-size: var(--fs-small); font-weight: 800; text-transform: uppercase; letter-spacing: .08em; }
 .mg-tour-head .name span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .mg-tour-head .count { margin-left: auto; font-size: var(--fs-small); font-weight: 700; white-space: nowrap; }
-.mg-tour-head .mg-btn { height: 20px; padding: 0 6px; background: transparent; color: var(--on-tour); border-color: color-mix(in srgb, var(--on-tour) 55%, transparent); }
+.mg-tour-head .mg-btn { height: calc(var(--bar-h) - 8px); padding: 0 6px; background: transparent; color: var(--on-tour); border-color: color-mix(in srgb, var(--on-tour) 55%, transparent); }
 .mg-tour-head .mg-btn:hover { background: color-mix(in srgb, var(--on-tour) 15%, transparent); border-color: var(--on-tour); }
 .mg-tour-scene {
   display: flex; align-items: flex-start; gap: 8px; margin: 10px 12px 0; padding: 6px 8px;
@@ -740,6 +756,7 @@ textarea.mg-input { height: auto; min-height: 84px; padding: 6px 8px; line-heigh
   flex: 1 1 0; min-width: 4px; height: 14px; padding: 0; cursor: pointer;
   background: var(--bg); border: 1px solid var(--line-strong);
 }
+@media (pointer: coarse) { .mg-tour-line .tick { height: 24px; } }
 .mg-tour-line .tick.popup { border-style: dashed; border-color: var(--tour); }
 .mg-tour-line .tick:hover { border-color: var(--text); }
 .mg-tour-line .tick.done { background: color-mix(in srgb, var(--tour) 45%, var(--bg)); border-color: color-mix(in srgb, var(--tour) 60%, var(--line)); }
@@ -753,7 +770,7 @@ textarea.mg-input { height: auto; min-height: 84px; padding: 6px 8px; line-heigh
 .mg-tour-line .sec.on .name { color: var(--tour); font-weight: 700; }
 /* Narrow screens: the section names don't fit under their segments; the
    current one is named above the bar. */
-@media (max-width: 700px) {
+@media (max-width: 560px) {
   .mg-tour-line .name { display: none; }
   .mg-tour-line .secs { gap: 5px; }
 }
@@ -762,7 +779,8 @@ textarea.mg-input { height: auto; min-height: 84px; padding: 6px 8px; line-heigh
 
 .jump-dialog { align-self: start; margin-top: 12vh; }
 .jump { display: grid; gap: 8px; }
-.jump-q { height: 30px; font-size: var(--fs-title); }
+.jump-q { height: calc(var(--input-h) + 4px); font-size: var(--fs-title); }
+@media (pointer: coarse) { .jump-q { font-size: max(16px, var(--fs-title)); } .jump-list li { min-height: 44px; } }
 .jump-list { list-style: none; margin: 0; padding: 0; max-height: min(52vh, 420px); overflow: auto; border: 1px solid var(--line); }
 .jump-list li { display: flex; align-items: center; gap: 8px; padding: 5px 8px; cursor: pointer; border-bottom: 1px solid var(--line); }
 .jump-list li:last-child { border-bottom: 0; }

@@ -146,6 +146,13 @@ These are the rules the code follows. A change that breaks one should change the
     - `page-theme.js` sets `data-theme` and `data-font` the same way in pages that follow the theme.
     - CSS keys off those attributes.
 16. **Every dialog animates closed.** `prefs.js` patches `HTMLDialogElement.prototype.close` once, for every page. Code just calls `dialog.close()`. The tutorial opts a dialog out with the `mg-toured` class.
+17. **Touch scale (R1).** On a coarse pointer (tablets, phones) `tokens.css` steps the size tokens up: text 16 / 15 / 13, `--btn-h` 40, `--btn-h-small` 36, `--tab-h` 44, `--input-h` 40, `--check` 22, and inputs never below 16px (or iOS zooms in). Components use the tokens (`--btn-h`, `--tab-h`, …), never fixed heights, so the whole UI follows, and so do pages that follow the theme.
+18. **Button kinds by role (R2).** **primary** is the main action, at most one per area; **danger** is for what can't be undone; **quiet** is for toolbars and secondary actions; **go-live / end-session** start and end a session; **players / referee** say who a page is for and are never combined with primary. One action has one kind and one word in a given kind of place (toolbars quiet, dialog footers default or primary).
+19. **Dialog footers (R3).** The footer sticks to the bottom of the popup. Secondary actions (`side: 'left'` in `overlay()`) sit on the left; rarer and dangerous ones (`more: true`) go in a "more…" menu beside them; cancel and the primary action sit on the right. A popup with a form passes `canClose` so edits are never lost silently.
+20. **Layers (R4).** The order is the `--z-*` ladder in `tokens.css`. Toasts and notices share one stack in the top layer (a popover, shown again on each message), so they appear above open popups; it sits bottom left, clear of the viewers' toolbar (bottom right) and search bar (top right), and under the bars on narrow screens.
+21. **Words (R5).** One word per concept; the glossary is below.
+22. **State is never colour-only (R6).** A state also has a shape, an icon or a word (dashed for hidden, a lock for "only", "new" beside the dot, the connection state in words).
+23. **Breakpoints (R7).** `max-width: 560px` (narrow) and `max-width: 900px` (medium), plus `pointer: coarse` for touch. No other widths.
 
 ---
 

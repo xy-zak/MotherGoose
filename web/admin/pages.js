@@ -2,7 +2,7 @@
 // computer, and pages dragged up and down a column or onto the other one.
 // A page dragged within its column is put where the marker shows; dragged to
 // the other column, it is moved there and put in that place.
-import { api, attempt, enc, esc, ic, overlay, SCOPE, toast, withIcon } from '/_mg/ui.js';
+import { api, attempt, enc, esc, ic, overlay, plainError, SCOPE, toast, withIcon } from '/_mg/ui.js';
 import { A, app, fileBase } from './state.js';
 import { guideOverlay, checkNotes } from './overlays.js';
 
@@ -17,7 +17,7 @@ export async function upload(scope, files) {
     res = await api('POST', '/api/admin/sessions/' + enc(A.current.id) + '/files', fd);
   } catch (e) {
     // Nothing was saved: every file was refused. Say why, in full.
-    await uploadReport({ saved: [], errors: e.message.split('; '), warnings: {} }, scope);
+    await uploadReport({ saved: [], errors: e.errors || [e.message], warnings: {} }, scope);
     return;
   }
   app.refresh();
@@ -29,7 +29,7 @@ export async function upload(scope, files) {
 // What happened to an upload when there's more to say than "added": files
 // refused (often a page that isn't one file), and pages worth a second look.
 async function uploadReport(res, scope) {
-  const saved = res.saved || [], errors = res.errors || [], warnings = res.warnings || {};
+  const saved = res.saved || [], errors = (res.errors || []).map(plainError), warnings = res.warnings || {};
   const body =
     (saved.length ? '<p>' + ic('check') + ' Added ' + saved.map((n) => '<b>' + esc(n) + '</b>').join(', ') + ' for the ' + SCOPE[scope].label + '.</p>' : '') +
     (errors.length ? '<div class="mg-section-label">Not added</div><ul class="report bad">' + errors.map((e) => '<li>' + esc(e) + '</li>').join('') + '</ul>' : '') +
