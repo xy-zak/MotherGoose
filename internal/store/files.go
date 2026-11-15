@@ -23,7 +23,8 @@ import (
 // FileInfo describes one page (HTML, PDF or image) in a session.
 type FileInfo struct {
 	Name     string    `json:"name"`
-	Title    string    `json:"title"`
+	Title    string    `json:"title"`    // what the page is called: the referee's title, or the page's own
+	DocTitle string    `json:"docTitle"` // the page's own: its <title>, first heading, or file name
 	Kind     Kind      `json:"kind"`
 	Scope    Scope     `json:"scope"`
 	Size     int64     `json:"size"`
@@ -169,6 +170,7 @@ func (s *Store) ListFiles(id string, sc Scope) ([]FileInfo, error) {
 		} else {
 			info.Title = strings.TrimSuffix(e.Name(), filepath.Ext(e.Name()))
 		}
+		info.DocTitle = info.Title
 		if st, err := os.Stat(s.statePath(id, sc, e.Name(), "")); HasState(kind) && err == nil {
 			info.HasState = st.Size() > 2
 			if st.ModTime().After(info.Modified) {

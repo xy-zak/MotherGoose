@@ -270,6 +270,9 @@ func (s *Store) GetSession(id string) (Summary, error) {
 		}
 		for i := range files {
 			pm := meta.Pages[pageKey(sc, files[i].Name)]
+			if pm.Title != "" {
+				files[i].Title = pm.Title
+			}
 			files[i].Description = pm.Description
 			if pm.Tags != nil {
 				files[i].Tags = pm.Tags

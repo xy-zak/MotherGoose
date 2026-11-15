@@ -796,3 +796,19 @@ textarea.mg-input { height: auto; min-height: 84px; padding: 6px 8px; line-heigh
 .jump-list .jt b, .jump-list .jt span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .jump-list .jt span { font-size: var(--fs-small); }
 .jump-help { font-size: var(--fs-small); margin: 0; }
+
+/* ---- tag editor (ui.js tagField) ------------------------------------------------- */
+
+.mg-tagfield {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px;
+  min-height: var(--input-h); padding: 2px 6px;
+  background: var(--deep); border: 1px solid var(--line); cursor: text;
+}
+.mg-tagfield:focus-within { border-color: var(--accent); }
+.mg-tagfield .tf-list { display: contents; }
+.mg-tagfield .mg-chip button { margin-left: 3px; padding: 0 2px; border: 0; background: none; color: var(--muted); cursor: pointer; font: inherit; line-height: 1; }
+.mg-tagfield .mg-chip button:hover { color: var(--danger); }
+.mg-tagfield .tf-in { flex: 1; min-width: 10ch; height: calc(var(--input-h) - 6px); padding: 0 2px; border: 0; background: none; color: var(--text); font: 400 var(--fs-body)/1 var(--font); outline: none; }
+.mg-tagfield .tf-count { margin-left: auto; font-size: var(--fs-small); }
+.mg-tagfield .tf-count.full { color: var(--warn-ink); font-weight: 700; }
+@media (pointer: coarse) { .mg-tagfield .tf-in { font-size: 16px; } .mg-tagfield .mg-chip { height: 28px; } .mg-tagfield .mg-chip button { min-width: 24px; } }

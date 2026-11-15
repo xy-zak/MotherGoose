@@ -154,3 +154,34 @@ func TestVisibilityKeptAcrossMoves(t *testing.T) {
 		}
 	}
 }
+
+// A page's details can rename it and set its title in one request; a
+// second copy of a template gets a title of its own.
+func TestRenameAndTitleTogether(t *testing.T) {
+	f := setup(t)
+	rec := f.request("PUT", "/api/admin/sessions/"+f.id+"/files/shared/sheet.html/meta", `{"name":"aria.html","title":"Aria's sheet","description":"hers"}`, nil)
+	if rec.Code != 200 || !strings.Contains(rec.Body.String(), `"name":"aria.html"`) {
+		t.Fatalf("rename and details: %d %s", rec.Code, rec.Body.String())
+	}
+	sum, _ := f.st.GetSession(f.id)
+	got := sum.Files[store.Shared][0]
+	if got.Name != "aria.html" || got.Title != "Aria's sheet" || got.DocTitle == "Aria's sheet" || got.Description != "hers" {
+		t.Fatalf("after: %+v", got)
+	}
+	// A clash fails before anything changes.
+	f.st.SaveFile(f.id, store.Shared, "taken.html", strings.NewReader("<p>x"))
+	if rec := f.request("PUT", "/api/admin/sessions/"+f.id+"/files/shared/aria.html/meta", `{"name":"taken.html","description":"no"}`, nil); rec.Code != 409 {
+		t.Errorf("clash: %d", rec.Code)
+	}
+	f.st.SetActive("")
+	f.request("POST", "/api/admin/sessions/"+f.id+"/templates", `{"template":"notes.html"}`, nil)
+	f.request("POST", "/api/admin/sessions/"+f.id+"/templates", `{"template":"notes.html"}`, nil)
+	sum, _ = f.st.GetSession(f.id)
+	titles := map[string]string{}
+	for _, fi := range sum.Files[store.Shared] {
+		titles[fi.Name] = fi.Title
+	}
+	if titles["notes.html"] != "Notes" || titles["notes-2.html"] != "Notes 2" {
+		t.Errorf("template titles: %v", titles)
+	}
+}

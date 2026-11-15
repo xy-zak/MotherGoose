@@ -2,7 +2,7 @@
 // details and editing, a page's info popup (where a page is edited, its party
 // and copies), and renaming or removing players.
 import {
-  agoText, api, attempt, audienceText, canPerPlayer, confirmDialog, enc, esc, filledUrl, isPage, perPlayerTag,
+  agoText, allTags, api, attempt, audienceText, canPerPlayer, confirmDialog, enc, esc, filledUrl, isPage, perPlayerTag, tagField,
   formOverlay, gameTag, hasEntries, ic, isHidden, isOnly, KIND_NAME, kindTag, kv, overlay,
   parseTags, playerName, SCOPE, scopeTag, size, titleOf, toast, viewUrl,
   visTags, when, withIcon
@@ -109,7 +109,8 @@ export async function editSession() {
     title: 'Edit campaign', icon: 'edit',
     fields: [
       { name: 'name', label: 'Name', value: s.name, max: 120, required: true },
-      { name: 'gameType', label: 'Game type', hint: 'the game or rules you\'re playing', value: s.gameType, max: 60 }
+      { name: 'gameType', label: 'Game type', hint: 'the game or rules you\'re playing', value: s.gameType, max: 60,
+        list: Array.from(new Set(A.sessions.map((x) => x.gameType).filter(Boolean))) }
     ]
   });
   if (!v) return;
@@ -160,9 +161,12 @@ function copiesList(s, f) {
     (players.length ? '' : '<p class="mg-muted">No players in the party yet: add them under PARTY in the campaign panel.</p>');
 }
 
-// The info popup is where a page is edited: name, description, tags and the
-// per-player switch are saved together with "save"; party changes (when the
-// page is per player) apply straight away, as in the campaign panel's party.
+// The info popup is where a page is edited. It has sections: Details (title,
+// file name, description, tags), Who sees it (per player, audience, hidden),
+// Copies (the party and each copy, for per-player pages), and More (facts).
+// Details are saved together with "save" (one request, renaming too); party
+// changes and clearing a copy apply straight away. Closing with unsaved
+// edits asks first.
 export async function fileOverlay(scope, name) {
   const s = A.current;
   const f = (s.files[scope] || []).find((x) => x.name === name);
@@ -172,58 +176,95 @@ export async function fileOverlay(scope, name) {
   const perOk = canPerPlayer(Object.assign({}, f, { scope }));
   const dot = f.name.lastIndexOf('.');
   const stem = f.name.slice(0, dot), ext = f.name.slice(dot);
+  const ownTitle = f.title !== f.docTitle ? f.title : '';
+  const allTagsHere = allTags([].concat(...A.sessions.map((x) => [].concat(x.files.shared || [], x.files.gm || []))));
 
   const body = document.createElement('div');
   body.className = 'finfo';
   body.innerHTML =
+    (isPage(f) ? '<div class="fcheck" id="fcheck"><span class="mg-muted check-wait">' + ic('search') + ' checking the page…</span></div>' : '') +
     '<form class="fform" id="fform" autocomplete="off">' +
-      '<label class="mg-field"><span>File name <span class="hint">the type (' + esc(ext) + ') stays the same</span></span>' +
-        '<span class="fname-row"><input class="mg-input" name="stem" value="' + esc(stem) + '" maxlength="190" required aria-label="File name"><span class="ext">' + esc(ext) + '</span></span></label>' +
-      '<label class="mg-field"><span>Description <span class="hint">' + (scope === 'gm' ? 'only you see this' : 'players see this') + '</span></span>' +
-        '<textarea class="mg-input" name="description" maxlength="1000" placeholder="What is this page? When should players open it?">' + esc(f.description || '') + '</textarea></label>' +
-      '<label class="mg-field"><span>Tags <span class="hint">separated by commas</span></span>' +
-        '<input class="mg-input" name="tags" value="' + esc((f.tags || []).join(', ')) + '" placeholder="map, level 2, handout"></label>' +
-      (perOk
-        ? '<label class="pp-toggle"><input type="checkbox" name="perPlayer"' + (per ? ' checked' : '') + '>' +
-            '<span><b>' + ic('player', 'deco') + ' Per player</b><span class="hint">Every player in the party fills in their own copy, seen only by them and you. ' +
-            'Entries already in the page become each player\'s starting values. Turning it off keeps their copies for later.</span></span></label>'
-        : '') +
-      (scope === 'shared' ? visibilityFields(s, f) : '') +
+      '<section class="fsec"><h3 class="fsec-t">Details</h3>' +
+        '<label class="mg-field"><span>Title <span class="hint">on tabs and lists; leave empty to use the page\'s own</span></span>' +
+          '<input class="mg-input" name="title" value="' + esc(ownTitle) + '" maxlength="80" placeholder="' + esc(f.docTitle || stem) + '"></label>' +
+        '<label class="mg-field"><span>File name <span class="hint">the type (' + esc(ext) + ') stays the same</span></span>' +
+          '<span class="fname-row"><input class="mg-input" name="stem" value="' + esc(stem) + '" maxlength="190" required aria-label="File name"><span class="ext">' + esc(ext) + '</span></span></label>' +
+        '<label class="mg-field"><span>Description <span class="hint">' + (scope === 'gm' ? 'only you see this' : 'players see this') + '</span></span>' +
+          '<textarea class="mg-input" name="description" maxlength="1000" placeholder="What is this page? When should players open it?">' + esc(f.description || '') + '</textarea></label>' +
+        '<div class="mg-field"><span>Tags <span class="hint">Enter or comma after each</span></span><div id="ftags"></div></div>' +
+      '</section>' +
+      (scope === 'shared'
+        ? '<section class="fsec"><h3 class="fsec-t">Who sees it</h3>' +
+            (perOk
+              ? '<label class="pp-toggle"><input type="checkbox" name="perPlayer"' + (per ? ' checked' : '') + '>' +
+                  '<span><b>' + ic('player', 'deco') + ' Per player</b><span class="hint">Every player in the party fills in their own copy, seen only by them and you. ' +
+                  'What\'s in the page now becomes each player\'s starting copy. Turning it off keeps their copies for later.</span></span></label>'
+              : '') +
+            '<div id="fvis"></div>' +
+          '</section>'
+        : '<p class="mg-muted">' + ic('referee') + ' A referee page: only this computer opens it.</p>') +
       '<button type="submit" hidden></button>' +
     '</form>' +
-    (isPage(f) ? '<div class="fcheck" id="fcheck"></div>' : '') +
-    '<div class="fparty" id="fparty"' + (per ? '' : ' hidden') + '></div>' +
-    '<div class="fcopies" id="fcopies"></div>' +
-    '<hr class="mg-rule">' +
-    kv([
-      ['for', scopeTag(scope) + ' <span class="mg-muted">' + (scope === 'gm' ? 'this computer only'
-        : (isHidden(f) ? 'hidden; once revealed, ' : '') + audienceText(f, s.players) + (per ? ', each their own copy' : '') + ', when the session is live') + '</span>' +
-        (scope === 'shared' ? ' ' + visTags(f, s.players) : '')],
-      ['type', kindTag(f.kind) + ' ' + KIND_NAME[f.kind]],
-      ['size', size(f.size)], ['changed', esc(when(f.modified)) + ' <span class="mg-muted">(' + esc(agoText(f.modified)) + ')</span>'],
-      ['entries', !hasEntries(f) ? '<span class="mg-muted">not applicable</span>'
-        : per ? filledCount(s, f) + ' of ' + (s.players || []).length + ' players' + (f.hasState ? ', and the template' : '')
-        : f.hasState ? '<span class="mg-tag filled">filled in</span>' : 'none yet']
-    ]) +
-    (hasEntries(f) ? '<p class="mg-muted">Export filled downloads a copy with ' + (per ? 'that copy\'s entries' : 'every entry') + ' baked in' +
-      (f.kind === 'pdf' ? ': it opens the PDF viewer, which fills in the fields and downloads the PDF.' : '. It works offline.') + '</p>' : '');
+    '<section class="fsec fcopies-sec" id="fcopysec"' + (per ? '' : ' hidden') + '><h3 class="fsec-t">Copies</h3>' +
+      '<div class="fparty" id="fparty"></div><div class="fcopies" id="fcopies"></div></section>' +
+    '<details class="fmore"><summary>More about this page</summary>' +
+      kv([
+        ['for', scopeTag(scope) + ' <span class="mg-muted">' + (scope === 'gm' ? 'this computer only'
+          : (isHidden(f) ? 'hidden; once revealed, ' : '') + audienceText(f, s.players) + (per ? ', each their own copy' : '') + ', when the session is live') + '</span>' +
+          (scope === 'shared' ? ' ' + visTags(f, s.players) : '')],
+        ['type', kindTag(f.kind) + ' ' + KIND_NAME[f.kind]],
+        ['size', size(f.size)], ['changed', esc(when(f.modified)) + ' <span class="mg-muted">(' + esc(agoText(f.modified)) + ')</span>'],
+        ['entries', !hasEntries(f) ? '<span class="mg-muted">not applicable</span>'
+          : per ? filledCount(s, f) + ' of ' + (s.players || []).length + ' players' + (f.hasState ? ', and the starting copy' : '')
+          : f.hasState ? '<span class="mg-tag filled">filled in</span>' : 'none yet']
+      ]) +
+      (hasEntries(f) ? '<p class="mg-muted">Export filled downloads a copy with ' + (per ? 'that copy\'s entries' : 'every entry') + ' baked in' +
+        (f.kind === 'pdf' ? ': it opens the PDF viewer, which fills in the fields and downloads the PDF.' : '. It works offline.') + '</p>' : '') +
+    '</details>';
 
   const form = body.querySelector('#fform');
   const partyEl = body.querySelector('#fparty');
-  // What checking the page finds: worth knowing about pages copied in by hand.
+  const copiesEl = body.querySelector('#fcopies');
+  const tags = tagField(body.querySelector('#ftags'), { tags: f.tags || [], suggest: allTagsHere });
+
+  // What checking the page finds, in one line laid out from the start (so
+  // nothing jumps while typing), with the details a click away.
   // (The tutorial's example pages aren't on disk.)
   if (isPage(f) && !tourRunning()) {
     api('GET', base + '/check').then((c) => {
       const el = body.querySelector('#fcheck');
       if (!el) return;
-      const notes = checkNotes(c.report || {});
       const rep = c.report || {};
+      const notes = checkNotes(rep);
       el.innerHTML = notes
-        ? '<div class="mg-section-label">' + ic('warning') + ' Checked</div>' + notes + '<button type="button" class="mg-btn quiet small" data-guide>' + withIcon('guide', 'Making HTML pages') + '</button>'
-        : '<p class="mg-muted check-ok">' + ic('check') + ' One self-contained file' + (rep.fields ? ', ' + esc(rep.fields) + ' field' + (rep.fields === 1 ? '' : 's') + ' saved and synced' : '') + '.</p>';
-    }).catch(() => {});
+        ? '<details class="check-more"><summary class="check-warn">' + ic('warning') + ' Worth a look: ' +
+            [rep.local && rep.local.length ? 'loads files that aren\'t inside it' : '', rep.web && rep.web.length ? 'needs the internet' : '', rep.unnamed ? rep.unnamed + ' unnamed field' + (rep.unnamed === 1 ? '' : 's') : '']
+              .filter(Boolean).join(', ') + '</summary>' + notes +
+            '<button type="button" class="mg-btn quiet small" data-guide>' + withIcon('guide', 'making HTML pages') + '</button></details>'
+        : '<span class="mg-muted check-ok">' + ic('check') + ' One self-contained file' + (rep.fields ? ', ' + esc(rep.fields) + ' field' + (rep.fields === 1 ? '' : 's') + ' saved and synced' : '') + '.</span>';
+    }).catch(() => { const el = body.querySelector('#fcheck'); if (el) el.textContent = ''; });
   }
-  const copiesEl = body.querySelector('#fcopies');
+
+  // Who sees it, drawn again when the party changes, keeping what's chosen.
+  function drawVis() {
+    const host = body.querySelector('#fvis');
+    if (!host) return;
+    const was = host.querySelector('fieldset') ? readVis() : { audience: f.audience || '', allowed: f.allowed || [], hidden: isHidden(f) };
+    host.innerHTML = visibilityFields(A.current, Object.assign({}, f, { scope, audience: was.audience, allowed: was.allowed, hidden: was.hidden }));
+    syncVis();
+  }
+  function readVis() {
+    return {
+      audience: form.querySelector('[name=audience][value=only]:checked') ? 'only' : '',
+      allowed: Array.from(form.querySelectorAll('[name=allowed]:checked')).map((i) => i.value),
+      hidden: !!(form.querySelector('[name=hidden]') || {}).checked
+    };
+  }
+  // The players to show it to only matter with "only these players".
+  function syncVis() {
+    const only = !!form.querySelector('[name=audience][value=only]:checked');
+    form.querySelectorAll('[name=allowed]').forEach((i) => { i.disabled = !only; });
+  }
 
   // The party and each copy, redrawn after every party change.
   function drawParty() {
@@ -231,8 +272,7 @@ export async function fileOverlay(scope, name) {
     const players = sess.players || [];
     const full = players.length >= MAX_PLAYERS;
     partyEl.innerHTML =
-      '<div class="mg-section-label">' + ic('players') + ' Party</div>' +
-      '<p class="mg-muted fnote">The party of this whole campaign. Adding or removing a player applies straight away.</p>' +
+      '<p class="mg-muted fnote">' + ic('players') + ' The party of this whole campaign. Adding or removing a player applies straight away.</p>' +
       '<div class="party-row">' +
         (players.length
           ? '<ul class="roster" aria-label="Players">' + players.map((p) =>
@@ -244,7 +284,8 @@ export async function fileOverlay(scope, name) {
       '</div>';
     const live = (sess.files[scope] || []).find((x) => x.name === name) || f;
     // Copies only exist once per player is saved.
-    copiesEl.innerHTML = live.perPlayer ? copiesList(sess, live) : '';
+    copiesEl.innerHTML = live.perPlayer ? copiesList(sess, live) : '<p class="mg-muted">Save with "per player" ticked, and each player\'s copy shows here.</p>';
+    drawVis();
   }
   drawParty();
 
@@ -253,29 +294,36 @@ export async function fileOverlay(scope, name) {
     drawParty();
   }
 
+  // What the form holds, to tell whether anything changed.
+  const formState = () => JSON.stringify([new FormData(form).get('title'), new FormData(form).get('stem'), new FormData(form).get('description'),
+    tags.get(), !!(form.querySelector('[name=perPlayer]') || {}).checked, scope === 'shared' ? readVis() : null]);
+  let startState = '';
+  let saved = false;
+
   async function save(d) {
     const v = Object.fromEntries(new FormData(form).entries());
     const newStem = (v.stem || '').trim();
     if (!newStem) { toast('The file name can\'t be empty', true); return; }
-    let target = name;
     const changed = [];
-    if (newStem !== stem) {
-      await api('PATCH', base, { name: newStem + ext });
-      target = newStem + ext;
-      changed.push('renamed to ' + target);
-    }
-    const metaBody = { description: v.description || '', tags: parseTags(v.tags) };
+    const metaBody = { title: (v.title || '').trim(), description: v.description || '', tags: tags.get() };
+    if (newStem !== stem) metaBody.name = newStem + ext;
     const wantPer = perOk && !!v.perPlayer;
     if (perOk) metaBody.perPlayer = wantPer;
+    if (perOk && per && !wantPer && filledCount(s, f) &&
+        !(await confirmDialog('Turn off per player', 'Players will see one shared copy instead of their own. Their copies are kept, and come back if you turn it on again.', 'turn it off', { icon: 'player' }))) return;
     if (scope === 'shared') {
-      metaBody.hidden = !!v.hidden;
-      metaBody.audience = v.audience === 'only' ? 'only' : '';
-      metaBody.allowed = Array.from(form.querySelectorAll('[name=allowed]:checked')).map((i) => i.value);
-      if (metaBody.hidden !== isHidden(f)) changed.push(metaBody.hidden ? 'hidden from players' : 'revealed');
+      const vis = readVis();
+      metaBody.hidden = vis.hidden;
+      metaBody.audience = vis.audience;
+      if (vis.audience === 'only') metaBody.allowed = vis.allowed;
+      if (vis.hidden !== isHidden(f)) changed.push(vis.hidden ? 'hidden from players' : 'revealed');
     }
-    await api('PUT', fileBase(s, scope, target) + '/meta', metaBody);
+    const r = await api('PUT', base + '/meta', metaBody);
+    const target = (r && r.name) || name;
+    if (target !== name) changed.unshift('renamed to ' + target);
     if (perOk && wantPer !== per) changed.push(wantPer ? 'now per player' : 'shared again: everyone sees one copy');
     toast((changed.length ? target + ' ' + changed.join(', ') : 'Saved details for ' + target));
+    saved = true;
     d.close();
   }
 
@@ -299,7 +347,14 @@ export async function fileOverlay(scope, name) {
     wide: true,
     body,
     actions,
+    // Closing without saving loses edits: ask, unless nothing changed or
+    // what follows (delete, clear) makes them moot.
+    canClose: async (value) => {
+      if (saved || ['delete', 'reset', 'clear-all'].includes(value) || formState() === startState) return true;
+      return confirmDialog('Discard changes', 'You changed this page\'s details. Close without saving them?', 'discard changes', { icon: 'close' });
+    },
     onOpen: (d) => {
+      startState = formState();
       const first = form.querySelector('textarea');
       if (first) first.focus();
       // Save keeps the popup open if something fails, so nothing typed is lost.
@@ -309,16 +364,10 @@ export async function fileOverlay(scope, name) {
         attempt(save)(d);
       }, { capture: true });
       form.addEventListener('submit', (e) => { e.preventDefault(); attempt(save)(d); });
-      // Ticking per player shows the party, so players can be added before saving.
+      // Ticking per player shows the copies, so players can be added before saving.
       const pp = form.querySelector('[name=perPlayer]');
-      if (pp) pp.addEventListener('change', () => { partyEl.hidden = !pp.checked; });
-      // The players to show it to only matter with "only these players".
-      const syncVis = () => {
-        const only = !!form.querySelector('[name=audience][value=only]:checked');
-        form.querySelectorAll('[name=allowed]').forEach((i) => { i.disabled = !only; });
-      };
-      form.querySelectorAll('[name=audience]').forEach((r) => r.addEventListener('change', syncVis));
-      syncVis();
+      if (pp) pp.addEventListener('change', () => { body.querySelector('#fcopysec').hidden = !pp.checked; });
+      form.addEventListener('change', (e) => { if (e.target.name === 'audience') syncVis(); });
       d.addEventListener('click', attempt(async (e) => {
         if (e.target.closest('[data-guide]')) { guideOverlay(); return; }
         const r = e.target.closest('[data-copy-reset]');
@@ -404,24 +453,38 @@ export async function templateOverlay(scope) {
   const body = document.createElement('div');
   body.className = 'tgallery';
   body.innerHTML = '<p class="mg-muted">Ready-made pages that work with any game, in MotherGoose\'s look (they follow each reader\'s theme and font). Add one, then rename it and change its details under <b>info</b>.</p>' +
-    '<div class="tg-wrap"><ul class="tg-list" role="listbox" aria-label="Templates">' + list.map((t, i) =>
-      '<li><button type="button" class="tg-item" role="option" data-i="' + i + '" aria-selected="' + (i === 0) + '">' +
+    '<div class="tg-wrap"><div class="tg-list" role="listbox" aria-label="Ready-made pages">' + list.map((t, i) =>
+      '<button type="button" class="tg-item" role="option" data-i="' + i + '" aria-selected="' + (i === 0) + '">' +
         '<b>' + esc(t.title) + '</b><span class="mg-muted">' + esc(t.description) + '</span>' +
         '<span class="tg-tags">' + (t.perPlayer ? perPlayerTag() : '') + (t.hidden ? '<span class="mg-tag hidden">' + withIcon('hidden', 'starts hidden') + '</span>' : '') + '</span>' +
-      '</button></li>').join('') + '</ul>' +
+      '</button>').join('') + '</div>' +
     '<iframe class="tg-preview" title="Preview" src="/api/admin/templates/' + enc(list[0].file) + '"></iframe></div>';
   let at = 0;
   const v = await overlay({
     title: 'Add a page from a template', icon: 'template', size: 'xwide', body,
     actions: [{ label: 'cancel', value: null, kind: 'quiet', icon: 'close' }, { label: 'add for the ' + SCOPE[scope].label, value: 'add', kind: 'primary', icon: 'add' }],
     onOpen: (d) => {
+      const pick = (i) => {
+        at = i;
+        body.querySelectorAll('.tg-item').forEach((x, j) => { x.setAttribute('aria-selected', String(j === i)); x.tabIndex = j === i ? 0 : -1; });
+        body.querySelector('.tg-preview').src = '/api/admin/templates/' + enc(list[at].file);
+      };
       body.addEventListener('click', (e) => {
         const b = e.target.closest('.tg-item');
-        if (!b) return;
-        at = +b.dataset.i;
-        body.querySelectorAll('.tg-item').forEach((x) => x.setAttribute('aria-selected', String(x === b)));
-        body.querySelector('.tg-preview').src = '/api/admin/templates/' + enc(list[at].file);
+        if (b) pick(+b.dataset.i);
       });
+      // Double-click or Enter adds; ↑ ↓ move through the list.
+      body.addEventListener('dblclick', (e) => { const b = e.target.closest('.tg-item'); if (b) { pick(+b.dataset.i); d.querySelector('.mg-dialog-foot .primary').click(); } });
+      body.addEventListener('keydown', (e) => {
+        if (!e.target.closest('.tg-item')) return;
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+          e.preventDefault();
+          pick((at + (e.key === 'ArrowDown' ? 1 : -1) + list.length) % list.length);
+          body.querySelectorAll('.tg-item')[at].focus();
+        } else if (e.key === 'Enter') { e.preventDefault(); d.querySelector('.mg-dialog-foot .primary').click(); }
+      });
+      pick(0);
+      body.querySelector('.tg-item').focus();
     }
   });
   if (v !== 'add') return;
@@ -439,7 +502,7 @@ function visibilityFields(s, f) {
   const players = s.players || [];
   const only = isOnly(f);
   const allowed = new Set(f.allowed || []);
-  return '<fieldset class="mg-choice vis"><legend>Who can see it <span class="hint">the referee always can</span></legend>' +
+  return '<fieldset class="mg-choice vis"><legend>Shown to <span class="hint">the referee always sees it</span></legend>' +
     '<label><input type="radio" name="audience" value=""' + (only ? '' : ' checked') + '><span>every player</span></label>' +
     '<label><input type="radio" name="audience" value="only"' + (only ? ' checked' : '') + '><span>only these players' +
       '<span class="hint">for a clue or note meant for some of them. Ticking nobody keeps it for you alone.</span></span></label>' +

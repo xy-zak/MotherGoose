@@ -12,18 +12,60 @@ export async function upload(scope, files) {
   const fd = new FormData();
   fd.append('scope', scope);
   list.forEach((f) => fd.append('files', f, f.name));
+  // How far the upload has got, on the column itself; the dashboard doesn't
+  // redraw meanwhile, so the bar stays put.
+  const col = document.querySelector('.files-panel[data-scope="' + scope + '"]');
+  const bar = document.createElement('div');
+  bar.className = 'upload-progress';
+  bar.setAttribute('role', 'status');
+  bar.innerHTML = ic('upload') + '<span class="txt"></span><span class="track"><span class="fill"></span></span>';
+  const label = 'Uploading ' + (list.length === 1 ? list[0].name : list.length + ' files');
+  bar.querySelector('.txt').textContent = label + '…';
+  if (col) col.querySelector('.files').appendChild(bar);
+  A.holdRefresh = true;
   let res;
   try {
-    res = await api('POST', '/api/admin/sessions/' + enc(A.current.id) + '/files', fd);
+    res = await send('/api/admin/sessions/' + enc(A.current.id) + '/files', fd, (p) => {
+      bar.querySelector('.fill').style.width = Math.round(p * 100) + '%';
+      bar.querySelector('.txt').textContent = label + '… ' + Math.round(p * 100) + '%';
+    });
   } catch (e) {
     // Nothing was saved: every file was refused. Say why, in full.
     await uploadReport({ saved: [], errors: e.errors || [e.message], warnings: {} }, scope);
     return;
+  } finally {
+    bar.remove();
+    A.holdRefresh = false;
   }
   app.refresh();
   const warned = Object.keys(res.warnings || {});
-  if ((res.errors && res.errors.length) || warned.length) await uploadReport(res, scope);
-  else toast('Added ' + res.saved.length + ' file' + (res.saved.length === 1 ? '' : 's') + ' for the ' + SCOPE[scope].label);
+  if ((res.errors && res.errors.length) || warned.length) { await uploadReport(res, scope); return; }
+  const added = res.saved.filter((n) => !(res.replaced || []).includes(n));
+  const parts = [];
+  if (added.length) parts.push('Added ' + (added.length === 1 ? added[0] : added.length + ' pages') + ' for the ' + SCOPE[scope].label);
+  if ((res.replaced || []).length) parts.push('Replaced ' + res.replaced.join(', ') + ' (entries and details kept)');
+  if ((res.hidden || []).length) parts.push('hidden, because the session is live: reveal when ready');
+  toast(parts.join('. ') + '.');
+}
+
+// send uploads a form with XHR, which reports progress (fetch doesn't), and
+// resolves with the JSON answer or rejects as api() does.
+function send(url, fd, onProgress) {
+  return new Promise((resolve, reject) => {
+    const x = new XMLHttpRequest();
+    x.open('POST', url);
+    x.upload.onprogress = (e) => { if (e.lengthComputable) onProgress(e.loaded / e.total); };
+    x.onload = () => {
+      let data = null;
+      try { data = JSON.parse(x.responseText); } catch (e) {}
+      if (x.status >= 200 && x.status < 300) return resolve(data || {});
+      const err = new Error(plainError((data && (data.error || (data.errors || [])[0])) || x.statusText));
+      if (data && data.errors) err.errors = data.errors.map(plainError);
+      reject(err);
+    };
+    x.onerror = () => reject(new Error(plainError('failed to fetch')));
+    x.send(fd);
+  });
 }
 
 // What happened to an upload when there's more to say than "added": files
@@ -76,7 +118,9 @@ function clearMarks() {
 
 // Moves (if need be) and orders a dropped page. The row goes to its new place
 // at once; the redraw waits until the server has both changes.
+let placing = false;   // a dropped page is being saved
 async function placePage(fromScope, name, scope, names, spot) {
+  placing = true;
   const row = spot.list.closest('#right').querySelector('.file[data-scope="' + fromScope + '"][data-name="' + CSS.escape(name) + '"]');
   if (row) {
     const none = spot.list.querySelector('.none');
@@ -87,11 +131,12 @@ async function placePage(fromScope, name, scope, names, spot) {
   A.holdRefresh = true;
   try {
     if (fromScope !== scope) {
-      await api('PATCH', fileBase(A.current, fromScope, name), { scope });
-      toast('Moved ' + name + ' to the ' + SCOPE[scope].label);
+      const r = await api('PATCH', fileBase(A.current, fromScope, name), { scope });
+      toast('Moved ' + name + ' to the ' + SCOPE[scope].label + (r && r.hidden ? ': hidden, because the session is live. Reveal it when ready.' : ''));
     }
     await api('PUT', '/api/admin/sessions/' + enc(A.current.id) + '/order', { scope, names });
   } finally {
+    placing = false;
     A.holdRefresh = false;
     app.refresh();
   }
@@ -103,6 +148,7 @@ export function enablePageDrag(right) {
     const row = e.target.closest && e.target.closest('.file');
     if (!row) return;
     dragged = { scope: row.dataset.scope, name: row.dataset.name, row };
+    A.holdRefresh = true;   // a redraw mid-drag would take the row out from under it
     e.dataTransfer.setData(MG_TYPE, JSON.stringify({ scope: row.dataset.scope, name: row.dataset.name }));
     e.dataTransfer.effectAllowed = 'move';
     requestAnimationFrame(() => row.classList.add('dragging'));   // after the drag image is taken
@@ -111,6 +157,8 @@ export function enablePageDrag(right) {
     if (dragged) dragged.row.classList.remove('dragging');
     dragged = null;
     clearMarks();
+    // A drop that places the page holds redraws itself until it's saved.
+    setTimeout(() => { if (!placing) { A.holdRefresh = false; if (A.refreshQueued) app.refresh(); } }, 0);
   });
   right.addEventListener('dragover', (e) => {
     const col = panelAt(e);

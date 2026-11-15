@@ -7,6 +7,8 @@ import (
 	"encoding/json"
 	"io/fs"
 	"net/http"
+	"path"
+	"strings"
 
 	"mothergoose/internal/store"
 	"mothergoose/web"
@@ -113,6 +115,12 @@ func (s *Server) apiAddTemplate(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	up := store.PageUpdate{Description: &t.Description, Tags: &t.Tags}
+	// A second copy gets a title of its own ("Notes 2"), so the two can be told apart.
+	if name != t.File {
+		n := strings.TrimSuffix(strings.TrimPrefix(name, strings.TrimSuffix(t.File, path.Ext(t.File))+"-"), path.Ext(name))
+		title := t.Title + " " + n
+		up.Title = &title
+	}
 	if sc == store.Shared {
 		up.PerPlayer, up.Hidden = &t.PerPlayer, &t.Hidden
 	}

@@ -248,6 +248,8 @@ func (s *Server) apiSetPageMeta(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	var body struct {
+		Name        *string   `json:"name"`
+		Title       *string   `json:"title"`
 		Description *string   `json:"description"`
 		Tags        *[]string `json:"tags"`
 		PerPlayer   *bool     `json:"perPlayer"`
@@ -256,12 +258,27 @@ func (s *Server) apiSetPageMeta(w http.ResponseWriter, r *http.Request) {
 		Allowed     *[]string `json:"allowed"`
 	}
 	if err := decodeBody(w, r, &body); err != nil {
-		bodyError(w, err, `{"description"?: "...", "tags"?: ["..."], "perPlayer"?: bool, "hidden"?: bool, "audience"?: "" | "only", "allowed"?: ["<player id>"]}`)
+		bodyError(w, err, `{"name"?: "...", "title"?: "...", "description"?: "...", "tags"?: ["..."], "perPlayer"?: bool, "hidden"?: bool, "audience"?: "" | "only", "allowed"?: ["<player id>"]}`)
 		return
 	}
 	s.syncMu.Lock()
+	// A new file name and the details go together: renamed first, then the
+	// details saved on the new name, so a failure can't leave half of it.
+	if body.Name != nil && *body.Name != name {
+		newName, err := store.CleanFileName(*body.Name)
+		if err == nil {
+			err = s.store.MoveFile(id, sc, name, sc, newName)
+		}
+		if err != nil {
+			s.syncMu.Unlock()
+			storeError(w, err)
+			return
+		}
+		s.hub.toFile(id, string(sc), name, map[string]string{"type": "gone"})
+		name = newName
+	}
 	pm, ch, err := s.store.UpdatePageMeta(id, sc, name, store.PageUpdate{
-		Description: body.Description, Tags: body.Tags, PerPlayer: body.PerPlayer,
+		Title: body.Title, Description: body.Description, Tags: body.Tags, PerPlayer: body.PerPlayer,
 		Hidden: body.Hidden, Audience: body.Audience, Allowed: body.Allowed,
 	})
 	if err == nil && ch.PerPlayer {
@@ -282,7 +299,7 @@ func (s *Server) apiSetPageMeta(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.changed()
-	writeJSON(w, http.StatusOK, pm)
+	writeJSON(w, http.StatusOK, map[string]any{"name": name, "meta": pm})
 }
 
 // apiCheckPage reports what checking an HTML or Markdown page finds: files

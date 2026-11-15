@@ -99,6 +99,52 @@ export function tagToggles(tags, filter, attrs = '') {
   return tags.map((t) => '<button type="button" class="mg-chip tf"' + attrs + ' data-tag="' + esc(t) + '" aria-pressed="' + on.has(t.toLowerCase()) + '" title="' +
     (on.has(t.toLowerCase()) ? 'Stop filtering by ' : 'Show only pages tagged ') + esc(t) + '">' + esc(t) + '</button>').join('');
 }
+/**
+ * tagField turns an element into a tag editor: tags as chips with ×, a box
+ * to add more (Enter or comma), suggestions from tags used elsewhere, and a
+ * count against the limit. It returns { get } for the current tags.
+ */
+export function tagField(host, { tags = [], suggest = [], max = 12, maxLen = 32 } = {}) {
+  let list = tags.slice();
+  const id = 'tags-' + Math.random().toString(36).slice(2, 8);
+  host.classList.add('mg-tagfield');
+  host.innerHTML = '<span class="tf-list"></span>' +
+    '<input class="tf-in" list="' + id + '" maxlength="' + maxLen + '" autocomplete="off" aria-label="Add a tag" placeholder="add a tag">' +
+    '<datalist id="' + id + '"></datalist><span class="tf-count mg-muted" aria-live="polite"></span>';
+  const box = host.querySelector('.tf-in');
+  const draw = () => {
+    host.querySelector('.tf-list').innerHTML = list.map((t, i) =>
+      '<span class="mg-chip">' + esc(t) + '<button type="button" data-rm="' + i + '" aria-label="Remove the tag ' + esc(t) + '" title="Remove">×</button></span>').join('');
+    const lower = list.map((t) => t.toLowerCase());
+    host.querySelector('datalist').innerHTML = suggest.filter((t) => !lower.includes(t.toLowerCase())).map((t) => '<option value="' + esc(t) + '">').join('');
+    const c = host.querySelector('.tf-count');
+    c.textContent = list.length + '/' + max;
+    c.classList.toggle('full', list.length >= max);
+    box.disabled = list.length >= max;
+    box.placeholder = list.length >= max ? max + ' tags at most' : 'add a tag';
+  };
+  const add = () => {
+    const t = box.value.replace(/,/g, ' ').trim().slice(0, maxLen);
+    box.value = '';
+    if (!t || list.length >= max || list.some((x) => x.toLowerCase() === t.toLowerCase())) return draw();
+    list.push(t);
+    draw();
+  };
+  box.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); add(); }
+    else if (e.key === 'Backspace' && !box.value && list.length) { list.pop(); draw(); }
+  });
+  box.addEventListener('change', add);   // picked from the suggestions
+  box.addEventListener('blur', add);
+  host.addEventListener('click', (e) => {
+    const b = e.target.closest('[data-rm]');
+    if (b) { list.splice(+b.dataset.rm, 1); draw(); box.focus(); }
+    else if (e.target === host) box.focus();
+  });
+  draw();
+  return { get: () => list.slice() };
+}
+
 /** savedList reads a list kept on this device; saveList keeps one (empty: forgets it). */
 export function savedList(key) {
   try { const v = JSON.parse(localStorage.getItem(key) || '[]'); return Array.isArray(v) ? v.filter((x) => typeof x === 'string') : []; } catch (e) { return []; }

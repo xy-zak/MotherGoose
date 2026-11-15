@@ -14,6 +14,9 @@ import (
 // PageMeta is what the referee wrote about a page. It is shown to whoever can
 // see the page, so a players' page's description is visible to players.
 type PageMeta struct {
+	// Title names the page in place of its own <title> (or heading, or
+	// file name): two copies of one template can be told apart.
+	Title       string   `json:"title,omitempty"`
 	Description string   `json:"description,omitempty"`
 	Tags        []string `json:"tags,omitempty"`
 	// PerPlayer gives every rostered player their own copy of the page's
@@ -37,6 +40,7 @@ const (
 
 // PageUpdate is a change to a page's details. Nil fields stay as they are.
 type PageUpdate struct {
+	Title       *string
 	Description *string
 	Tags        *[]string
 	PerPlayer   *bool
@@ -54,6 +58,7 @@ type PageChange struct {
 
 const (
 	MaxNameLen        = 120
+	MaxTitleLen       = 80
 	MaxGameTypeLen    = 60
 	MaxDescriptionLen = 1000
 	MaxTags           = 12
@@ -211,9 +216,14 @@ func (s *Store) UpdatePageMeta(id string, sc Scope, name string, up PageUpdate) 
 	if !s.Exists(id, sc, name) {
 		return PageMeta{}, ch, fmt.Errorf("file %q: %w", name, ErrNotFound)
 	}
-	var desc string
+	var title, desc string
 	var tags []string
 	var err error
+	if up.Title != nil {
+		if title, err = cleanText(*up.Title, MaxTitleLen, "the title", false); err != nil {
+			return PageMeta{}, ch, err
+		}
+	}
 	if up.Description != nil {
 		if desc, err = cleanText(*up.Description, MaxDescriptionLen, "the description", true); err != nil {
 			return PageMeta{}, ch, err
@@ -254,6 +264,9 @@ func (s *Store) UpdatePageMeta(id string, sc Scope, name string, up PageUpdate) 
 		}
 		was := m.Pages[pageKey(sc, name)]
 		clean = was
+		if up.Title != nil {
+			clean.Title = title
+		}
 		if up.Description != nil {
 			clean.Description = desc
 		}
@@ -300,7 +313,7 @@ func (s *Store) UpdatePageMeta(id string, sc Scope, name string, up PageUpdate) 
 
 // setPage stores a page's details, leaving no entry for a page without any.
 func setPage(m *Session, key string, pm PageMeta) {
-	if pm.Description == "" && len(pm.Tags) == 0 && !pm.PerPlayer && !pm.Hidden && pm.Audience == AudienceAll {
+	if pm.Title == "" && pm.Description == "" && len(pm.Tags) == 0 && !pm.PerPlayer && !pm.Hidden && pm.Audience == AudienceAll {
 		delete(m.Pages, key)
 	} else {
 		m.Pages[key] = pm

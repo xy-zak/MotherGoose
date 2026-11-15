@@ -53,12 +53,25 @@ async function refresh() {
     A.sessions = list;
     A.current = sess;
     if (A.selectedId && !sess) { location.hash = '#/'; return; } // deleted elsewhere
-    const focused = document.activeElement && document.activeElement.closest && document.activeElement.closest('.srow');
+    // A redraw keeps what was half typed in the new-campaign form, and
+    // puts focus back on the same control (a campaign, or a page's button).
+    const a = document.activeElement;
+    const srow = a && a.closest && a.closest('.srow');
+    const row = a && a.closest && a.closest('.file');
+    const act = a && a.dataset && a.dataset.act;
+    const nf = document.getElementById('newForm');
+    const typed = nf && { name: nf.elements.name.value, gameType: nf.elements.gameType.value };
     renderLeft();
     renderRight();
-    if (focused) {
-      const again = left.querySelector('.srow[data-id="' + CSS.escape(focused.dataset.id) + '"]');
+    const nf2 = document.getElementById('newForm');
+    if (typed && nf2) { nf2.elements.name.value = typed.name; nf2.elements.gameType.value = typed.gameType; }
+    if (srow) {
+      const again = left.querySelector('.srow[data-id="' + CSS.escape(srow.dataset.id) + '"]');
       if (again) again.focus();
+    } else if (row) {
+      const r2 = right.querySelector('.file[data-scope="' + row.dataset.scope + '"][data-name="' + CSS.escape(row.dataset.name) + '"]');
+      const t = r2 && (act ? r2.querySelector('[data-act="' + act + '"]') : r2);
+      if (t) t.focus();
     }
   } catch (e) {
     toast(e.message, true);
@@ -87,7 +100,8 @@ function renderLeft() {
         withIcon('sessions', cur ? cur.name : 'choose a campaign') + '<span class="mg-muted">' + (left.classList.contains('open') ? '▴' : '▾') + '</span></button>' +
       '<form class="new-form" id="newForm">' +
         '<input class="mg-input" name="name" placeholder="new campaign name" maxlength="120" required aria-label="New campaign name" title="New campaign (n)">' +
-        '<input class="mg-input game" name="gameType" placeholder="game type" maxlength="60" autocomplete="off" aria-label="Game type (optional)">' +
+        '<input class="mg-input game" name="gameType" placeholder="game type" maxlength="60" autocomplete="off" list="gameTypes" aria-label="Game type (optional)">' +
+        '<datalist id="gameTypes">' + Array.from(new Set(A.sessions.map((x) => x.gameType).filter(Boolean))).map((g) => '<option value="' + esc(g) + '">').join('') + '</datalist>' +
         '<button class="mg-btn primary small" type="submit" title="Create campaign">' + withIcon('add', 'new') + '</button></form>' +
       '<nav class="slist" aria-label="Campaigns">' +
         (rows || '<p class="empty">No campaigns yet. Create one above, or drop a folder into the data folder\'s <code>sessions/</code>.</p>') +
@@ -221,7 +235,7 @@ function column(s, scope, filter) {
         (shown !== files.length ? shown + '/' : '') + files.length + '</span>' +
       '<button class="mg-btn small quiet" data-act="template" data-scope="' + scope + '" title="Add a ready-made page for the ' + sc.label + ': character sheet, notes, tracker…">' + withIcon('template', 'template') + '</button>' +
       '<button class="mg-btn small ' + sc.cls + '" data-act="pick" data-scope="' + scope + '" title="Add files for the ' + sc.label + (scope === 'shared' ? ' (u)' : '') + '">' + withIcon('add', 'add') + '</button></span></div>' +
-    '<div class="files">' + (files.length ? files.map((f) => fileRow(s, f, filter)).join('') : '<p class="none">No pages yet.</p>') +
+    '<div class="files">' + (files.length ? files.map((f) => fileRow(s, f, filter)).join('') : '<p class="none">No pages yet: drop files here, or add a ready-made page.</p>') +
       (files.length && !shown ? '<p class="none filtered">No pages here have ' + (filter.length > 1 ? 'all those tags' : 'that tag') + '.</p>' : '') + '</div>' +
     '<div class="drop">' + ic('upload') + ' drop <b>.html .md .pdf .png .jpg</b> here' + (scope === 'gm' ? ': only this computer sees them' : ': every player sees them') +
       (files.length ? '<br><span class="mg-muted">drag pages to reorder them, or onto the other column</span>' : '') + '</div>' +

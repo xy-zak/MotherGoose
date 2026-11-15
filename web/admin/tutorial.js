@@ -95,12 +95,13 @@ function tourSteps() {
     { section: 'Pages', title: 'A per-player page', target: '.file[data-name="character-sheet.html"] .tagline', text:
       '<p><b class="players">Per player</b>: every player fills in their own copy, seen only by them and you. Each name gets a ' + ic('check') + ' once that player has filled in their copy.</p>' },
 
-    { section: 'Page info', title: 'Name, description, tags', scene: 'info', target: [field('stem'), field('description'), field('tags')], text:
+    { section: 'Page info', title: 'Details', scene: 'info', target: (d) => d && d.querySelector('.fsec'), text:
       '<p>The <b>info</b> popup of the example\'s <b>Tavern rumours</b> handout.</p>' +
-      '<ul><li><b>File name</b>: rename it; its type stays the same</li>' +
+      '<ul><li><b>Title</b>: what tabs and lists call it, if not the page\'s own</li>' +
+      '<li><b>File name</b>: rename it; its type stays the same</li>' +
       '<li><b>Description</b>: what it is and when to open it. Players see it, unless it\'s a referee page</li>' +
-      '<li><b>Tags</b>: short labels, separated by commas</li></ul>' +
-      '<p>Changes are kept only when you press <b>save</b>.</p>' },
+      '<li><b>Tags</b>: short labels; suggestions come from tags you\'ve used</li></ul>' +
+      '<p>Changes are kept only when you press <b>save</b>. Closing with unsaved changes asks first.</p>' },
     { section: 'Page info', title: 'Per player', scene: 'info', target: '.pp-toggle', text:
       '<p>Tick it and every player in the party fills in their own copy instead of sharing one. What\'s already typed in becomes their starting values; turning it off later keeps their copies.</p>' +
       '<p class="mg-muted">Only players\' HTML and PDF pages can be per player.</p>' },
@@ -108,12 +109,11 @@ function tourSteps() {
       '<p><b>Every player</b>, or <b>only these players</b> (tick their names). Ticking nobody keeps it for you alone.</p>' +
       '<p><b>Hidden until I reveal it</b> keeps it from everyone while you prepare it; who it goes to once revealed is kept. Players are never told a page is hidden or meant for someone else.</p>' +
       '<p class="mg-muted">Choosing a name on a device is an honour system: anyone can pick any name.</p>' },
-    { section: 'Page info', title: 'Details and actions', scene: 'info', target: ['.finfo > .mg-kv', '.mg-dialog-foot'], text:
-      '<p>Who it\'s for, type, size, last change and entries. Then:</p>' +
+    { section: 'Page info', title: 'More, and actions', scene: 'info', target: ['.finfo .fmore', '.mg-dialog-foot'], text:
+      '<p><b>More about this page</b> opens its type, size, last change and entries. The buttons:</p>' +
       '<ul><li>' + ic('export') + ' <b>export filled</b>: a copy with every entry baked in, which works offline</li>' +
-      '<li>' + ic('to-referee') + ' <b>move to referee</b> / <b>players</b>: the same as dragging it onto the other column</li>' +
-      '<li>' + ic('reset') + ' <b>reset entries</b> or ' + ic('delete') + ' <b>delete</b> the page (both ask first)</li>' +
-      '<li>' + ic('check') + ' <b>save</b> your changes</li></ul>' },
+      '<li>' + ic('more') + ' <b>more…</b>: move it to the other side, clear its entries, or delete it (clearing and deleting ask first)</li>' +
+      '<li>' + ic('check') + ' <b>save</b> your changes, or <b>cancel</b></li></ul>' },
 
     { section: 'Per-player copies', title: 'Party and copies', scene: 'sheet', target: ['#fparty', '#fcopies'], text:
       '<p>A per-player page\'s popup (the example\'s <b>Character sheet</b>) also shows the party, to add or remove players straight away.</p>' +
