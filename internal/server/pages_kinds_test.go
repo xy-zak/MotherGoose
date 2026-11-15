@@ -60,7 +60,7 @@ func TestMarkdownPages(t *testing.T) {
 	rec := f.request("GET", "/s/"+f.id+"/shared/quests.md", "", withCookie(nil))
 	body := rec.Body.String()
 	for _, want := range []string{
-		`<input type="checkbox" class="task" id="task-find-the-key">`, `<title>Quest log</title>`,
+		`<input type="checkbox" class="task" id="task-find-the-key" aria-label="Find the key">`, `<title>Quest log</title>`,
 		`/_mg/tokens.css`, `/_mg/page-theme.js`, `"#task-find-the-key":true`, `/_mg/inject.js`, `class="md"`,
 	} {
 		if !strings.Contains(body, want) {

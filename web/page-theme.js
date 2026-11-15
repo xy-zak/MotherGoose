@@ -13,6 +13,7 @@
   var THEMES = { latte: 1, frappe: 1, macchiato: 1, mocha: 1 };
   var OLD = { light: 'latte', dark: 'mocha' };   // values saved by earlier versions
   var FONTS = { 'hyper-mono': 1, hyper: 1, dyslexic: 1, system: 1 };
+  var less = window.matchMedia ? window.matchMedia('(prefers-reduced-motion: reduce)') : null;
   function get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
   function apply() {
     var root = document.documentElement;
@@ -20,10 +21,13 @@
     t = OLD[t] || t;
     if (THEMES[t]) root.setAttribute('data-theme', t); else root.removeAttribute('data-theme');
     if (FONTS[f]) root.setAttribute('data-font', f); else root.removeAttribute('data-font');
+    // The animation level, as prefs.js works it out, so pages can calm down too.
+    var m = get('mg-motion');
+    root.setAttribute('data-anim', m === 'off' ? 'off' : m === 'reduced' ? 'reduced' : m === 'on' ? 'full' : less && less.matches ? 'reduced' : 'full');
     root.setAttribute('data-mg-theme', '');
   }
   apply();
   window.addEventListener('storage', function (e) {
-    if (!e.key || /^mg-(theme|font)$/.test(e.key)) apply();
+    if (!e.key || /^mg-(theme|font|motion)$/.test(e.key)) apply();
   });
 })();

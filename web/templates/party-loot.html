@@ -23,6 +23,7 @@
     }
   }
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
   html { -webkit-text-size-adjust: 100%; }
   body { margin: 0; background: var(--bg); color: var(--text); font: 400 var(--fs-body)/1.5 var(--font); }
   .page { max-width: 900px; margin: 0 auto; padding: 14px 14px 40px; display: grid; gap: 14px; }
@@ -62,6 +63,18 @@
   th { font-size: var(--fs-small); font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; text-align: left; padding: 0 4px 4px; }
   td { padding: 2px; }
   td input { width: 100%; }
+  /* Touch screens: everything you tap is 40px or more, text a step bigger,
+     and fields at 16px or more so iOS doesn't zoom in. */
+  @media (pointer: coarse) {
+    :root { --fs-title: 16px; --fs-body: 15px; --fs-small: 13px; }
+    button { min-height: 40px; min-width: 40px; touch-action: manipulation; }
+    input, select, textarea { font-size: max(16px, 1em); }
+    input:not([type=checkbox]):not([type=radio]), select { min-height: 40px; }
+    input[type=checkbox], input[type=radio] { width: 22px; height: 22px; }
+    td { padding: 3px 2px; }
+  }
+  /* Reduced or no motion, as chosen in MotherGoose's Display settings. */
+  :root[data-anim="off"] *, :root[data-anim="reduced"] * { transition: none !important; animation: none !important; }
   .money { --min: 150px; }
   .coin { display: grid; gap: 4px; padding: 6px; border: 1px solid var(--line); background: var(--bar); }
   .coin input.lbl { background: none; border-color: transparent; font-size: var(--fs-small); font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); text-align: center; }
@@ -70,7 +83,14 @@
   #items td:nth-child(2) input { width: 4.5em; }
   #items td:nth-child(3) input { width: 9em; }
   .total { font-weight: 700; }
-  @media (max-width: 560px) { #items td:nth-child(4), #items th:nth-child(4) { display: none; } }
+  /* Narrow screens: each item stacks (item and qty, then who and notes),
+     instead of losing a column. */
+  @media (max-width: 560px) {
+    #items thead { display: none; }
+    #items tr { display: grid; grid-template-columns: minmax(0, 1fr) 5em; gap: 2px; padding: 4px 0; border-bottom: 1px dashed var(--line); }
+    #items td { padding: 0; }
+    #items td:nth-child(3) input, #items td:nth-child(4) input { width: 100% !important; }
+  }
 </style>
 </head>
 <body>
@@ -104,10 +124,10 @@
     var body = document.querySelector('#items tbody');
     for (var i = 1; i <= ITEMS; i++) {
       var tr = document.createElement('tr');
-      tr.innerHTML = '<td><input id="item' + i + '" aria-label="Item ' + i + '"></td>' +
-        '<td><input id="item' + i + '-qty" type="number" min="0" aria-label="Quantity ' + i + '"></td>' +
-        '<td><input id="item' + i + '-who" aria-label="Carried by ' + i + '"></td>' +
-        '<td><input id="item' + i + '-note" aria-label="Notes ' + i + '"></td>';
+      tr.innerHTML = '<td><input id="item' + i + '" placeholder="item" aria-label="Item ' + i + '"></td>' +
+        '<td><input id="item' + i + '-qty" type="number" min="0" placeholder="qty" aria-label="Quantity ' + i + '"></td>' +
+        '<td><input id="item' + i + '-who" placeholder="carried by" aria-label="Carried by ' + i + '"></td>' +
+        '<td><input id="item' + i + '-note" placeholder="notes" aria-label="Notes ' + i + '"></td>';
       body.appendChild(tr);
     }
   })();

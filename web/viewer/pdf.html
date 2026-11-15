@@ -22,15 +22,16 @@
     <span class="mg-muted">/&nbsp;<span id="count">–</span></span>
     <button class="mg-btn quiet small" id="next" type="button" title="Next page (n)"><svg class="mg-i" aria-hidden="true"><use href="/_mg/icons.svg#next"></use></svg><span class="lbl">next</span></button>
     <span class="vsep"></span>
-    <button class="mg-btn quiet small" id="out" type="button" title="Zoom out (−)"><svg class="mg-i" aria-hidden="true"><use href="/_mg/icons.svg#zoom-out"></use></svg><span class="lbl">zoom out</span></button>
-    <span class="zoom" id="zoom">–</span>
-    <button class="mg-btn quiet small" id="in" type="button" title="Zoom in (+)"><svg class="mg-i" aria-hidden="true"><use href="/_mg/icons.svg#zoom-in"></use></svg><span class="lbl">zoom in</span></button>
+    <button class="mg-btn quiet small vwide" id="out" type="button" title="Zoom out (−)"><svg class="mg-i" aria-hidden="true"><use href="/_mg/icons.svg#zoom-out"></use></svg><span class="lbl">zoom out</span></button>
+    <span class="zoom vwide" id="zoom">–</span>
+    <button class="mg-btn quiet small vwide" id="in" type="button" title="Zoom in (+). Or pinch, or double-tap a point"><svg class="mg-i" aria-hidden="true"><use href="/_mg/icons.svg#zoom-in"></use></svg><span class="lbl">zoom in</span></button>
     <button class="mg-btn small" id="fit" type="button" aria-pressed="true" title="Fit to width (0)"><svg class="mg-i" aria-hidden="true"><use href="/_mg/icons.svg#fit"></use></svg><span class="lbl">fit</span></button>
     <span class="vsep"></span>
     <button class="mg-btn quiet small" id="findBtn" type="button" title="Search this PDF (/ or Ctrl+F)"><svg class="mg-i" aria-hidden="true"><use href="/_mg/icons.svg#search"></use></svg><span class="lbl">search</span></button>
     <button class="mg-btn quiet small" id="outlineBtn" type="button" hidden aria-pressed="false" title="Contents (o)"><svg class="mg-i" aria-hidden="true"><use href="/_mg/icons.svg#outline"></use></svg><span class="lbl">contents</span></button>
-    <span class="vsep" data-forms hidden></span>
-    <button class="mg-btn quiet small" id="export" type="button" data-forms hidden title="Download this PDF with the entries filled in (e)"><svg class="mg-i" aria-hidden="true"><use href="/_mg/icons.svg#export"></use></svg><span class="lbl">export filled</span></button>
+    <span class="vsep vwide" data-forms hidden></span>
+    <button class="mg-btn quiet small vwide" id="export" type="button" data-forms hidden title="Download this PDF with the entries filled in (e)"><svg class="mg-i" aria-hidden="true"><use href="/_mg/icons.svg#export"></use></svg><span class="lbl">export filled</span></button>
+    <button class="mg-btn quiet small vnarrow" id="vmore" type="button" aria-haspopup="menu" title="More: zoom, export"><svg class="mg-i" aria-hidden="true"><use href="/_mg/icons.svg#more"></use></svg><span class="lbl">more</span></button>
   </div>
   <form id="find" class="vfind" role="search" hidden>
     <svg class="mg-i" aria-hidden="true"><use href="/_mg/icons.svg#search"></use></svg>
@@ -40,6 +41,7 @@
     <button class="mg-btn quiet small" id="findNext" type="submit" title="Next match (Enter)"><svg class="mg-i" aria-hidden="true"><use href="/_mg/icons.svg#next"></use></svg><span class="lbl">next</span></button>
     <button class="mg-btn quiet small" id="findClose" type="button" title="Close (esc)" aria-label="Close search"><svg class="mg-i" aria-hidden="true"><use href="/_mg/icons.svg#close"></use></svg></button>
   </form>
+  <div id="outlineBack" class="voutline-back" hidden></div>
   <nav id="outline" class="voutline" hidden aria-label="Contents">
     <div class="voutline-head"><span><svg class="mg-i" aria-hidden="true"><use href="/_mg/icons.svg#outline"></use></svg>Contents</span><button class="mg-btn quiet small" id="outlineClose" type="button" aria-label="Close contents" title="Close (o)"><svg class="mg-i" aria-hidden="true"><use href="/_mg/icons.svg#close"></use></svg></button></div>
     <ul id="outlineList"></ul>

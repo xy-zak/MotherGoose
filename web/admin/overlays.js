@@ -148,7 +148,7 @@ function copiesList(s, f) {
       '<span class="who">' + ic(who ? 'player' : 'template', 'deco') + '<b>' + esc(name) + '</b><span class="mg-muted">' + note + '</span></span>' +
       '<span class="state">' + (filled ? '<span class="mg-tag filled">filled in</span><span class="mg-muted">' + esc(changed(who)) + '</span>' : '<span class="mg-muted">no entries</span>') + '</span>' +
       '<span class="acts">' +
-        '<a class="mg-btn quiet small compact" href="' + viewUrl(s.id, f, '', who) + '" target="_blank" rel="noopener" title="Open ' + esc(who ? name + '\'s copy' : 'the template') + '">' + withIcon('open', 'open') + '</a>' +
+        '<a class="mg-btn quiet small compact" href="' + viewUrl(s.id, f, '', who, true) + '" target="_blank" rel="noopener" title="Open ' + esc(who ? name + '\'s copy' : 'the template') + '">' + withIcon('open', 'open') + '</a>' +
         '<a class="mg-btn quiet small compact" href="' + filledUrl(s.id, f, who) + '"' + (f.kind === 'pdf' ? ' target="_blank" rel="noopener"' : ' download') +
           ' title="Export ' + esc(who ? name + '\'s copy' : 'the template') + ' filled in' + (f.kind === 'pdf' ? ' (opens the viewer, which downloads it)' : '') + '">' + withIcon('export', 'export filled') + '</a>' +
         '<button type="button" class="mg-btn danger small compact" data-copy-reset="' + esc(who) + '"' + (filled ? '' : ' disabled') + ' title="Clear ' + esc(who ? name + '\'s entries' : 'the template\'s entries') + '">' + withIcon('reset', 'clear entries') + '</button>' +
@@ -283,7 +283,7 @@ export async function fileOverlay(scope, name) {
   // The footer (R3): looking at the page on the left, rarer and dangerous
   // actions under "more…", cancel and save on the right.
   if (scope === 'shared' && s.active && !isHidden(f)) actions.push({ label: 'point here', value: 'show', kind: 'quiet', icon: 'point', side: 'left', title: 'Ask every player who can see it to look at it now' });
-  if (!per) actions.push({ label: 'open', href: viewUrl(s.id, f), kind: 'quiet', icon: 'open', side: 'left', keepOpen: true });
+  if (!per) actions.push({ label: 'open', href: viewUrl(s.id, f, '', '', true), kind: 'quiet', icon: 'open', side: 'left', keepOpen: true });
   if (!per && hasEntries(f)) actions.push({ label: 'export filled', href: filledUrl(s.id, f), download: f.kind !== 'pdf', icon: 'export', kind: 'quiet', side: 'left', keepOpen: true });
   const to = other(scope);
   actions.push({ label: 'move to ' + SCOPE[to].label, value: 'move', icon: to === 'gm' ? 'to-referee' : 'to-players', more: true });

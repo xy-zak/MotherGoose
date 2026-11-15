@@ -20,7 +20,7 @@
 // - src must be a file served by this MotherGoose (/s/…), never another site.
 // - Values from other devices only ever set a field's value or selection.
 import * as pdfjsLib from '/_mg/vendor/pdfjs-4.10.38/pdf.min.mjs';
-import { $, isTyping, serverPort } from '/_mg/ui.js';
+import { $, isTyping, popMenu, serverPort } from '/_mg/ui.js';
 
 const LIB = '/_mg/vendor/pdfjs-4.10.38/';
 // pdf_viewer.mjs reads the core library from this global, so it must be set
@@ -140,6 +140,7 @@ document.addEventListener('keydown', (e) => {
   // Search opens from anywhere, even a field: Ctrl+F (⌘F) means "find".
   if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 'f') { e.preventDefault(); openFind(); return; }
   if (e.key === 'Escape' && !$('find').hidden && (e.target === $('findInput') || !isTyping(e))) { e.preventDefault(); closeFind(); return; }
+  if (e.key === 'Escape' && !$('outline').hidden) { e.preventDefault(); toggleOutline(false); return; }
   // Never while filling in a field, or in the page box.
   if (isTyping(e)) return;
   if (e.key === '/') { e.preventDefault(); openFind(); return; }
@@ -153,6 +154,61 @@ document.addEventListener('keydown', (e) => {
   else return;
   e.preventDefault();
 });
+// ---- touch: pinch to zoom, double tap to step ---------------------------------------
+// While two fingers move, the pages are scaled with a CSS transform (cheap);
+// when they lift, PDF.js draws the pages at the new zoom, around the same point.
+
+let pinch = null, lastTap = 0;
+const fingers = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+function zoomAround(target, x, y) {
+  const r = pagesEl.getBoundingClientRect(), before = scaleNow();
+  const cx = x - r.left, cy = y - r.top;
+  const px = pagesEl.scrollLeft + cx, py = pagesEl.scrollTop + cy;
+  setZoom(target);
+  const k = scaleNow() / before;
+  pagesEl.scrollLeft = px * k - cx;
+  pagesEl.scrollTop = py * k - cy;
+}
+pagesEl.addEventListener('touchstart', (e) => {
+  if (e.touches.length !== 2 || !viewer) return;
+  const x = (e.touches[0].clientX + e.touches[1].clientX) / 2, y = (e.touches[0].clientY + e.touches[1].clientY) / 2;
+  const r = pagesEl.getBoundingClientRect();
+  pinch = { d: fingers(e.touches), s: scaleNow(), x, y, k: 1 };
+  $('viewer').style.transformOrigin = (pagesEl.scrollLeft + x - r.left) + 'px ' + (pagesEl.scrollTop + y - r.top) + 'px';
+}, { passive: true });
+pagesEl.addEventListener('touchmove', (e) => {
+  if (!pinch || e.touches.length !== 2) return;
+  e.preventDefault();
+  pinch.k = Math.max(ZOOMS[0] / pinch.s, Math.min(ZOOMS[ZOOMS.length - 1] / pinch.s, fingers(e.touches) / pinch.d));
+  $('viewer').style.transform = 'scale(' + pinch.k + ')';
+}, { passive: false });
+pagesEl.addEventListener('touchend', (e) => {
+  if (pinch) {
+    const p = pinch;
+    pinch = null;
+    $('viewer').style.transform = '';
+    if (Math.abs(p.k - 1) > 0.03) zoomAround(p.s * p.k, p.x, p.y);
+    return;
+  }
+  // Double tap, not on a form field or link: zoom in a step there, or back to fit.
+  if (e.changedTouches.length !== 1 || e.target.closest('input, select, textarea, a, .annotationLayer section')) return;
+  const t = Date.now(), pt = e.changedTouches[0];
+  if (t - lastTap < 300) {
+    e.preventDefault();
+    lastTap = 0;
+    if (zoom !== 'fit') setZoom('fit');
+    else zoomAround(Math.min(ZOOMS[ZOOMS.length - 1], scaleNow() * 2), pt.clientX, pt.clientY);
+  } else lastTap = t;
+});
+
+// Narrow screens: zoom and export go in a menu, so the toolbar fits.
+$('vmore').onclick = () => popMenu($('vmore'), [
+  { label: 'zoom in', icon: 'zoom-in', run: () => stepZoom(1) },
+  { label: 'zoom out', icon: 'zoom-out', run: () => stepZoom(-1) },
+  { label: 'fit to width', icon: 'fit', run: () => setZoom('fit') },
+  ...(fields.size ? ['-', { label: 'export filled', icon: 'export', run: () => exportFilled() }] : [])
+], { above: true, label: 'More' });
+
 let resizeTimer;
 addEventListener('resize', () => {
   clearTimeout(resizeTimer);
@@ -222,6 +278,7 @@ function toggleOutline(open) {
   const el = $('outline');
   const on = open === undefined ? el.hidden : open;
   el.hidden = !on;
+  $('outlineBack').hidden = !on;
   $('outlineBtn').setAttribute('aria-pressed', String(on));
   $('outlineBtn').classList.toggle('quiet', !on);
   if (on) { const first = el.querySelector('button.item'); if (first) first.focus(); }
@@ -253,6 +310,7 @@ async function buildOutline() {
 }
 $('outlineBtn').onclick = () => toggleOutline();
 $('outlineClose').onclick = () => toggleOutline(false);
+$('outlineBack').onclick = () => toggleOutline(false);
 
 // ---- form fields ------------------------------------------------------------------
 //

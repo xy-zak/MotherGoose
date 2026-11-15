@@ -112,7 +112,9 @@ func mdPage(src []byte) ([]byte, error) {
 	b.Write(css)
 	b.WriteString("</style></head><body><main class=\"md\">\n")
 	b.Write(body)
-	b.WriteString("</main></body></html>\n")
+	// A tap anywhere on a task line ticks its box, not just on the small box.
+	b.WriteString("</main><script>document.addEventListener('click',function(e){var li=e.target.closest&&e.target.closest('li');" +
+		"if(!li||e.target.closest('a,input,label'))return;var b=li.querySelector(':scope>input.task,:scope>p>input.task');if(b)b.click();});</script></body></html>\n")
 	return b.Bytes(), nil
 }
 

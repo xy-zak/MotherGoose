@@ -111,9 +111,11 @@ export function saveList(key, list) {
 // player picks one player's copy of a per-player page (none: the template).
 // The PDF viewer takes it next to src, not inside it: src stays the plain
 // file address, which is the same for every copy.
-export function viewUrl(sessionId, f, bust, player) {
+// edit marks the referee's own view of an HTML page (?edit), for pages that
+// keep some controls for the referee, like the handout's lock.
+export function viewUrl(sessionId, f, bust, player, edit) {
   const raw = '/s/' + enc(sessionId) + '/' + f.scope + '/' + enc(f.name);
-  const who = player ? 'player=' + enc(player) : '';
+  const who = (player ? 'player=' + enc(player) : '') + (edit && isPage(f) ? (player ? '&' : '') + 'edit=1' : '');
   if (f.kind === 'pdf' || f.kind === 'image') {
     const v = f.kind === 'pdf' ? 'pdf' : 'image';
     return '/_mg/viewer/' + v + '.html?src=' + enc(raw) + (who && f.kind === 'pdf' ? '&' + who : '') + (bust ? '&v=' + enc(bust) : '');

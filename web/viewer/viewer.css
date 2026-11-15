@@ -19,14 +19,15 @@ body.viewer { position: relative; height: 100dvh; overflow: hidden; background: 
 .vtools .vname #name { overflow: hidden; text-overflow: ellipsis; }
 .vtools .vsep { width: 1px; align-self: stretch; background: var(--line); margin: 0 3px; }
 .vtools .page { width: 4.5ch; height: calc(var(--btn-h-small) - 4px); padding: 0 4px; text-align: center; }
-@media (pointer: coarse) { .vtools .page { width: 5ch; font-size: 16px; } }
+@media (pointer: coarse) { .vtools .page { width: 5ch; height: var(--btn-h-small); font-size: 16px; } }
 .vtools .zoom { min-width: 4.5ch; text-align: center; color: var(--muted); }
 .vtools #dims { padding: 0 4px; }
 .vtools [hidden] { display: none; }
 
 /* z-index: its own stacking context, so PDF.js's numbered field layers stay
    under the toolbar. */
-.pages { position: absolute; inset: 0; z-index: 0; overflow: auto; padding: 12px 0 56px; outline: none; }
+.pages { position: absolute; inset: 0; z-index: 0; overflow: auto; padding: 12px 0 56px; outline: none; touch-action: pan-x pan-y; }
+.pages:focus-visible { outline: 2px solid var(--accent); outline-offset: -4px; }
 
 /* PDF.js's viewer, restyled: pages on the dark backdrop with a 1px outline,
    no shadows or loading spinners. */
@@ -126,8 +127,13 @@ body.viewer { position: relative; height: 100dvh; overflow: hidden; background: 
 .voutline .item {
   display: block; width: 100%; padding: 4px 10px; text-align: left;
   font: inherit; color: var(--text); background: none; border: 0; cursor: pointer;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2;
 }
+@media (pointer: coarse) { .voutline .item { min-height: 40px; padding: 8px 12px; } }
+/* Behind the contents: a tap there closes it. */
+.voutline-back { position: fixed; inset: 0; z-index: var(--z-viewer-panel); background: color-mix(in srgb, var(--deep) 35%, transparent); }
+.voutline-back[hidden] { display: none; }
+.vnarrow { display: none; }
 .voutline .item:hover, .voutline .item:focus-visible { background: var(--surface); outline: none; color: var(--accent); }
 
 /* Sync state, shown in the toolbar only when the viewer is opened on its own
@@ -150,17 +156,24 @@ body.viewer { position: relative; height: 100dvh; overflow: hidden; background: 
 .vnote.err > .mg-i { color: var(--danger); }
 .vnote #noteText { flex: 1; }
 
-/* Fit: centred and scaled down to the frame. Actual size: scroll around. */
-.img-wrap { position: absolute; inset: 0; overflow: auto; cursor: zoom-in; }
-.img-wrap img { position: absolute; inset: 0; margin: auto; max-width: 100%; max-height: 100%; background: #fff; }
-.img-wrap.actual { cursor: zoom-out; }
-.img-wrap.actual img { position: static; max-width: none; max-height: none; margin: 0; }
+/* Fit: centred and scaled down to the frame. Zoomed: a set size, scrolled
+   around (auto margins centre it while it's smaller, and give way when it's
+   bigger, so no part is ever out of reach). Fingers pan; the viewer itself
+   handles pinching. */
+.img-wrap { position: absolute; inset: 0; overflow: auto; cursor: zoom-in; display: flex; touch-action: pan-x pan-y; }
+.img-wrap img { margin: auto; max-width: 100%; max-height: 100%; background: #fff; flex: none; }
+.img-wrap.zoomed { cursor: zoom-out; }
+.img-wrap.zoomed img { max-width: none; max-height: none; }
+/* In the player view the tab names the image: its size in pixels is noise. */
+body:not(.standalone) .vdims { display: none; }
 
 .verror { position: relative; margin: 24px auto; padding: 12px 14px; max-width: 520px; border: 1px solid var(--danger); color: var(--text); background: var(--bg); }
 
 @media (max-width: 560px) {
   .vtools { left: 50%; right: auto; transform: translateX(-50%); }
   .vtools #findBtn .lbl, .vtools #outlineBtn .lbl { display: none; }
+  .vtools.pdf .vwide { display: none !important; }
+  .vtools.pdf .vnarrow { display: inline-flex; }
   .pdfViewer .page::before { display: none; }
   .standalone .vtools.pdf .vname { display: none; } /* room for the sync state */
   /* Above the centred toolbar. */

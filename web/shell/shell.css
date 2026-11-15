@@ -154,7 +154,8 @@ body.mg-full { --notice-top: calc(var(--tab-h) * .75 + 8px); }
 .roster .mg-btn { height: max(30px, var(--btn-h)); padding: 0 12px; }
 .roster .mg-btn[aria-pressed="true"] { background: color-mix(in srgb, var(--players) 34%, var(--bg)); font-weight: 700; }
 .who-pick { display: grid; gap: 12px; }
-#empty { flex: 1; overflow: auto; }
+#empty { flex: 1; overflow: auto; min-height: 0; }
+#empty.mg-center { min-height: 100%; }
 
 .bar-btn { flex: none; display: inline-flex; align-items: center; gap: 6px; padding: 0 10px; border: 0; border-left: 1px solid var(--line); background: none; color: var(--text); font: 500 var(--fs-body)/1 var(--font); cursor: pointer; }
 .bar-btn:hover { background: var(--surface); }

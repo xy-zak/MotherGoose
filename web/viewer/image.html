@@ -13,10 +13,12 @@
   <main class="img-wrap" id="wrap"><img id="img" alt=""></main>
   <div class="vtools compact" role="toolbar" aria-label="Image controls">
     <span class="vname"><svg class="mg-i" aria-hidden="true"><use href="/_mg/icons.svg#kind-image"></use></svg><span id="name"></span></span>
-    <span class="mg-muted" id="dims"></span>
-    <span class="vsep"></span>
+    <span class="mg-muted vdims" id="dims"></span>
+    <span class="vsep vdims"></span>
+    <button class="mg-btn quiet small" id="out" type="button" title="Zoom out (−)"><svg class="mg-i" aria-hidden="true"><use href="/_mg/icons.svg#zoom-out"></use></svg><span class="lbl">zoom out</span></button>
+    <span class="zoom" id="zoom">–</span>
+    <button class="mg-btn quiet small" id="in" type="button" title="Zoom in (+). Or pinch, or double-tap a point"><svg class="mg-i" aria-hidden="true"><use href="/_mg/icons.svg#zoom-in"></use></svg><span class="lbl">zoom in</span></button>
     <button class="mg-btn small" id="fit" type="button" aria-pressed="true" title="Fit to screen (0)"><svg class="mg-i" aria-hidden="true"><use href="/_mg/icons.svg#fit"></use></svg><span class="lbl">fit</span></button>
-    <button class="mg-btn quiet small" id="actual" type="button" aria-pressed="false" title="Actual size (1)"><svg class="mg-i" aria-hidden="true"><use href="/_mg/icons.svg#zoom-in"></use></svg><span class="lbl">100%</span></button>
   </div>
   <p id="error" class="verror" hidden></p>
   <script src="/_mg/viewer/image.js"></script>

@@ -193,7 +193,7 @@ function fileRow(s, f, filter) {
             (isHidden(f) ? 'Reveal: players it\'s for see it (you get a moment to undo)' : 'Hide from every player until you reveal it') + '">' +
             withIcon(isHidden(f) ? 'view' : 'hidden', isHidden(f) ? 'reveal' : 'hide') + '</button>'
         : '') +
-      '<a class="mg-btn small compact" href="' + viewUrl(s.id, f) + '" target="_blank" rel="noopener" title="' + (f.perPlayer ? 'Open the starting copy on its own (players\' copies are under info)' : 'Open on its own') + '">' + withIcon('open', 'open') + '</a>' +
+      '<a class="mg-btn small compact" href="' + viewUrl(s.id, f, '', '', true) + '" target="_blank" rel="noopener" title="' + (f.perPlayer ? 'Open the starting copy on its own (players\' copies are under info)' : 'Open on its own') + '">' + withIcon('open', 'open') + '</a>' +
       '<button class="mg-btn small compact" data-act="file-info" title="Info: details, who sees it, copies">' + withIcon('info', 'info') + '</button>' +
       '<button class="mg-btn small compact quiet" data-act="row-menu" aria-haspopup="menu" title="More: point here, move, clear, delete">' + withIcon('more', 'more') + '</button>' +
     '</div></div>';

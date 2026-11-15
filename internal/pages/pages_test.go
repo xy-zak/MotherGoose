@@ -19,8 +19,8 @@ func TestMarkdown(t *testing.T) {
 		t.Errorf("title = %q", title)
 	}
 	for _, want := range []string{
-		`<input type="checkbox" class="task" id="task-find-the-key">`,
-		`<input type="checkbox" class="task" id="task-open-the-door" checked>`,
+		`<input type="checkbox" class="task" id="task-find-the-key" aria-label="Find the key">`,
+		`<input type="checkbox" class="task" id="task-open-the-door" aria-label="Open the door" checked>`,
 		`href="https://example.com/m" target="_blank" rel="noopener noreferrer"`,
 		`<a href="#the-sunken-keep">up</a>`,
 		`<table>`, `src="data:image/png;base64,AAAA"`,

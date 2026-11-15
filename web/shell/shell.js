@@ -317,7 +317,7 @@ function show(key, focusTab) {
   const fk = who === null ? null : frameKey(f, who);
   if (fk && !S.frames.has(fk)) {
     const fr = document.createElement('iframe');
-    fr.src = viewUrl(S.session.id, f, !isPage(f) ? f.modified : '', who);
+    fr.src = viewUrl(S.session.id, f, !isPage(f) ? f.modified : '', who, S.isHost && !previewing());
     fr.title = titleOf(f) + (who ? ': ' + playerName(S.players, who) : f.perPlayer ? ': template' : '');
     if (!isPage(f)) fr.className = 'viewer';
     fr.setAttribute('allow', 'fullscreen');

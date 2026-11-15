@@ -23,6 +23,7 @@
     }
   }
   * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
   html { -webkit-text-size-adjust: 100%; }
   body { margin: 0; background: var(--bg); color: var(--text); font: 400 var(--fs-body)/1.5 var(--font); }
   .page { max-width: 900px; margin: 0 auto; padding: 14px 14px 40px; display: grid; gap: 14px; }
@@ -62,6 +63,18 @@
   th { font-size: var(--fs-small); font-weight: 700; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; text-align: left; padding: 0 4px 4px; }
   td { padding: 2px; }
   td input { width: 100%; }
+  /* Touch screens: everything you tap is 40px or more, text a step bigger,
+     and fields at 16px or more so iOS doesn't zoom in. */
+  @media (pointer: coarse) {
+    :root { --fs-title: 16px; --fs-body: 15px; --fs-small: 13px; }
+    button { min-height: 40px; min-width: 40px; touch-action: manipulation; }
+    input, select, textarea { font-size: max(16px, 1em); }
+    input:not([type=checkbox]):not([type=radio]), select { min-height: 40px; }
+    input[type=checkbox], input[type=radio] { width: 22px; height: 22px; }
+    td { padding: 3px 2px; }
+  }
+  /* Reduced or no motion, as chosen in MotherGoose's Display settings. */
+  :root[data-anim="off"] *, :root[data-anim="reduced"] * { transition: none !important; animation: none !important; }
   .paper {
     max-width: 640px; width: 100%; margin: 0 auto; padding: 34px 36px 40px;
     background: color-mix(in srgb, var(--warn) 10%, var(--bg)); color: var(--text);
@@ -88,23 +101,37 @@
     </div>
     <div id="signature" contenteditable="true" aria-label="Signature">— a friend</div>
   </article>
-  <label class="lock"><input type="checkbox" id="locked"> locked: the text can't be changed</label>
+  <label class="lock" id="lockLabel" data-mg-ignore><input type="checkbox" id="locked"> locked: the text can't be changed</label>
+  <p class="lock" id="lockedNote" hidden>locked by the referee</p>
 </main>
 <script>
-  // Locked or not is a field (so it syncs); the text follows it.
-  (function () {
+  // Locked or not is kept with MotherGoose.set, and only the referee gets
+  // the switch: MotherGoose opens the page with ?edit on the referee's
+  // computer. Players see "locked by the referee". (Opened on its own,
+  // without MotherGoose, the switch is there.)
+  document.addEventListener('DOMContentLoaded', function () {
+    var mg = window.MotherGoose;
+    var canEdit = !mg || /[?&]edit\b/.test(location.search);
     var lock = document.getElementById('locked');
+    var locked = mg ? !!mg.get('locked') : false;
     function apply() {
-      var on = lock.checked;
       ['heading', 'letter', 'signature'].forEach(function (id) {
-        document.getElementById(id).setAttribute('contenteditable', on ? 'false' : 'true');
+        document.getElementById(id).setAttribute('contenteditable', locked ? 'false' : 'true');
       });
-      document.getElementById('paper').classList.toggle('editing', !on);
+      document.getElementById('paper').classList.toggle('editing', !locked);
+      lock.checked = locked;
+      document.getElementById('lockLabel').hidden = !canEdit;
+      document.getElementById('lockedNote').hidden = canEdit || !locked;
     }
-    lock.addEventListener('change', apply);
-    lock.addEventListener('input', apply);
-    document.addEventListener('DOMContentLoaded', apply);
-  })();
+    lock.addEventListener('change', function () {
+      locked = lock.checked;
+      if (mg) mg.set('locked', locked);
+      apply();
+    });
+    if (mg) mg.on('locked', function (v) { locked = !!v; apply(); });
+    // After MotherGoose has restored the text (its own DOMContentLoaded).
+    setTimeout(apply, 0);
+  });
 </script>
 </body>
 </html>

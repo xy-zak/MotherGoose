@@ -57,6 +57,19 @@ func TestPresence(t *testing.T) {
 	}
 	a2.CloseNow()
 	x.CloseNow()
+	ref.CloseNow()
+	// Let the closing handlers finish (each sends presence, which reads
+	// session.json) before the test's folder is removed.
+	for i := 0; i < 100; i++ {
+		f.srv.hub.mu.Lock()
+		n := len(f.srv.hub.events)
+		f.srv.hub.mu.Unlock()
+		if n == 0 {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	time.Sleep(20 * time.Millisecond)
 }
 
 // ?as= lets the host see exactly what a player's device gets.

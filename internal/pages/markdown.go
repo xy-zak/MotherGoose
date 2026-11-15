@@ -141,6 +141,8 @@ func renderTaskBox(w util.BufWriter, src []byte, n ast.Node, entering bool) (ast
 	}
 	_, _ = w.WriteString(`<input type="checkbox" class="task" id="task-`)
 	_, _ = w.Write(util.EscapeHTML([]byte(slug)))
+	_, _ = w.WriteString(`" aria-label="`)
+	_, _ = w.Write(util.EscapeHTML([]byte(strings.TrimSpace(label))))
 	_ = w.WriteByte('"')
 	if n.(*extast.TaskCheckBox).IsChecked {
 		_, _ = w.WriteString(" checked")
