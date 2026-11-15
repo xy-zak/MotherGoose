@@ -8,6 +8,7 @@ import (
 	"sync"
 	"time"
 
+	"mothergoose/internal/firewall"
 	"mothergoose/internal/store"
 )
 
@@ -24,6 +25,12 @@ type Server struct {
 	// openFolder shows a folder in the computer's file explorer. Replaceable
 	// in tests, which mustn't open windows.
 	openFolder func(string) error
+	// firewall reads this computer's firewall settings and changes them.
+	// Replaceable in tests, which mustn't read the real ones.
+	firewall firewallChecker
+	fwMu     sync.Mutex
+	fwAt     time.Time
+	fwLast   firewall.Status
 
 	injectJS []byte
 
@@ -52,7 +59,7 @@ func New(st *store.Store, port int) *Server {
 	if err != nil {
 		panic(err)
 	}
-	s := &Server{store: st, hub: NewHub(), port: port, isHost: isHostRequest, openFolder: OpenInOS, injectJS: js}
+	s := &Server{store: st, hub: NewHub(), port: port, isHost: isHostRequest, openFolder: OpenInOS, firewall: firewall.New(), injectJS: js}
 	s.fp = st.Fingerprint()
 	s.notify = &notifier{send: s.sendChanged}
 	st.OnEntriesSaved(s.notify.entriesSaved)
@@ -103,6 +110,8 @@ func (s *Server) routes() *http.ServeMux {
 	m.HandleFunc("POST /api/admin/sessions/{id}/files/{scope}/{file}/show", s.hostOnly(s.apiShowPage))
 	m.HandleFunc("GET /api/admin/sessions/{id}/files/{scope}/{file}/check", s.hostOnly(s.apiCheckPage))
 
+	m.HandleFunc("GET /api/admin/firewall", s.hostOnly(s.apiFirewall))
+	m.HandleFunc("POST /api/admin/firewall/allow", s.hostOnly(s.apiFirewallAllow))
 	m.HandleFunc("GET /api/admin/trash", s.hostOnly(s.apiListTrash))
 	m.HandleFunc("POST /api/admin/trash/{item}/restore", s.hostOnly(s.apiRestoreTrash))
 	m.HandleFunc("DELETE /api/admin/trash", s.hostOnly(s.apiEmptyTrash))

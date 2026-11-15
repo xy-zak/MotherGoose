@@ -43,6 +43,7 @@ Put it in its own folder, for example `Documents/MotherGoose/`, and start it:
 - **Mac:** right-click the file and choose **Open**, then **Open** again. This step is only needed the first time, because the app isn't signed.
   - Alternatively, in Terminal: `xattr -d com.apple.quarantine mothergoose-darwin-arm64 && ./mothergoose-darwin-arm64`
 - **Linux:** `chmod +x mothergoose-linux-amd64 && ./mothergoose-linux-amd64`
+  - If a firewall blocks players, the dashboard says so and offers to let them in (see *Players can't join?* below).
 
 The dashboard opens in your browser, and a console window shows the addresses:
 
@@ -77,7 +78,9 @@ mothergoose --no-browser       # don't open the dashboard on start
 3. Click **▶ go live** to start a session. Only one campaign is live at a time, and players see its shared pages as tabs. A short boot screen plays on the referee's and the players' screens, then a notice offers **join info**. If another campaign is live, the button reads **switch live here** and asks first.
 4. Click **■ end session** when you're done. Players see a shutdown screen at once and return to a waiting screen, and every entry is kept for next time. The notice that follows has **undo**, which starts it again.
 
-With no campaign open, the dashboard shows **Getting started**: everything the app does, one line each, with buttons for both tutorials and the guide to making pages.
+When the dashboard opens, **Getting started** pops up: everything the app does, one line each, with buttons for both tutorials and the guide to making pages. **do not show again** stops it opening (the **ⓘ about** button at the top left brings it back).
+
+**Players can't join?** On Linux, a firewall (such as `ufw`, which Omarchy turns on, or `firewalld`) silently drops players' connections, and never asks. MotherGoose checks whenever the dashboard opens. If the firewall blocks players, a yellow warning appears at the top of Getting started and Join Info (and on its own, even with Getting started turned off), with **let players in**. That button asks for your password in the desktop's own prompt, then opens MotherGoose's port to devices on your local network only. It also shows the command to run in a terminal instead. The same warning is printed when MotherGoose starts. If a session has been live for three minutes and no player's device has joined, a notice says so. Windows and macOS ask by themselves the first time: allow access on private networks.
 
 The dashboard has two panes. The campaigns list is on the left and the selected campaign is on the right (on narrower screens the list folds up above it). While a session is live, the party shows which players' devices are connected ("here", "away", or "2 devices" when two picked the same name).
 
@@ -273,6 +276,7 @@ cmd/mothergoose/     entry point: flags, startup banner, browser launch
 internal/store/      everything on disk: campaigns (sessions/), pages, entries, the party, who sees what
 internal/pages/      what's inside pages: Markdown to HTML, and the self-contained check
 internal/server/     HTTP routes, access checks, the API, WebSocket sync and events, templates, LAN addresses/QR
+internal/firewall/   whether a Linux firewall lets players in, and letting them in (asks for the password)
 web/                 embedded UI, no build step:
   admin/, shell/       the dashboard and the player view, one module per feature
   viewer/              the PDF and image viewers

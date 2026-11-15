@@ -105,6 +105,15 @@ func run(port int, dataDir string, openBrowser bool) error {
 	if u := server.LocalNameURL(port); u != "" && len(urls) > 0 {
 		fmt.Printf("  %-28s %s  (if the network supports it)\n", "Players (by name)", u)
 	}
+	// Linux firewalls never ask, they just drop players' connections: say so.
+	if fw := server.FirewallStatus(port); fw.State == "blocked" || fw.State == "unknown" {
+		if fw.State == "blocked" {
+			fmt.Printf("\n  ! The firewall (%s) blocks players: they can't open the links above.\n", fw.Firewall)
+		} else {
+			fmt.Printf("\n  ! A firewall (%s) is on, and may block players from the links above.\n", fw.Firewall)
+		}
+		fmt.Printf("    Let devices on your network in from the dashboard, or run:\n    %s\n", fw.Command)
+	}
 	fmt.Printf("\n  Data folder  %s\n", st.Root())
 	fmt.Printf("  Press Ctrl+C to stop.\n\n")
 

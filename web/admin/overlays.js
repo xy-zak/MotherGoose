@@ -9,6 +9,7 @@ import {
 } from '/_mg/ui.js';
 import { A, app, fileBase, filledCount, livePort, MAX_PLAYERS, other, playersBase } from './state.js';
 import { tourRunning } from '/_mg/tour.js';
+import { firewallBox, firewallNeedsAttention, firewallStatus, wireFirewall } from './firewall.js';
 import { clearAllCopies, clearEntries, deletePage, move, pointHere, restoreTrash, trashed, trashLabel } from './table.js';
 
 // Join Info: the address players open, as a link and a QR code. The
@@ -28,14 +29,16 @@ export async function joinOverlay() {
   body.className = 'join';
   let addrs = urls.map((u) => ({ url: u, note: '' }));
   let shown = urls[0];
+  let fw = null;   // the firewall, once checked: its warning goes at the top
   const draw = () => {
     const main = addrs.find((a) => a.url === shown) || addrs[0];
-    body.innerHTML =
+    body.innerHTML = firewallBox(fw) +
       '<div class="mg-section-label">Players open</div>' +
       '<a class="join-url" href="' + esc(main.url) + '" target="_blank" rel="noopener">' + esc(main.url) + '</a>' +
       (main.note ? '<p class="mg-muted join-note">' + esc(main.note) + '</p>' : '') +
       '<div class="qr"><img src="/api/qr.png?u=' + enc(main.url) + '" alt="QR code for ' + esc(main.url) + '"></div>' +
       '<p class="mg-muted">Players need to be on the same Wi-Fi or network as this computer. They can scan the code with a phone camera.</p>' +
+      (firewallNeedsAttention(fw) ? '' : '<p class="mg-muted mg-small">Can\'t open it? Check their device is on the same Wi-Fi, and not a "guest" network, which many routers keep apart. Try the number address above.</p>') +
       (addrs.length > 1
         ? '<hr class="mg-rule"><div class="mg-section-label">Other addresses</div><ul class="join-list">' +
           addrs.filter((a) => a !== main).map((a) =>
@@ -50,6 +53,8 @@ export async function joinOverlay() {
     const b = e.target.closest('[data-qr]');
     if (b) { shown = b.dataset.qr; draw(); }
   });
+  wireFirewall(body, (st) => { fw = st; draw(); });
+  if (!tourRunning()) firewallStatus(true).then((st) => { fw = st; draw(); });
   overlay({
     title: 'Join Info', icon: 'join', body, size: 'wide',
     actions: [{ label: 'show to the table', value: 'present', icon: 'present', kind: 'primary', title: 'A big QR code and address, to turn the screen towards the players' }]

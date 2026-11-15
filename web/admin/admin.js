@@ -9,17 +9,18 @@
 // pages.js (uploads and drag and drop) and tutorial.js.
 import {
   $, ago, agoText, allTags, api, attempt, chips, confirmDialog, enc, hasTags, savedTags, saveList, tagToggles, toggleTag,
-  aboutOverlay, campaignTitle, esc, fitBar, ftype, ic, keysList, kindTag, listenEvents, overlay,
-  isHidden, perPlayerTag, SCOPE, shortcutAllowed, size, term, titleOf, toast, uiBtn,
+  aboutOverlay, campaignTitle, esc, fitBar, ic, keysList, kindTag, listenEvents, overlay,
+  isHidden, perPlayerTag, SCOPE, shortcutAllowed, size, titleOf, toast, uiBtn,
   viewUrl, visTags, withIcon
 } from '/_mg/ui.js';
 import { A, app, fileCount, livePort, MAX_PLAYERS, playersBase } from './state.js';
 import { tourRunning } from '/_mg/tour.js';
 import { bootScreen, switchLinks } from '/_mg/fx.js';
 import { joinOverlay, dataOverlay, editSession, sessionMenu, sessionOverlay, fileOverlay, renamePlayer, removePlayer, guideOverlay, templateOverlay } from './overlays.js';
-import { drawPresence, endSession, goLive, moveBy, pointHere, rowMenu, setPresence, toggleHidden, trashed } from './table.js';
+import { drawPresence, endSession, goLive, moveBy, pointHere, rowMenu, setPresence, toggleHidden, trashed, watchJoins } from './table.js';
 import { upload, enablePageDrag } from './pages.js';
 import { tutorial } from './tutorial.js';
+import { launch, startOverlay } from './start.js';
 import { isJumpKey, quickJump } from '/_mg/jump.js';
 
 // plural: "1 page", "3 pages".
@@ -67,6 +68,7 @@ async function refresh() {
     renderLeft();
     renderRight();
     drawHead();
+    watchJoins();   // the live session may have just started or ended
     const nf2 = document.getElementById('newForm');
     if (typed && nf2) { nf2.elements.name.value = typed.name; nf2.elements.gameType.value = typed.gameType; }
     if (srow) {
@@ -126,52 +128,15 @@ left.addEventListener('submit', attempt(async (e) => {
 
 // ---- right pane: the selected campaign -------------------------------------------------
 
-// The start page, with no session open: what MotherGoose does, one thing per
-// line, and buttons to learn more. Terms, file types and buttons each have
-// their own look (the key at the top says which is which).
-function welcome() {
-  const types = ftype('.html') + ' ' + ftype('.md') + ' ' + ftype('.pdf') + ' ' + ftype('.png') + ' ' + ftype('.jpg');
-  const feat = (icon, name, text) =>
-    '<li><span class="gs-ic">' + ic(icon) + '</span><b class="gs-name">' + esc(name) + '</b><span class="gs-text">' + text + '</span></li>';
-  const stepRow = (n, text) => '<li><span class="gs-n">' + n + '</span><span class="gs-text">' + text + '</span></li>';
-  return '<div class="mg-panel welcome">' +
-    '<div class="mg-panel-title"><span class="t">' + ic('info') + 'Getting started</span></div>' +
-    '<p class="gs-lead">MotherGoose shares your game\'s pages with the players\' phones, tablets and laptops, over this computer\'s Wi-Fi or network. No internet or accounts needed.</p>' +
-    '<p class="gs-key"><span class="mg-muted">Key:</span>' +
-      '<span>' + term('term') + ' <span class="mg-muted">an idea in MotherGoose</span></span>' +
-      '<span>' + ftype('.html') + ' <span class="mg-muted">a file type</span></span>' +
-      '<span>' + uiBtn('live', 'button') + ' <span class="mg-muted">a button on screen</span></span></p>' +
-
-    '<div class="mg-section-label">What you can do</div>' +
-    '<ul class="gs-list">' +
-      feat('sessions', 'Campaigns', 'Keep each game in its own ' + term('campaign') + ': its pages, party and entries, ready for every ' + term('session') + ' you play. Give it a ' + term('game type') + ' (the game or rules being played) to tell campaigns apart.') +
-      feat('kind-html', 'Pages', 'Add ' + types + ' files with ' + uiBtn('add', 'add') + ', or drop them on a column.') +
-      feat('check', 'Live entries', 'Anything typed into an ' + ftype('.html') + ' page, or into a ' + ftype('.pdf') + ' form, is saved and synced live to everyone viewing it.') +
-      feat('players', 'Who sees what', term('Players', 'players') + ' pages go to every player. ' + term('Referee', 'referee') + ' pages only open on this computer.') +
-      feat('switch', 'Order', 'Drag a page up or down to reorder it: players\' tabs follow the same order. Drag it onto the other column to change who it\'s for.') +
-      feat('tag', 'Details', 'Give each page a ' + term('description') + ' and ' + term('tags') + ' with ' + uiBtn('info', 'info') + ', so players know what they\'re looking at.') +
-      feat('player', 'Party', 'Add your players to the campaign\'s ' + term('party', 'players') + '. Mark character sheets ' + term('per player', 'players') + ': each player fills in their own copy.') +
-      feat('live', 'Go live', uiBtn('live', 'go live', 'go-live') + ' starts a session: the campaign goes on the players\' screens. ' + uiBtn('end', 'end session', 'end-session') + ' takes it off again.') +
-      feat('join', 'Joining', uiBtn('join', 'join info') + ' shows the address and QR code players open to join.') +
-      feat('export', 'Export', uiBtn('export', 'export filled') + ' downloads a page with every entry baked in, which works offline.') +
-      feat('settings', 'Display', uiBtn('settings', 'display') + ' changes the theme, font, icons and animations, for this device.') +
-    '</ul>' +
-
-    '<div class="mg-section-label">Your first campaign</div>' +
-    '<ol class="gs-list gs-steps">' +
-      stepRow(1, 'Type a name, and a ' + term('game type') + ', under ' + term('Campaigns') + ' on the left, then press ' + uiBtn('add', 'new', 'primary') + '.') +
-      stepRow(2, 'Drop ' + types + ' files on the ' + term('Players', 'players') + ' or ' + term('Referee', 'referee') + ' column.') +
-      stepRow(3, 'Add each player\'s name to the ' + term('party', 'players') + '.') +
-      stepRow(4, 'Press ' + uiBtn('live', 'go live', 'go-live') + ', then show the table ' + uiBtn('join', 'join info') + '.') +
-    '</ol>' +
-
-    '<div class="mg-section-label">Learn more</div>' +
+// With no campaign open: a short pointer to the campaigns. What MotherGoose
+// does is in Getting started (start.js), a popup.
+function noCampaign() {
+  return '<div class="mg-panel no-campaign">' +
+    '<div class="mg-panel-title"><span class="t">' + ic('sessions') + 'No campaign open</span></div>' +
+    '<p>Pick a campaign on the left, or type a name (and a game type) and press ' + uiBtn('add', 'new', 'primary') + ' to make one.</p>' +
     '<div class="gs-learn">' +
-      '<button type="button" class="mg-btn primary" data-act="tour" title="A guided tour of this page, using an example campaign">' + withIcon('tutorial', 'referee tutorial') + '</button>' +
-      '<a class="mg-btn players" href="/?tour=1" target="_blank" rel="noopener" data-switch="players" title="Opens the player view in a new tab and starts its tour">' + withIcon('tutorial', 'player tutorial') + '</a>' +
-      '<button type="button" class="mg-btn" data-act="guide" title="How to write pages for MotherGoose, also as an AI skill">' + withIcon('guide', 'making HTML pages') + '</button>' +
-      '<button type="button" class="mg-btn" data-act="help" title="Keyboard shortcuts (?)">' + withIcon('help', 'keyboard shortcuts') + '</button>' +
-      '<button type="button" class="mg-btn" data-prefs title="Theme, font, icons and animations">' + withIcon('settings', 'display settings') + '</button>' +
+      '<button type="button" class="mg-btn" data-act="start" title="What MotherGoose does, and how to begin">' + withIcon('info', 'getting started') + '</button>' +
+      '<button type="button" class="mg-btn" data-act="tour" title="A guided tour of this page, using an example campaign">' + withIcon('tutorial', 'referee tutorial') + '</button>' +
     '</div></div>';
 }
 
@@ -275,7 +240,7 @@ function renderRight() {
   // A name half typed into the add-player field survives the redraw.
   const was = document.querySelector('#addPlayer input');
   const typed = was && { value: was.value, focus: was === document.activeElement, at: was.selectionStart };
-  if (!s) { right.innerHTML = welcome(); return; }
+  if (!s) { right.innerHTML = noCampaign(); return; }
   const sh = (s.files.shared || []).length, gm = (s.files.gm || []).length;
   const filter = tagFilter(s);
   right.innerHTML =
@@ -350,9 +315,10 @@ document.addEventListener('click', attempt(async (e) => {
   else if (act === 'data') await dataOverlay();
   else if (act === 'help') await helpOverlay();
   else if (act === 'about') {
-    // The about button replaces the brand, which led back to the start.
-    if (await aboutOverlay([{ label: 'getting started', value: 'start', kind: 'quiet', icon: 'help', side: 'left' }]) === 'start') location.hash = '#/';
+    // Getting started from here also turns it back on when the dashboard opens.
+    if (await aboutOverlay([{ label: 'getting started', value: 'start', kind: 'quiet', icon: 'help', side: 'left' }]) === 'start') startOverlay(true);
   }
+  else if (act === 'start') startOverlay(false);
   else if (act === 'tour') tutorial();
   else if (act === 'activate') {
     await goLive(btn.dataset.id, { start: startScreen });
@@ -545,4 +511,9 @@ setInterval(() => { if (!document.hidden) refresh(); }, 60000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
 route();
 app.joinOverlay = joinOverlay;
+// What Getting started's "learn more" buttons open.
+app.tutorial = tutorial;
+app.guide = guideOverlay;
+app.help = helpOverlay;
+launch();
 listenEvents(refresh, setServer, (m) => { if (m.type === 'presence') setPresence(m); });

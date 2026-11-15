@@ -6,6 +6,7 @@
 import { api, audienceText, confirmDialog, enc, isHidden, notice, playerName, popMenu, SCOPE, titleOf, toast } from '/_mg/ui.js';
 import { A, app, fileBase, other } from './state.js';
 import { bootScreen } from '/_mg/fx.js';
+import { firewallNeedsAttention, firewallStatus } from './firewall.js';
 
 // ---- presence: which players' devices are connected ---------------------------------
 
@@ -13,6 +14,42 @@ import { bootScreen } from '/_mg/fx.js';
 export function setPresence(m) {
   A.presence = m;
   drawPresence();
+  watchJoins();
+}
+
+// ---- nobody joining: say so, and why if it can be told ---------------------------------
+
+// A session that has been live this long with no player's device connected
+// probably has players who can't get in. It's said once per session.
+let nobodyMs = 3 * 60 * 1000;
+let joins = { session: null, warned: false, timer: 0 };
+
+/** setNobodyDelay changes how long a live session waits before warning (for tests). */
+export function setNobodyDelay(ms) { nobodyMs = ms; }
+
+/** watchJoins follows the live session: called on every presence event. */
+export function watchJoins() {
+  const s = A.sessions.find((x) => x.active);
+  if (!s) { clearTimeout(joins.timer); joins = { session: null, warned: false, timer: 0 }; return; }
+  if (joins.session !== s.id) {
+    clearTimeout(joins.timer);
+    joins = { session: s.id, warned: false, timer: setTimeout(nobodyYet, nobodyMs) };
+  }
+  if (connectedCount(s) > 0) joins.warned = true;   // someone got in: nothing to warn about
+}
+
+async function nobodyYet() {
+  const s = A.sessions.find((x) => x.active);
+  if (!s || s.id !== joins.session || joins.warned) return;
+  if (connectedCount(s) !== 0) return;
+  joins.warned = true;
+  const fw = await firewallStatus(true);
+  const blocked = firewallNeedsAttention(fw);
+  notice({
+    text: blocked ? 'No player has joined yet: this computer\'s firewall is probably blocking them.' : 'No player has joined "' + s.name + '" yet. If they can\'t open the link, join info has tips.',
+    icon: 'warning', ms: 30000,
+    action: { label: blocked ? 'let them in' : 'join info', icon: blocked ? 'check' : 'join', run: () => app.joinOverlay() }
+  });
 }
 
 /** presenceOf is how many devices picked a player in the live campaign. */

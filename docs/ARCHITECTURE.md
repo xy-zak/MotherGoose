@@ -44,6 +44,7 @@ flowchart TB
       fsu["fsutil.go<br/>atomic writes · broken files kept aside"]
     end
     pg["internal/pages<br/>Markdown to HTML · the self-contained check"]
+    fw["internal/firewall<br/>does the firewall let players in? · let them in (pkexec)"]
     webfs["web (embed.FS)"]
   end
   disk[("data/")]
@@ -66,6 +67,7 @@ flowchart TB
   notify --> hub
   pages --> webfs
   pages & store --> pg
+  api & main --> fw
   store --> fsu --> disk
   adminui & shellui -- "fetch /api" --> api
   adminui & shellui -- "/ws/events" --> ws
@@ -75,7 +77,7 @@ flowchart TB
 
 The dependency rules are these:
 
-- **`cmd` → `server` → `store`, and both → `pages`. Nothing goes the other way.** `internal/pages` works on bytes in memory only (Markdown in, HTML and reports out): no files, no HTTP, nothing of MotherGoose's own. The store imports neither `net/http` nor WebSockets. The server never opens a file in the data folder itself: it has no `os.Open`, `os.ReadDir` or `filepath` of its own, and asks the store instead. The only file it reads directly is from the embedded `web.FS`.
+- **`cmd` → `server` → `store`, and both → `pages`; `cmd` and `server` → `firewall`. Nothing goes the other way.** `internal/firewall` reads the firewall's settings (ufw's files, firewalld's `firewall-cmd`) and changes them only through `pkexec`, which asks the referee for their password; every value in that command comes from the check, never from a request. `internal/pages` works on bytes in memory only (Markdown in, HTML and reports out): no files, no HTTP, nothing of MotherGoose's own. The store imports neither `net/http` nor WebSockets. The server never opens a file in the data folder itself: it has no `os.Open`, `os.ReadDir` or `filepath` of its own, and asks the store instead. The only file it reads directly is from the embedded `web.FS`.
 - **The store tells the server about saved entries through one callback** (`OnEntriesSaved`), registered at startup. The callback must return at once and never call back into the store.
 - **The browser code depends on the server only through HTTP and the two WebSockets.** It has no shared code with Go, so the wire format in NETWORK.md is the contract.
 

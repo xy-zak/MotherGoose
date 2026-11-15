@@ -643,7 +643,7 @@ textarea.mg-input { height: auto; min-height: 84px; padding: 6px 8px; line-heigh
 .mg-about-box { display: grid; gap: 10px; }
 .mg-about-box p { margin: 0; }
 .mg-about-name { color: var(--accent); font-size: var(--fs-title); font-weight: 800; letter-spacing: .08em; }
-.mg-head .where { font-size: var(--fs-small); font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
+.mg-head .where { font-size: var(--fs-body); font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }   /* the same size and spacing as the campaign beside it */
 .mg-head .where #meName { text-transform: none; letter-spacing: normal; font-size: var(--fs-body); font-weight: 400; }
 .mg-head .session { flex: 0 1 auto; min-width: 0; gap: 8px; color: var(--text); font-weight: 700; text-decoration: none; }
 .mg-head .session .label { overflow: hidden; text-overflow: ellipsis; }

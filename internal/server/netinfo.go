@@ -59,13 +59,19 @@ func isHostRequest(r *http.Request) bool {
 	return false
 }
 
-// LANURLs lists http URLs players can use, best guess first.
-func LANURLs(port int) []string {
-	type cand struct {
-		ip    string
-		score int
-	}
-	var cands []cand
+// lanCand is one of this computer's addresses that players might use.
+type lanCand struct {
+	ip    string
+	net   *net.IPNet
+	iface string
+	score int
+}
+
+// lanCands lists this computer's IPv4 addresses on its networks, the likeliest
+// home or office network first (192.168.x, then 10.x, then 172.16-31.x), and
+// virtual ones (Docker, VPNs) last.
+func lanCands() []lanCand {
+	var cands []lanCand
 	ifaces, _ := net.Interfaces()
 	for _, ifc := range ifaces {
 		if ifc.Flags&net.FlagUp == 0 || ifc.Flags&net.FlagLoopback != 0 {
@@ -100,13 +106,29 @@ func LANURLs(port int) []string {
 			if virtual {
 				score -= 50
 			}
-			cands = append(cands, cand{ip4.String(), score})
+			cands = append(cands, lanCand{ip4.String(), &net.IPNet{IP: ip4.Mask(n.Mask), Mask: n.Mask}, ifc.Name, score})
 		}
 	}
 	sort.SliceStable(cands, func(i, j int) bool { return cands[i].score > cands[j].score })
+	return cands
+}
+
+// LocalNetwork is the network players' devices are most likely on (the
+// first of the join addresses), and its interface; nil when there's none.
+func LocalNetwork() (*net.IPNet, string) {
+	for _, c := range lanCands() {
+		if c.score > 0 {
+			return c.net, c.iface
+		}
+	}
+	return nil, ""
+}
+
+// LANURLs lists http URLs players can use, best guess first.
+func LANURLs(port int) []string {
 	urls := []string{}
 	seen := map[string]bool{}
-	for _, c := range cands {
+	for _, c := range lanCands() {
 		if !seen[c.ip] {
 			seen[c.ip] = true
 			urls = append(urls, "http://"+c.ip+":"+strconv.Itoa(port)+"/")
