@@ -244,31 +244,27 @@ export async function goLive(id, screens) {
   if (noParty) notice({ text: 'There are per-player pages but no party: add players so each gets their own copy.', icon: 'warning', ms: 10000 });
 }
 
-let ending = null;   // cancels an "end session" still waiting
+let ending = false;   // an "end session" on its way to the server
 
 /**
- * endSession ends the live session after a 5 s notice with "undo": still one
- * click, but a slip of the mouse doesn't send everyone to the waiting screen.
+ * endSession ends the live session at once, so players are released
+ * straight away. The notice that follows has "undo", which starts the
+ * same campaign again.
  */
-export function endSession(screens) {
+export async function endSession(screens) {
   const s = A.sessions.find((x) => x.active);
   if (!s || ending) return;
-  let undone = false;
-  ending = notice({
-    text: 'Ending the session of', strong: s.name + '…', icon: 'end', ms: 5000,
-    action: { label: 'undo', icon: 'reset', run: () => { undone = true; ending = null; toast('The session goes on'); } },
-    onTimeout: async () => {
-      ending = null;
-      if (undone) return;
-      try {
-        await api('DELETE', '/api/admin/active');
-      } catch (e) { toast(e.message, true); return; }
+  ending = true;
+  try {
+    await api('DELETE', '/api/admin/active');
+  } catch (e) { toast(e.message, true); return; } finally { ending = false; }
+  app.refresh();
+  await bootScreen(screens.end(s));
+  notice({
+    text: 'Session ended:', strong: s.name + '. Players are back on the waiting screen.', icon: 'end', ms: 10000,
+    action: { label: 'undo', icon: 'reset', run: async () => {
+      try { await api('POST', '/api/admin/sessions/' + enc(s.id) + '/activate'); toast('The session goes on'); } catch (e) { toast(e.message, true); }
       app.refresh();
-      await bootScreen(screens.end(s));
-      toast('Session ended. Players are back on the waiting screen.');
-    }
+    } }
   });
 }
-
-/** endingSoon reports whether an "end session" is waiting for its undo to run out. */
-export const endingSoon = () => !!ending;

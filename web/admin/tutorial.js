@@ -81,7 +81,7 @@ function tourSteps() {
     { section: 'Pages', title: 'Players and referee', target: '.columns', text:
       '<p><b class="players">Players</b> pages go to every player while the session is live. <b class="referee">Referee</b> pages only open on this computer.</p>' +
       '<p>Add <b>.html</b> pages (anything typed in is saved and synced live), <b>.md</b> Markdown pages, <b>.pdf</b> files (form fields sync too) or <b>.png</b> / <b>.jpg</b> images with ' + ic('add') + ' <b>add</b> (<kbd>u</kbd>), or drop them on a column. Drag pages to reorder them, or across to change who they\'re for.</p>' +
-      '<p>' + ic('template') + ' <b>ready-made</b> adds a ready-made page instead: a character sheet, notes, a tracker, turn order, clocks, party loot or a handout.</p>' },
+      '<p>' + ic('add') + ' <b>add</b> asks what to add: a <b>template</b> (a ready-made page: a character sheet, notes, a tracker, turn order, clocks, party loot or a handout) or a <b>file</b> from this computer.</p>' },
     { section: 'Pages', title: 'Filter by tag', target: '.tagfilter', optional: true, text:
       '<p>Every tag used in the campaign. Pick one or more to show only the pages that have them all; <b>clear filter</b> shows everything again. This device remembers it.</p>' },
     { section: 'Pages', title: 'A page', target: ROW, text:
@@ -112,10 +112,9 @@ function tourSteps() {
       '<p><b>Every player</b>, or <b>only these players</b> (tick their names). Ticking nobody keeps it for you alone.</p>' +
       '<p><b>Hidden until I reveal it</b> keeps it from everyone while you prepare it; who it goes to once revealed is kept. Players are never told a page is hidden or meant for someone else.</p>' +
       '<p class="mg-muted">Choosing a name on a device is an honour system: anyone can pick any name.</p>' },
-    { section: 'Page info', title: 'More, and actions', scene: 'info', target: ['.finfo .fmore', '.mg-dialog-foot'], text:
-      '<p><b>More about this page</b> opens its type, size, last change and entries. The buttons:</p>' +
+    { section: 'Page info', title: 'More, and actions', scene: 'info', target: ['.finfo .fmore', '.finfo .fact-sec', '.mg-dialog-foot'], text:
+      '<p><b>More about this page</b> opens its type, size, last change and entries. <b>Actions</b> moves it to the other side, clears its entries, or deletes it (clearing and deleting ask first, and can be undone). At the bottom:</p>' +
       '<ul><li>' + ic('export') + ' <b>export filled</b>: a copy with every entry baked in, which works offline</li>' +
-      '<li>' + ic('more') + ' <b>more…</b>: move it to the other side, clear its entries, or delete it (clearing and deleting ask first)</li>' +
       '<li>' + ic('check') + ' <b>save</b> your changes, or <b>cancel</b></li></ul>' },
 
     { section: 'Per-player copies', title: 'Party and copies', scene: 'sheet', target: ['#fparty', '#fcopies'], text:

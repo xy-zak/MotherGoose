@@ -217,8 +217,8 @@ function copiesList(s, f) {
         '<button type="button" class="mg-btn danger small compact" data-copy-reset="' + esc(who) + '"' + (filled ? '' : ' disabled') + ' title="Clear ' + esc(who ? name + '\'s entries' : 'the starting copy\'s entries') + '">' + withIcon('reset', 'clear entries') + '</button>' +
       '</span></li>';
   const players = s.players || [];
-  return '<div><div class="mg-section-label">' + ic('player') + ' Copies</div>' +
-    '<ul class="copies">' + row('', 'starting copy', 'each new copy starts from it', f.hasState) +
+  // The section around it is already titled "Copies".
+  return '<div><ul class="copies">' + row('', 'starting copy', 'each new copy starts from it', f.hasState) +
       players.map((p) => row(p.id, p.name, '', !!(f.playerState && f.playerState[p.id]))).join('') + '</ul></div>' +
     (players.length ? '' : '<p class="mg-muted">No players in the party yet: add them under PARTY in the campaign panel.</p>');
 }
@@ -258,9 +258,9 @@ export async function fileOverlay(scope, name) {
       (scope === 'shared'
         ? '<section class="fsec"><h3 class="fsec-t">Who sees it</h3>' +
             (perOk
-              ? '<label class="pp-toggle"><input type="checkbox" name="perPlayer"' + (per ? ' checked' : '') + '>' +
+              ? '<div class="mg-choice"><label class="pp-toggle"><input type="checkbox" name="perPlayer"' + (per ? ' checked' : '') + '>' +
                   '<span><b>' + ic('player', 'deco') + ' Per player</b><span class="hint">Every player in the party fills in their own copy, seen only by them and you. ' +
-                  'What\'s in the page now becomes each player\'s starting copy. Turning it off keeps their copies for later.</span></span></label>'
+                  'What\'s in the page now becomes each player\'s starting copy. Turning it off keeps their copies for later.</span></span></label></div>'
               : '') +
             '<div id="fvis"></div>' +
           '</section>'
@@ -282,7 +282,15 @@ export async function fileOverlay(scope, name) {
       ]) +
       (hasEntries(f) ? '<p class="mg-muted">Export filled downloads a copy with ' + (per ? 'that copy\'s entries' : 'every entry') + ' baked in' +
         (f.kind === 'pdf' ? ': it opens the PDF viewer, which fills in the fields and downloads the PDF.' : '. It works offline.') + '</p>' : '') +
-    '</details>';
+    '</details>' +
+    // The rarer actions, in view rather than behind a menu. Each closes the
+    // popup; clearing and deleting ask first, and can be undone after.
+    '<section class="fsec fact-sec"><h3 class="fsec-t">Actions</h3><div class="fact">' +
+      '<button type="button" class="mg-btn" data-close="move">' + withIcon(other(scope) === 'gm' ? 'to-referee' : 'to-players', 'move to ' + SCOPE[other(scope)].label) + '</button>' +
+      (!per && f.hasState ? '<button type="button" class="mg-btn danger" data-close="reset">' + withIcon('reset', 'clear entries') + '</button>' : '') +
+      (per && filledCount(s, f) ? '<button type="button" class="mg-btn danger" data-close="clear-all">' + withIcon('reset', 'clear every copy') + '</button>' : '') +
+      '<button type="button" class="mg-btn danger" data-close="delete">' + withIcon('delete', 'delete') + '</button>' +
+    '</div></section>';
 
   const form = body.querySelector('#fform');
   const partyEl = body.querySelector('#fparty');
@@ -390,16 +398,12 @@ export async function fileOverlay(scope, name) {
   }
 
   const actions = [];
-  // The footer (R3): looking at the page on the left, rarer and dangerous
-  // actions under "more…", cancel and save on the right.
+  // The footer (R3): looking at the page on the left, cancel and save on the
+  // right. Moving, clearing and deleting are in the Actions section above.
   if (scope === 'shared' && s.active && !isHidden(f)) actions.push({ label: 'point here', value: 'show', kind: 'quiet', icon: 'point', side: 'left', title: 'Ask every player who can see it to look at it now' });
   if (!per) actions.push({ label: 'open', href: viewUrl(s.id, f, '', '', true), kind: 'quiet', icon: 'open', side: 'left', keepOpen: true });
   if (!per && hasEntries(f)) actions.push({ label: 'export filled', href: filledUrl(s.id, f), download: f.kind !== 'pdf', icon: 'export', kind: 'quiet', side: 'left', keepOpen: true });
   const to = other(scope);
-  actions.push({ label: 'move to ' + SCOPE[to].label, value: 'move', icon: to === 'gm' ? 'to-referee' : 'to-players', more: true });
-  if (!per && f.hasState) actions.push({ label: 'clear entries', value: 'reset', kind: 'danger', icon: 'reset', more: true });
-  if (per && filledCount(s, f)) actions.push({ label: 'clear every copy', value: 'clear-all', kind: 'danger', icon: 'reset', more: true });
-  actions.push({ label: 'delete', value: 'delete', kind: 'danger', icon: 'delete', more: true });
   actions.push({ label: 'cancel', value: null, kind: 'quiet', icon: 'close' });
   actions.push({ label: 'save', value: 'save', kind: 'primary', icon: 'check' });
 
@@ -432,6 +436,8 @@ export async function fileOverlay(scope, name) {
       form.addEventListener('change', (e) => { if (e.target.name === 'audience') syncVis(); });
       d.addEventListener('click', attempt(async (e) => {
         if (e.target.closest('[data-guide]')) { guideOverlay(); return; }
+        const act = e.target.closest('[data-close]');
+        if (act) { d.close(act.dataset.close); return; }
         const r = e.target.closest('[data-copy-reset]');
         // Clearing a copy happens here, and the popup stays open.
         if (r && !r.disabled) { if (await clearEntries(scope, name, r.dataset.copyReset)) await reloadSession(); return; }
@@ -508,14 +514,14 @@ async function copyText(text) {
   return ok;
 }
 
-// The ready-made gallery: pages, each with a live preview, added
+// The template gallery: ready-made pages, each with a live preview, added
 // to a column of the open campaign.
 export async function templateOverlay(scope) {
   const list = await api('GET', '/api/admin/templates');
   const body = document.createElement('div');
   body.className = 'tgallery';
-  body.innerHTML = '<p class="mg-muted">Ready-made pages that work with any game, in MotherGoose\'s look (they follow each reader\'s theme and font). Add one, then rename it and change its details under <b>info</b>.</p>' +
-    '<div class="tg-wrap"><div class="tg-list" role="listbox" aria-label="Ready-made pages">' + list.map((t, i) =>
+  body.innerHTML = '<p class="mg-muted">Templates: ready-made pages that work with any game, in MotherGoose\'s look (they follow each reader\'s theme and font). Add one, then rename it and change its details under <b>info</b>.</p>' +
+    '<div class="tg-wrap"><div class="tg-list" role="listbox" aria-label="Templates">' + list.map((t, i) =>
       '<button type="button" class="tg-item" role="option" data-i="' + i + '" aria-selected="' + (i === 0) + '">' +
         '<b>' + esc(t.title) + '</b><span class="mg-muted">' + esc(t.description) + '</span>' +
         '<span class="tg-tags">' + (t.perPlayer ? perPlayerTag() : '') + (t.hidden ? '<span class="mg-tag hidden">' + withIcon('hidden', 'starts hidden') + '</span>' : '') + '</span>' +
@@ -523,7 +529,7 @@ export async function templateOverlay(scope) {
     '<iframe class="tg-preview" title="Preview" src="/api/admin/templates/' + enc(list[0].file) + '"></iframe></div>';
   let at = 0;
   const v = await overlay({
-    title: 'Add a ready-made page', icon: 'template', size: 'xwide', body,
+    title: 'Add a template', icon: 'template', size: 'xwide', body,
     actions: [{ label: 'cancel', value: null, kind: 'quiet', icon: 'close' }, { label: 'add for the ' + SCOPE[scope].label, value: 'add', kind: 'primary', icon: 'add' }],
     onOpen: (d) => {
       const pick = (i) => {
@@ -573,9 +579,9 @@ function visibilityFields(s, f) {
           ic('player', 'deco') + '<span>' + esc(p.name) + '</span></label>').join('')
       : '<span class="mg-muted">No players in the party yet: add them under PARTY in the campaign panel.</span>') + '</div>' +
     '</fieldset>' +
-    '<label class="pp-toggle hide-toggle"><input type="checkbox" name="hidden"' + (isHidden(f) ? ' checked' : '') + '>' +
+    '<div class="mg-choice"><label class="pp-toggle hide-toggle"><input type="checkbox" name="hidden"' + (isHidden(f) ? ' checked' : '') + '>' +
       '<span><b>' + ic('hidden', 'deco') + ' Hidden until I reveal it</b><span class="hint">No player sees it, not even its name. ' +
-      'Reveal it from its row when the moment comes; it then goes to whoever is chosen above.</span></span></label>';
+      'Reveal it from its row when the moment comes; it then goes to whoever is chosen above.</span></span></label></div>';
 }
 
 // ---- the party -------------------------------------------------------------------------

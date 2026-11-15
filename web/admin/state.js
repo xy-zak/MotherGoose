@@ -18,7 +18,7 @@ export const A = {
 export const app = { refresh: async () => {}, render: () => {}, route: () => {}, joinOverlay: () => {} };
 
 export const MAX_PLAYERS = 24;
-export const livePort = () => liveTag(A.info ? String(A.info.port) : '');
+export const livePort = () => liveTag();
 export const fileCount = (s) => (s.files.shared || []).length + (s.files.gm || []).length;
 export const other = (scope) => (scope === 'gm' ? 'shared' : 'gm');
 export const fileBase = (s, scope, name) => '/api/admin/sessions/' + enc(s.id) + '/files/' + scope + '/' + enc(name);

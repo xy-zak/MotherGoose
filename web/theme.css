@@ -155,8 +155,10 @@ button.mg-seg:hover { background: var(--surface); }
 .mg-btn.quiet:hover { color: var(--text); background: var(--surface); border-color: transparent; }
 .mg-btn.danger { background: transparent; border-color: var(--danger); color: var(--danger); }
 .mg-btn.danger:hover, .mg-btn.danger.solid { background: var(--danger); color: var(--on-accent); }
-.mg-btn.end-session { background: var(--referee); border-color: var(--referee); color: var(--on-accent); }
-.mg-btn.end-session:hover { background: color-mix(in srgb, var(--referee) 85%, var(--text)); border-color: color-mix(in srgb, var(--referee) 85%, var(--text)); }
+.mg-btn.end-session { background: none; border-color: var(--referee); color: var(--referee-ink); font-weight: 700; }
+.mg-btn.end-session .mg-i { color: var(--referee-ink); }
+.mg-btn.end-session:hover, .mg-btn.end-session:focus-visible { background: var(--referee); border-color: var(--referee); color: var(--on-accent); }
+.mg-btn.end-session:hover .mg-i, .mg-btn.end-session:focus-visible .mg-i { color: var(--on-accent); }
 /* Who-it's-for buttons: moving a page to the players or the referee. */
 .mg-btn.players { background: color-mix(in srgb, var(--players) 10%, var(--bg)); border-color: var(--players); color: var(--text); }
 .mg-btn.players .mg-i { color: var(--players-ink); }
@@ -199,6 +201,7 @@ textarea.mg-input { height: auto; min-height: 84px; padding: 6px 8px; line-heigh
    option is shaded, its outline stays 1px. */
 .mg-choice { display: grid; gap: 4px; margin: 0; padding: 0; border: 0; min-width: 0; }
 .mg-choice legend { padding: 0; margin-bottom: 4px; font-size: var(--fs-small); font-weight: 700; color: var(--muted); }
+.mg-choice legend .hint { display: inline; font-weight: 400; }   /* like a field's label: "Title on tabs and lists" */
 .mg-choice label { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; padding: 6px 8px; border: 1px solid var(--line); cursor: pointer; }
 .mg-choice label:hover { background: var(--surface); }
 .mg-choice label:has(input:checked) { background: color-mix(in srgb, var(--accent) 12%, var(--bg)); border-color: var(--accent); }
@@ -215,7 +218,7 @@ textarea.mg-input { height: auto; min-height: 84px; padding: 6px 8px; line-heigh
 .mg-tag.live { color: var(--live); }
 .mg-tag.live.solid { background: var(--live-fill); border-color: var(--live-fill); color: var(--on-live); }
 
-/* "Live" always reads LIVE:<port>, filled green, in the body size. */
+/* "Live" always reads LIVE, filled green, in the body size. */
 .mg-live, .mg-bar .mg-seg.is-live, .mg-bar .mg-btn.is-live {
   background: var(--live-fill); color: var(--on-live);
   font-size: var(--fs-body); font-weight: 700; letter-spacing: .02em;
@@ -369,7 +372,7 @@ textarea.mg-input { height: auto; min-height: 84px; padding: 6px 8px; line-heigh
 .mg-ui.referee { background: color-mix(in srgb, var(--referee) 12%, var(--bg)); border-color: var(--referee); }
 .mg-ui.referee .mg-i { color: var(--referee-ink); }
 .mg-ui.warn { background: transparent; border-color: var(--warn); color: var(--warn-ink); }
-.mg-ui.end-session { background: var(--referee); border-color: var(--referee); color: var(--on-accent); }
+.mg-ui.end-session { background: none; border-color: var(--referee); color: var(--referee-ink); }
 .mg-ui.danger { background: transparent; border-color: var(--danger); color: var(--danger); }
 
 /* ---- right-click menus (e.g. on the player dashboard's tabs) ----------------- */
@@ -623,10 +626,29 @@ textarea.mg-input { height: auto; min-height: 84px; padding: 6px 8px; line-heigh
 
 /* ---- page headers -------------------------------------------------------------
  * The top bar of both dashboards is taller than other bars, so its buttons are
- * the same framed 26px buttons as everywhere else. Information (brand, which
- * dashboard, the session) stays as full-height segments divided by lines.
+ * the same framed buttons as everywhere else. The left side is the same in
+ * both: the brand; where you are, as an uppercase label in the audience's
+ * colour (like panel titles and the tab groups); the live campaign, its name
+ * and then its game as everywhere else; and LIVE, filled green, the size of
+ * a button. fitBar() (ui.js) adds fit-1…3 when the bar runs out of room.
  */
 .mg-bar.mg-head { height: var(--head-h); }
+.mg-brand .b-short { display: none; }
+.mg-head .where { font-size: var(--fs-small); font-weight: 700; text-transform: uppercase; letter-spacing: .08em; }
+.mg-head .where #meName { text-transform: none; letter-spacing: normal; font-size: var(--fs-body); font-weight: 400; }
+.mg-head .session { flex: 0 1 auto; min-width: 0; gap: 8px; color: var(--text); font-weight: 700; text-decoration: none; }
+.mg-head .session .label { overflow: hidden; text-overflow: ellipsis; }
+.mg-head .session .mg-game { font-weight: 500; }
+.mg-head .session:hover { background: var(--surface); }
+.mg-head .mg-live, .mg-head > .mg-btn.is-live { flex: none; align-self: center; height: var(--btn-h); padding: 0 10px; margin: 0 8px; border: 1px solid var(--live-fill); }
+.mg-head.fit-measure .session { flex-shrink: 0; }
+.mg-head.fit-1 .mg-actions .mg-btn .mg-i ~ .lbl, .mg-head.fit-1 > .mg-btn .mg-i ~ .lbl {
+  position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
+}
+:root[data-labels="text"] .mg-head.fit-1 .lbl { position: static; width: auto; height: auto; clip-path: none; }
+.mg-head.fit-2 .where .wl, .mg-head.fit-2 .session .mg-game { display: none; }
+.mg-head.fit-3 .mg-brand .b-full { display: none; }
+.mg-head.fit-3 .mg-brand .b-short { display: inline; }
 .mg-head .mg-actions { display: inline-flex; align-items: center; gap: 6px; padding: 0 8px; border-left: 1px solid var(--line); }
 .mg-head .mg-actions > *, .mg-head .mg-btn, .mg-head .mg-btn.quiet {
   align-self: center; height: var(--btn-h); padding: 0 10px; margin: 0;

@@ -2,7 +2,7 @@
 
 A small server for running tabletop RPG sessions over your local network. It runs on the referee's computer (the game master, GM or DM).
 
-A **campaign** is a folder of pages, such as character sheets, a player handout, the referee's notes, a rulebook PDF or a map. You make these anywhere you like, or start from MotherGoose's ready-made pages, then drop them in. Each campaign has a **game type**, the game or rules being played, written in your own words and shown next to its name so you can tell your campaigns apart. A **session** is one evening of play: from **go live** to **end session**.
+A **campaign** is a folder of pages, such as character sheets, a player handout, the referee's notes, a rulebook PDF or a map. You make these anywhere you like, or start from MotherGoose's templates, then drop them in. Each campaign has a **game type**, the game or rules being played, written in your own words and shown next to its name so you can tell your campaigns apart. A **session** is one evening of play: from **go live** to **end session**.
 
 | Page type | Files | What players get |
 |---|---|---|
@@ -73,9 +73,9 @@ mothergoose --no-browser       # don't open the dashboard on start
 ## Running a session
 
 1. In the dashboard (`/admin`), create a campaign. Give it a name and, optionally, a game type.
-2. Drag `.html`, `.md`, `.pdf`, `.png` or `.jpg` files into **Players** or **Referee**, or use **+ add**, or **ready-made** for a built-in page. Drag a page up or down to reorder it (players' tabs follow the same order), or onto the other panel to change which side it's on. Uploads show their progress on the column, and say when a page of the same name was replaced (its entries and details are kept).
+2. Drag `.html`, `.md`, `.pdf`, `.png` or `.jpg` files into **Players** or **Referee**, or use **+ add**, which offers a **template** (a ready-made page) or a **file** from your computer. Drag a page up or down to reorder it (players' tabs follow the same order), or onto the other panel to change which side it's on. Uploads show their progress on the column, and say when a page of the same name was replaced (its entries and details are kept).
 3. Click **▶ go live** to start a session. Only one campaign is live at a time, and players see its shared pages as tabs. A short boot screen plays on the referee's and the players' screens, then a notice offers **join info**. If another campaign is live, the button reads **switch live here** and asks first.
-4. Click **■ end session** when you're done. You get five seconds to **undo** it; then players see a shutdown screen and return to a waiting screen, and every entry is kept for next time.
+4. Click **■ end session** when you're done. Players see a shutdown screen at once and return to a waiting screen, and every entry is kept for next time. The notice that follows has **undo**, which starts it again.
 
 With no campaign open, the dashboard shows **Getting started**: everything the app does, one line each, with buttons for both tutorials and the guide to making pages.
 
@@ -90,7 +90,7 @@ Above the columns, the campaign's tags filter the pages (pick one or more; this 
 - **Copies** (per-player pages): the party, to add or remove players straight away, and each copy with when it last changed.
 - **More about this page**: what MotherGoose found when it checked the page (files it can't load, things it loads from the internet, fields without a name), its type, size and entries.
 
-**save** applies everything together; closing with unsaved changes asks first. The footer also has **open**, **export filled** (a copy with every entry filled in: an HTML copy works offline, a PDF copy is a normal filled-in PDF) and, under **more…**, move, clear entries and delete.
+**save** applies everything together; closing with unsaved changes asks first. The footer also has **open** and **export filled** (a copy with every entry filled in: an HTML copy works offline, a PDF copy is a normal filled-in PDF). An **Actions** section at the end of the popup has move, clear entries and delete.
 
 Deleting or clearing always asks first, and nothing is gone at once: deleted pages and campaigns, cleared entries and removed players go to the trash for 30 days. The notice that follows has **undo**, and **data folder** lists the trash, with **put back** and **empty the trash**.
 
@@ -98,11 +98,11 @@ A campaign's **more** menu has **export all**, a .zip of every page filled in (e
 
 **edit** on a campaign changes its name or game type. On the host computer, the player view (`/`) also shows the referee pages, in their own orange group of tabs. On every other device they are hidden and refused.
 
-### Ready-made pages
+### Templates
 
-**ready-made** at the top of each column adds a built-in page, with a live preview (↑ ↓ to choose, Enter to add). They work with any game, look like MotherGoose, and follow each reader's theme and font:
+**+ add**, then **template**, adds a ready-made page, with a live preview (↑ ↓ to choose, Enter to add). They work with any game, look like MotherGoose, and follow each reader's theme and font:
 
-| Page | What it is |
+| Template | What it is |
 |---|---|
 | Character sheet | Name, concept, six stats you rename, resources with − and +, abilities, inventory, notes. Added **per player**. |
 | Notes | Rich-text notes with headings, lists and quotes. |
@@ -112,7 +112,7 @@ A campaign's **more** menu has **export all**, a .zip of every page filled in (e
 | Party loot | The party's money and shared items: who carries what. |
 | Handout | A letter on paper, added **hidden**: write it, lock it, then reveal it. Only the referee can unlock it. |
 
-Once added, a ready-made page is an ordinary page: rename it, give it a title, change its details, or edit the file. Adding one twice titles the second "Notes 2".
+Once added, a template is an ordinary page: rename it, give it a title, change its details, or edit the file. Adding one twice titles the second "Notes 2".
 
 ### Who sees a players' page
 
@@ -133,9 +133,8 @@ The top of the player view has two slim rows:
 
 - **Info bar:** campaign name, connection status (**waiting**, **connected**, or **offline**: changes are kept and sent when back), theme. Tap the campaign name or the status for details.
 - **Tab bar:** one tab per page, numbered, with PDF and image pages marked by an icon. The open tab is tinted blue for players' pages and orange for the referee's. **pages** lists every page with a search box: the quickest way to find one on a tablet.
-  - **Drag tabs** to put them in your own order. It's kept on that device only; **reset tab order** goes back to the referee's.
-  - **Right-click a tab** (or hold it on a touch screen) to **shrink** it, move it left or right, or reset the order.
-  - When the tabs don't all fit, the ones at the end shrink by themselves so the row never needs scrolling. The open tab stays full size.
+  - **Drag tabs** (on a touch screen, hold one first) to put them in your own order. It's kept on that device only.
+  - When the tabs don't all fit, the others shrink by themselves; the open tab always stays full size.
   - A **dot** marks a page this device hasn't opened yet, a **ring** one that changed since it was last opened.
   - **filter** (or `t`) shows only the tabs with the tags you pick, on this device.
   - A **!** marks a tab whose page is reconnecting on its own; what's typed there is kept.
@@ -171,7 +170,7 @@ The UI is a terminal-style layout in the [Catppuccin](https://catppuccin.com) pa
 - **Buttons show:** icons and text, icons only (names appear on hover and are read out by screen readers), or text only.
 - **Animations:** retro CRT effects (popups switch on like an old monitor, switching between the player view and the referee's dashboard changes channel, and sessions boot up and shut down), **Reduced** (quick fades) or **Off**. **Auto**, the default, uses Reduced when the device asks for less motion.
 
-These change MotherGoose itself, Markdown pages, the ready-made pages, and any page that asks to follow them (see *Looking like MotherGoose*). Other pages keep their own fonts and colours.
+These change MotherGoose itself, Markdown pages, the templates, and any page that asks to follow them (see *Looking like MotherGoose*). Other pages keep their own fonts and colours.
 
 ---
 
@@ -238,7 +237,7 @@ When two people edit the same field at the same moment, the last change wins. If
 
 ### Looking like MotherGoose
 
-Add `<meta name="mothergoose" content="theme">` to a page's `<head>` and it follows each reader's MotherGoose colour theme and font. MotherGoose adds its design tokens as CSS custom properties (`--bg`, `--surface`, `--line`, `--text`, `--muted`, `--accent`, `--font`, `--fs-body` and more; the guide lists them), kept in step with Display settings. Use them with fallbacks, so the page still looks right on its own, for example as an exported copy. The ready-made pages are written this way.
+Add `<meta name="mothergoose" content="theme">` to a page's `<head>` and it follows each reader's MotherGoose colour theme and font. MotherGoose adds its design tokens as CSS custom properties (`--bg`, `--surface`, `--line`, `--text`, `--muted`, `--accent`, `--font`, `--fs-body` and more; the guide lists them), kept in step with Display settings. Use them with fallbacks, so the page still looks right on its own, for example as an exported copy. The templates are written this way.
 
 ---
 
@@ -286,7 +285,7 @@ web/                 embedded UI, no build step:
   icons.svg            Iconoir icon sprite (rebuild with scripts/icons.py)
   sync.js              the live-sync connection, shared by HTML pages and the PDF viewer
   inject.js            the save-and-sync script added to HTML pages (served together with sync.js)
-  templates/           the ready-made pages, and templates.json (their names and details)
+  templates/           the templates, and templates.json (their names and details)
   guide/SKILL.md       the guide to making pages, which is also an AI skill
   vendor/              PDF.js (library, viewer component, scripting sandbox), bundled
 ```

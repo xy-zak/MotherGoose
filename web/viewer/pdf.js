@@ -20,7 +20,7 @@
 // - src must be a file served by this MotherGoose (/s/…), never another site.
 // - Values from other devices only ever set a field's value or selection.
 import * as pdfjsLib from '/_mg/vendor/pdfjs-4.10.38/pdf.min.mjs';
-import { $, isTyping, popMenu, serverPort } from '/_mg/ui.js';
+import { $, isTyping, popMenu } from '/_mg/ui.js';
 
 const LIB = '/_mg/vendor/pdfjs-4.10.38/';
 // pdf_viewer.mjs reads the core library from this global, so it must be set
@@ -567,7 +567,7 @@ function setStatus(s) {
   el.hidden = false;
   if (s === 'live') {
     el.className = 'vsync mg-live';
-    el.textContent = 'LIVE:' + serverPort();
+    el.textContent = 'LIVE';
     el.title = 'Saved and synced live';
   } else {
     el.className = 'vsync mg-state ' + (s === 'connecting' ? 'warn' : 'err');

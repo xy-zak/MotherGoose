@@ -6,25 +6,27 @@
 // (kept by a cookie the server sets) and sees their own copy. The referee
 // sees the starting copy or any player's copy, chosen in a strip above the page.
 //
-// Tabs can be dragged into this device's own order, and shrunk (right-click,
-// or hold on a touch screen). When they don't all fit, the ones at the end
-// shrink by themselves, so the row never has to scroll.
+// Tabs can be dragged into this device's own order. When they don't all fit,
+// the ones at the end shrink by themselves; the open tab keeps its full size.
 //
 // This module loads the live campaign and draws the page, opens tabs and handles
 // the keyboard and full screen. state.js holds what's loaded; tabs.js, who.js
 // and tutorial.js are the rest.
 import {
-  $, agoText, allTags, api, enc, isPage, attempt, audienceText, chips, esc, gameTag, ic, isHidden, isOnly,
+  $, agoText, allTags, api, enc, isPage, attempt, audienceText, chips, esc, fitBar, gameTag, ic, isHidden, isOnly,
   keysList, KIND_NAME, kv, listenEvents, liveTag, notice, overlay, PER_PLAYER_HINT, perPlayerTag,
-  playerName, popMenu, SCOPE, scopeTag, serverPort, shortcutAllowed, SHORTCUTS_NOTE, size, titleOf,
+  playerName, popMenu, SCOPE, scopeTag, shortcutAllowed, SHORTCUTS_NOTE, size, titleOf,
   viewUrl, when, withIcon
 } from '/_mg/ui.js';
 import { tourRunning } from '/_mg/tour.js';
 import { bootScreen, switchLinks } from '/_mg/fx.js';
 import { activeFile, app, fileKey, frameKey, meName, previewing, S, whoNow } from './state.js';
-import { arrange, drawFilterBtn, filterOverlay, fitTabs, tabPrefs, redrawWhenFree, visibleFiles } from './tabs.js';
+import { arrange, drawFilterBtn, filterOverlay, fitTabs, redrawWhenFree, visibleFiles } from './tabs.js';
 import { renderWho, renderPick, renderAsk, pickName } from './who.js';
 import { markSeen, primeSeen, seenState } from './seen.js';
+
+// The top bar stays on one line: button words, then labels, give way (ui.js).
+const fitHead = fitBar($('info'));
 import { announce, dismissNotice, onServerMessage } from './notices.js';
 import { tutorial } from './tutorial.js';
 import { isJumpKey, quickJump } from '/_mg/jump.js';
@@ -184,7 +186,9 @@ function render() {
   $('stage').hidden = !has;
   $('empty').hidden = has;
   $('sessionName').textContent = S.session ? S.session.name : 'nothing live';
+  $('sessionName').classList.toggle('mg-muted', !S.session);
   $('sessionGame').innerHTML = S.session ? gameTag(S.session.gameType) : '';
+  fitHead();
   document.title = S.session ? S.session.name + ' · MotherGoose' : 'MotherGoose';
 
   if (!S.session) {
@@ -206,7 +210,6 @@ function render() {
   // When both audiences are present (the referee on the host), each group of
   // tabs starts with a label in its colour.
   const grouped = S.files.some((f) => f.scope === 'gm');
-  const small = new Set(tabPrefs().small);
   let lastScope = null;
   visibleFiles().forEach((f, i) => {
     if (grouped && lastScope !== f.scope) {
@@ -219,13 +222,13 @@ function render() {
     lastScope = f.scope;
     const b = document.createElement('button');
     b.type = 'button';
-    b.className = 'tab ' + SCOPE[f.scope].cls + (small.has(fileKey(f)) ? ' small' : '');
+    b.className = 'tab ' + SCOPE[f.scope].cls;
     b.setAttribute('role', 'tab');
     b.dataset.key = fileKey(f);
     b.dataset.scope = f.scope;
     b.title = titleOf(f) + (f.description ? ': ' + f.description : '') + '  (' + SCOPE[f.scope].label + (i < 9 ? ', key ' + (i + 1) : '') + ')' +
       (f.perPlayer ? '\n' + PER_PLAYER_HINT + (S.isHost ? '. Pick whose copy above the page.' : '.') : '') +
-      '\nDrag to reorder. Right-click (or hold) to shrink it.';
+      '\nDrag to reorder.';
     const look = S.look.has(fileKey(f));
     const mark = look ? 'look' : S.isHost ? '' : seenState(f);
     if (mark) b.title += '\n' + (mark === 'look' ? 'The referee asked you to look at this.' : mark === 'new' ? 'New: you haven\'t opened it yet.' : 'Updated since you last opened it.');
@@ -373,7 +376,7 @@ function step(delta) {
 // ---- connection state ----------------------------------------------------------
 
 // What the connection button says. Players see words (the port means
-// nothing to them); the referee sees LIVE:<port>. Before anything is live
+// nothing to them); the referee sees LIVE. Before anything is live
 // it reads "waiting", not a green LIVE.
 const STATUS_TEXT = { live: 'connected', static: 'connected', waiting: 'waiting', connecting: 'connecting', offline: 'offline', closed: 'closed', down: 'offline' };
 const STATUS_HINT = {
@@ -431,13 +434,14 @@ function drawSync(st) {
   btn.classList.toggle('mg-state', !ok);
   btn.classList.toggle('err', st === 'down' || st === 'closed');
   btn.classList.toggle('warn', st === 'connecting' || st === 'offline');
-  $('syncLabel').textContent = ok && S.isHost ? 'LIVE:' + serverPort() : STATUS_TEXT[st] || st;
+  $('syncLabel').textContent = ok && S.isHost ? 'LIVE' : STATUS_TEXT[st] || st;
   btn.title = (STATUS_HINT[st] || st) + ' (i for details)';
   const fs = $('fullStatus');
   fs.className = 'full-status ' + (ok ? 'ok' : st === 'down' || st === 'closed' ? 'err' : 'warn');
   fs.textContent = ok ? '● connected' : '● ' + (STATUS_TEXT[st] || st);
   fs.hidden = !document.body.classList.contains('mg-full');
   announceConnection(st);
+  fitHead();
 }
 
 // Screen readers hear when the connection drops and comes back, not every flicker.
@@ -505,7 +509,7 @@ async function helpOverlay() {
   ];
   const mouse = [
     ['drag a tab', 'put the tabs in your own order (on this device)'],
-    ['right-click a tab', 'shrink it, move it, or reset the order. On a touch screen, hold the tab']
+    ['many tabs', 'the ones you\'re not on shrink to fit; the open one stays full size']
   ];
   // On a tablet the touch gestures come first; keyboard shortcuts follow,
   // for when a keyboard is attached.
@@ -513,7 +517,7 @@ async function helpOverlay() {
   const gestures = [
     [ic('pages') + ' pages', 'every page in a list, with search: the quickest way to find one'],
     ['tap the status', 'connection and page details'],
-    ['hold a tab', 'shrink it, move it, or reset the order'],
+    ['hold a tab, then drag', 'put the tabs in your own order (on this device)'],
     ['pinch', 'zoom a PDF or a picture; double-tap to zoom in a step'],
     ['tap a checklist line', 'tick its box (Markdown pages)']
   ];

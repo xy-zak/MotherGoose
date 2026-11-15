@@ -13,8 +13,10 @@
 </head>
 <body>
   <header class="mg-bar mg-head top">
-    <a class="mg-brand" href="#/" title="MotherGoose">MOTHERGOOSE</a>
-    <span class="mg-seg where referee hide-sm"><svg class="mg-i" aria-hidden="true"><use href="/_mg/icons.svg#referee"></use></svg><span>referee's dashboard</span></span>
+    <a class="mg-brand" href="#/" title="MotherGoose" aria-label="MotherGoose"><span class="b-full">MOTHERGOOSE</span><span class="b-short" aria-hidden="true">MG</span></a>
+    <span class="mg-seg where referee hide-sm"><svg class="mg-i" aria-hidden="true"><use href="/_mg/icons.svg#referee"></use></svg><span class="wl">referee's dashboard</span></span>
+    <a class="mg-seg session" id="liveSeg" href="#/"><span class="label mg-muted" id="liveName">nothing live</span><span id="liveGame"></span></a>
+    <span class="mg-live" id="liveTag" hidden title="A session is on: players can join">LIVE</span>
     <span class="mg-seg mg-state err" id="serverState" hidden>OFFLINE</span>
     <span class="mg-grow"></span>
     <span class="mg-actions">

@@ -59,8 +59,8 @@ function tourSteps() {
       '<li>' + ic('player') + ' marks a <b class="players">per-player</b> page: you get your own copy</li>' +
       '<li>a dot means a page you haven\'t opened yet on this device; a ring, one that changed since you last opened it</li></ul>' +
       '<p>When the referee adds or reveals a page, a note says so, with a button to open it.</p>' +
-      (touch ? '<p>Drag tabs into your own order; hold one to <b>shrink</b> it. When they don\'t all fit, the last ones shrink by themselves.</p>'
-        : '<p>Hover a tab to read its description. Drag tabs into your own order; right-click one (or hold it) to <b>shrink</b> it. When they don\'t all fit, the last ones shrink by themselves.</p>')
+      (touch ? '<p>Hold a tab, then drag it, to put the tabs in your own order. When they don\'t all fit, the others shrink by themselves; the open one stays full size.</p>'
+        : '<p>Hover a tab to read its description. Drag tabs into your own order. When they don\'t all fit, the others shrink by themselves; the open one stays full size.</p>')
     : '<p>The campaign\'s pages appear here as tabs, as soon as the referee adds them. You don\'t need to reload.</p>',
     has ? '#tabs' : '.tabbar');
   if (document.querySelector('.tab-group')) {

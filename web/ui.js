@@ -69,9 +69,8 @@ export const SCOPE = {
 export const scopeTag = (scope) => '<span class="mg-tag ' + SCOPE[scope].cls + '" title="For the ' + SCOPE[scope].label + '">' + withIcon(SCOPE[scope].icon, SCOPE[scope].label) + '</span>';
 export const kindTag = (kind) => '<span class="mg-tag kind" title="' + KIND_NAME[kind] + '">' + withIcon('kind-' + kind, KIND_LABEL[kind]) + '</span>';
 export const gameTag = (gameType) => gameType ? '<span class="mg-game" title="Game / rules"><span>' + esc(gameType) + '</span></span>' : '';
-// "Live" is always shown the same way: LIVE:<port>, filled green.
-export const serverPort = () => location.port || (location.protocol === 'https:' ? '443' : '80');
-export const liveTag = (port) => '<span class="mg-live" title="The server is running and players can join">LIVE:' + esc(port || serverPort()) + '</span>';
+// "Live" is always shown the same way: the word LIVE, filled green.
+export const liveTag = () => '<span class="mg-live" title="A session is on: players can join">LIVE</span>';
 export const chips = (tags) => (tags && tags.length) ? '<span class="mg-chips">' + tags.map((t) => '<span class="mg-chip">' + esc(t) + '</span>').join('') + '</span>' : '';
 
 // ---- tags ------------------------------------------------------------------------
@@ -586,6 +585,32 @@ export const lastDialog = () => { const all = document.querySelectorAll('dialog[
 
 /** kv lays out [label, value] rows, both HTML, as a definition list. */
 export const kv = (rows) => '<dl class="mg-kv">' + rows.map((r) => '<dt>' + r[0] + '</dt><dd>' + r[1] + '</dd>').join('') + '</dl>';
+
+/**
+ * fitBar keeps a top bar on one line, whatever the width or the font: when
+ * it doesn't fit, its buttons show only their icons (fit-1), then the
+ * "where" label and the game type go (fit-2), then the brand shortens to MG
+ * and the campaign name gives way (fit-3). The campaign name never shrinks
+ * before the button words have gone. It returns a function to call when the
+ * bar's content changes.
+ */
+export function fitBar(bar) {
+  const steps = ['fit-1', 'fit-2', 'fit-3'];
+  const over = () => bar.scrollWidth > bar.clientWidth + 1;
+  const fit = () => {
+    bar.classList.remove(...steps);
+    bar.classList.add('fit-measure');   // nothing shrinks while measuring
+    for (const s of steps) { if (!over()) break; bar.classList.add(s); }
+    bar.classList.remove('fit-measure');
+  };
+  let frame = 0;
+  const later = () => { cancelAnimationFrame(frame); frame = requestAnimationFrame(fit); };
+  new ResizeObserver(later).observe(bar);
+  // Content changing (a name, a button shown or hidden) can make it fit or not.
+  new MutationObserver(later).observe(bar, { childList: true, characterData: true, subtree: true, attributes: true, attributeFilter: ['hidden'] });
+  if (document.fonts) document.fonts.ready.then(fit);
+  return fit;
+}
 
 /** keysList is kv for keyboard shortcuts: [[key, what it does], …]. */
 export const keysList = (keys) => kv(keys.map((k) => ['<kbd>' + k[0] + '</kbd>', k[1]]));

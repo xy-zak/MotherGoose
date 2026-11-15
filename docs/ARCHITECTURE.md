@@ -148,7 +148,7 @@ These are the rules the code follows. A change that breaks one should change the
 16. **Every dialog animates closed.** `prefs.js` patches `HTMLDialogElement.prototype.close` once, for every page. Code just calls `dialog.close()`. The tutorial opts a dialog out with the `mg-toured` class.
 17. **Touch scale (R1).** On a coarse pointer (tablets, phones) `tokens.css` steps the size tokens up: text 16 / 15 / 13, `--btn-h` 40, `--btn-h-small` 36, `--tab-h` 44, `--input-h` 40, `--check` 22, and inputs never below 16px (or iOS zooms in). Components use the tokens (`--btn-h`, `--tab-h`, …), never fixed heights, so the whole UI follows, and so do pages that follow the theme.
 18. **Button kinds by role (R2).** **primary** is the main action, at most one per area; **danger** is for what can't be undone; **quiet** is for toolbars and secondary actions; **go-live / end-session** start and end a session; **players / referee** say who a page is for and are never combined with primary. One action has one kind and one word in a given kind of place (toolbars quiet, dialog footers default or primary).
-19. **Dialog footers (R3).** The footer sticks to the bottom of the popup. Secondary actions (`side: 'left'` in `overlay()`) sit on the left; rarer and dangerous ones (`more: true`) go in a "more…" menu beside them; cancel and the primary action sit on the right. A popup with a form passes `canClose` so edits are never lost silently.
+19. **Dialog footers (R3).** The footer sticks to the bottom of the popup. Secondary actions (`side: 'left'` in `overlay()`) sit on the left; cancel and the primary action sit on the right. Rarer and dangerous actions are shown in the popup rather than hidden: page info has an **Actions** section (move, clear entries, delete). `more: true` can still put actions in a "more…" menu, for a footer with no room. A popup with a form passes `canClose` so edits are never lost silently.
 20. **Layers (R4).** The order is the `--z-*` ladder in `tokens.css`. Toasts and notices share one stack in the top layer (a popover, shown again on each message), so they appear above open popups; it sits bottom left, clear of the viewers' toolbar (bottom right) and search bar (top right), and under the bars on narrow screens.
 21. **Words (R5).** One word per concept; the glossary is below.
 22. **State is never colour-only (R6).** A state also has a shape, an icon or a word (dashed for hidden, a lock for "only", "new" beside the dot, the connection state in words).
@@ -163,8 +163,8 @@ The words the UI, tutorials, README and errors use. Code names (`template`, `sha
 | A folder of pages, a party and entries | **campaign** | session (in the UI) |
 | One evening, from go live to end session | **session** | |
 | An item in a column, a tab | **page** | file (except where it means the file on disk) |
-| The gallery of built-in pages | **ready-made** ("Add a ready-made page") | template |
-| A per-player page's default values | **starting copy** | template |
+| The gallery of built-in pages | **template** ("Add a template"; each is a ready-made page) | |
+| A per-player page's default values | **starting copy** | template (that word is for the gallery) |
 | Asking players to look at a page | **point here** | show |
 | Whether players get a page yet | **hide / reveal** | |
 | Clearing what was typed | **clear entries** | reset |

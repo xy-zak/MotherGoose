@@ -5,11 +5,6 @@ body { display: flex; flex-direction: column; height: 100dvh; overflow: hidden; 
 
 /* Row 1: information about the session and connection. */
 .info { padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right); }
-.info .session { font-weight: 700; max-width: 55vw; flex-shrink: 1; min-width: 0; gap: 10px; }
-/* The session's name and game type: the same font, size and weight; the game is in the muted colour. */
-.info .session .label, .info .session .mg-game { font-size: var(--fs-body); font-weight: 700; }
-.info .session .label { color: var(--text); }
-.info .session .mg-game::before { content: "·"; margin-right: 10px; }
 
 /* Row 2: navigation, on a lighter background than the info bar. */
 .tabbar {
@@ -35,13 +30,12 @@ body { display: flex; flex-direction: column; height: 100dvh; overflow: hidden; 
 /* Shrunk tabs (by hand from the tab menu, or by themselves when the row is
    full) keep their number, icon and the start of their name, less a leading
    "The / A / An", with an ellipsis. */
-.tab.small, .tab.auto-small { padding: 0 6px; gap: 4px; }
-.tab.small .t, .tab.auto-small .t { display: none; }
-.tab.small .ts, .tab.auto-small .ts { display: inline; max-width: 5ch; overflow: hidden; text-overflow: ellipsis; }
-.tab.small .per, .tab.small .aud, .tab.auto-small .per, .tab.auto-small .aud { display: none; }
+.tab.auto-small { padding: 0 6px; gap: 4px; }
+.tab.auto-small .t { display: none; }
+.tab.auto-small .ts { display: inline; max-width: 5ch; overflow: hidden; text-overflow: ellipsis; }
+.tab.auto-small .per, .tab.auto-small .aud { display: none; }
 /* When the row scrolls, its edges fade, so there's clearly more. */
 .tabs.overflowing { mask-image: linear-gradient(to right, transparent 0, #000 14px, #000 calc(100% - 22px), transparent 100%); }
-.tab.small::after { content: ""; width: 3px; height: 3px; margin-left: -1px; background: var(--muted); align-self: flex-end; margin-bottom: 6px; } /* shrunk by hand */
 .tabs.tight .tab-group .lbl { display: none; }
 .tabs.tight .tab-group { padding: 0 6px; }
 /* A tab being dragged into a new place. */
@@ -59,7 +53,7 @@ body { display: flex; flex-direction: column; height: 100dvh; overflow: hidden; 
 .tab .seen.updated::before { background: none; border: 2px solid var(--accent); box-sizing: border-box; width: 8px; height: 8px; }
 .tab .seen.look { color: var(--players-ink); }
 .tab .seen.look::before { background: var(--players); }
-.tab.small .seen, .tab.auto-small .seen { font-size: 0; gap: 0; }
+.tab.auto-small .seen { font-size: 0; gap: 0; }
 /* The referee's own view: a page hidden from players (dashed, like the
    dashboard's tag), or shown only to some (named after the title). */
 .tab .vis { color: var(--muted); }
@@ -172,19 +166,6 @@ body.mg-full .pick { height: calc(var(--tab-h) * .75); }
 body.mg-full .pick-btn { font-size: var(--fs-small); }
 
 .desc { white-space: pre-wrap; }
-
-/* The brand shortens to "MG" on phones. */
-.mg-brand .b-short { display: none; }
-
-@media (max-width: 900px) {
-  /* Tablets in portrait: the campaign's name needs the room more than the
-     words "player view", "display" and "help", which keep their icons (and
-     their names for screen readers and on hover). */
-  .info #where > span:not(#meName) { display: none; }
-  .info .mg-actions .mg-i ~ .lbl { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-  :root[data-labels="text"] .info .mg-actions .lbl { position: static; width: auto; height: auto; clip-path: none; }
-  .info .session { max-width: none; }
-}
 
 @media (max-width: 560px) {
   .mg-brand .b-full { display: none; }

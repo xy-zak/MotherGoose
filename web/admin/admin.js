@@ -9,7 +9,7 @@
 // pages.js (uploads and drag and drop) and tutorial.js.
 import {
   $, ago, agoText, allTags, api, attempt, chips, confirmDialog, enc, hasTags, savedTags, saveList, tagToggles, toggleTag,
-  esc, ftype, gameTag, ic, keysList, kindTag, listenEvents, overlay,
+  esc, fitBar, ftype, gameTag, ic, keysList, kindTag, listenEvents, overlay,
   isHidden, perPlayerTag, SCOPE, shortcutAllowed, size, term, titleOf, toast, uiBtn,
   viewUrl, visTags, withIcon
 } from '/_mg/ui.js';
@@ -66,6 +66,7 @@ async function refresh() {
     const typed = nf && { name: nf.elements.name.value, gameType: nf.elements.gameType.value };
     renderLeft();
     renderRight();
+    drawHead();
     const nf2 = document.getElementById('newForm');
     if (typed && nf2) { nf2.elements.name.value = typed.name; nf2.elements.gameType.value = typed.gameType; }
     if (srow) {
@@ -91,7 +92,7 @@ function renderLeft() {
       (s.id === A.selectedId ? ' aria-current="true"' : '') +
       ' title="' + esc(s.name) + (s.gameType ? ' (' + esc(s.gameType) + ')' : '') + ': ' + sh + ' for players, ' + gm + ' for the referee, edited ' + esc(agoText(s.lastEdited)) + '">' +
       '<span class="what"><span class="name">' + esc(s.name) + '</span>' + gameTag(s.gameType) + '</span>' +
-      '<span class="meta"><span>' + plural(sh + gm, 'page') + ' · ' + esc(ago(s.lastEdited)) + '</span>' + (s.active ? '<span class="mg-tag live">live</span>' : '') + '</span></a>';
+      '<span class="meta"><span>' + plural(sh + gm, 'page') + ' · ' + esc(ago(s.lastEdited)) + '</span>' + (s.active ? livePort() : '') + '</span></a>';
   }).join('');
 
   const cur = A.sessions.find((s) => s.id === A.selectedId);
@@ -237,9 +238,8 @@ function column(s, scope, filter) {
     '<div class="mg-panel-title"><span class="t">' + ic(sc.icon) + sc.title + '</span>' +
       '<span class="side"><span class="count"' + (shown !== files.length ? ' title="' + shown + ' of ' + files.length + ' pages match the filter"' : '') + '>' +
         (shown !== files.length ? shown + '/' : '') + files.length + '</span>' +
-      '<button class="mg-btn small quiet" data-act="template" data-scope="' + scope + '" title="Add a ready-made page for the ' + sc.label + ': character sheet, notes, tracker…">' + withIcon('template', 'ready-made') + '</button>' +
-      '<button class="mg-btn small ' + sc.cls + '" data-act="pick" data-scope="' + scope + '" title="Add pages for the ' + sc.label + (scope === 'shared' ? ' (u)' : '') + '">' + withIcon('add', 'add') + '</button></span></div>' +
-    '<div class="files">' + (files.length ? files.map((f) => fileRow(s, f, filter)).join('') : '<p class="none">No pages yet: drop files here, or add a ready-made page.</p>') +
+      '<button class="mg-btn small ' + sc.cls + '" data-act="pick" data-scope="' + scope + '" title="Add a template or a file for the ' + sc.label + (scope === 'shared' ? ' (u)' : '') + '">' + withIcon('add', 'add') + '</button></span></div>' +
+    '<div class="files">' + (files.length ? files.map((f) => fileRow(s, f, filter)).join('') : '<p class="none">No pages yet: use add for a template or a file, or drop files here.</p>') +
       (files.length && !shown ? '<p class="none filtered">No pages here have ' + (filter.length > 1 ? 'all those tags' : 'that tag') + '.</p>' : '') + '</div>' +
     '<div class="drop">' + ic('upload') + ' drop <b>.html .md .pdf .png .jpg</b> here' + (scope === 'gm' ? ': only this computer sees them' : ': every player sees them') +
       (files.length ? '<br><span class="mg-muted">drag pages to reorder them, or onto the other column</span>' : '') + '</div>' +
@@ -292,7 +292,7 @@ function renderRight() {
         '<span class="mg-grow"></span>' +
         // Going live and ending share a place: the one that applies shows.
         (s.active
-          ? '<button class="mg-btn end-session" data-act="deactivate" title="End the session: players go back to a waiting screen (you get a moment to undo)">' + withIcon('end', 'end session') + '</button>'
+          ? '<button class="mg-btn end-session" data-act="deactivate" title="End the session: players go back to a waiting screen (undo starts it again)">' + withIcon('end', 'end session') + '</button>'
           : A.sessions.some((x) => x.active)
             ? '<button class="mg-btn go-live" data-act="activate" data-id="' + esc(s.id) + '" title="Another campaign is live: end its session and start this one">' + withIcon('live', 'switch live here') + '</button>'
             : '<button class="mg-btn go-live" data-act="activate" data-id="' + esc(s.id) + '" title="Start a session: put this campaign on every player\'s screen">' + withIcon('live', 'go live') + '</button>') +
@@ -371,14 +371,10 @@ document.addEventListener('click', attempt(async (e) => {
       trashed('Deleted the campaign', s.name, [r && r.trash]);
       location.hash = '#/';
     }
-  } else if (act === 'template') {
-    await templateOverlay(btn.dataset.scope);
   } else if (act === 'guide') {
     await guideOverlay();
   } else if (act === 'pick') {
-    A.pickScope = btn.dataset.scope;
-    picker.value = '';
-    picker.click();
+    await addChooser(btn.dataset.scope);
   } else if (act === 'file-info') {
     await fileOverlay(row.dataset.scope, row.dataset.name);
   } else if (act === 'toggle-list') {
@@ -404,6 +400,32 @@ document.addEventListener('click', attempt(async (e) => {
 }));
 
 picker.addEventListener('change', attempt(() => upload(A.pickScope, picker.files)));
+
+// "add" asks what to add: a template (a ready-made page) or files from this
+// computer. The file picker opens from the click itself, as browsers require.
+async function addChooser(scope) {
+  let chose = null;
+  const opt = (id, icon, name, hint) => '<button type="button" class="mg-opt add-opt" data-add="' + id + '">' + ic(icon) +
+    '<span class="txt"><span class="name">' + name + '</span><span class="hint">' + hint + '</span></span></button>';
+  await overlay({
+    title: 'Add a page for the ' + SCOPE[scope].label, icon: 'add',
+    body: '<div class="mg-opts add-choice">' +
+      opt('template', 'template', 'template', 'a ready-made page: character sheet, notes, tracker, turn order, clocks, party loot or a handout') +
+      opt('file', 'upload', 'file', 'from this computer: .html, .md, .pdf, .png or .jpg. You can also drop files on the column.') + '</div>',
+    actions: [{ label: 'cancel', value: null, kind: 'quiet', icon: 'close' }],
+    onOpen: (d) => {
+      d.querySelector('[data-add]').focus();
+      d.addEventListener('click', (e) => {
+        const o = e.target.closest('[data-add]');
+        if (!o) return;
+        chose = o.dataset.add;
+        if (chose === 'file') { A.pickScope = scope; picker.value = ''; picker.click(); }
+        d.close();
+      });
+    }
+  });
+  if (chose === 'template') await templateOverlay(scope);
+}
 
 // What the boot and shutdown screens say (fx.js types them out).
 function startScreen(s, was) {
@@ -470,7 +492,7 @@ document.addEventListener('keydown', attempt(async (e) => {
   else if (k === 'j') joinOverlay();
   else if (k === '?') { await helpOverlay(); return; }
   else if (k === 'e' && A.current) { e.preventDefault(); await editSession(); return; }
-  else if (k === 'u' && A.current) { A.pickScope = 'shared'; picker.value = ''; picker.click(); }
+  else if (k === 'u' && A.current) addChooser('shared');
   else if (k === 'p' && A.current) { const i = document.querySelector('#addPlayer input'); if (i && !i.disabled) i.focus(); }
   else if (k === 'ArrowDown' || k === 'ArrowUp') {
     const rows = Array.from(left.querySelectorAll('.srow'));
@@ -493,7 +515,22 @@ function setServer(up) {
 }
 
 app.refresh = refresh;
-app.render = () => { renderLeft(); renderRight(); };
+app.render = () => { renderLeft(); renderRight(); drawHead(); };
+
+// The header's live campaign: the same place and look as in the player view.
+let fitHead = null;
+function drawHead() {
+  if (!fitHead) fitHead = fitBar(document.querySelector('header.mg-head'));
+  const live = A.sessions.find((s) => s.active);
+  const seg = $('liveSeg');
+  seg.href = live ? '#/s/' + enc(live.id) : '#/';
+  seg.title = live ? 'The live campaign: ' + live.name + ' (open it)' : 'No campaign is live';
+  $('liveName').textContent = live ? live.name : 'nothing live';
+  $('liveName').classList.toggle('mg-muted', !live);
+  $('liveGame').innerHTML = live && live.gameType ? gameTag(live.gameType) : '';
+  $('liveTag').hidden = !live;
+  fitHead();
+}
 app.route = route;
 enablePageDrag(right);
 
