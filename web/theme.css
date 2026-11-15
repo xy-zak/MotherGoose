@@ -231,17 +231,15 @@ textarea.mg-input { height: auto; min-height: 84px; padding: 6px 8px; line-heigh
 .mg-tag .mg-i { width: 11px; height: 11px; stroke-width: 2; }
 .mg-tag .extra { font-weight: 500; letter-spacing: 0; color: var(--text); }
 /* The game or rules a session is for, shown next to its name. */
-/* A campaign's name and game type (campaignTitle in ui.js): NAME [ GAME ],
-   both in the accent at the title size, the name bold. When they don't fit
-   on one line, the game type goes onto a line of its own. */
+/* A campaign's name and game type (campaignTitle in ui.js): NAME GAME, both
+   in the accent at the body size like other UI text, the name bold. When
+   they don't fit on one line, the game type goes onto a line of its own. */
 .mg-camp {
   display: inline-flex; flex-wrap: wrap; align-items: baseline; column-gap: .6em; min-width: 0; max-width: 100%;
-  color: var(--accent); font-size: var(--fs-title); line-height: 1.25; text-transform: uppercase; letter-spacing: .04em;
+  color: var(--accent); font-size: var(--fs-body); line-height: 1.25; text-transform: uppercase; letter-spacing: .04em;
 }
 .mg-camp .cn { font-weight: 700; min-width: 0; overflow-wrap: anywhere; }
 .mg-camp .cg { font-weight: 400; white-space: nowrap; }
-.mg-camp .cg::before { content: "[ "; }
-.mg-camp .cg::after { content: " ]"; }
 .mg-game { display: inline-flex; align-items: center; gap: 5px; color: var(--muted); font-size: var(--fs-small); font-weight: 500; white-space: nowrap; }
 /* Free-form page tags, written by the referee. */
 .mg-chips { display: inline-flex; flex-wrap: wrap; gap: 4px; }
@@ -634,7 +632,7 @@ textarea.mg-input { height: auto; min-height: 84px; padding: 6px 8px; line-heigh
  * the same framed buttons as everywhere else. The left side is the same in
  * both: the purple "about" button (what MotherGoose is, and who made it); where you are, as an uppercase label in the audience's
  * colour (like panel titles and the tab groups); the live campaign, as
- * NAME [ GAME ] like everywhere else; and LIVE, filled green, the size of
+ * NAME GAME like everywhere else; and LIVE, filled green, the size of
  * a button. fitBar() (ui.js) adds fit-1…3 when the bar runs out of room.
  */
 .mg-bar.mg-head { height: var(--head-h); }

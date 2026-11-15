@@ -70,9 +70,9 @@ export const scopeTag = (scope) => '<span class="mg-tag ' + SCOPE[scope].cls + '
 export const kindTag = (kind) => '<span class="mg-tag kind" title="' + KIND_NAME[kind] + '">' + withIcon('kind-' + kind, KIND_LABEL[kind]) + '</span>';
 /**
  * campaignTitle is a campaign's name and game type, shown the one way
- * everywhere: NAME [ GAME TYPE ], in the accent colour, the game type moving
- * to its own line when there isn't room. (The brackets and capitals are CSS,
- * so the text itself stays as typed.)
+ * everywhere: NAME GAME TYPE, in the accent colour, the game type moving to
+ * its own line when there isn't room. (The capitals are CSS, so the text
+ * itself stays as typed.)
  */
 export const campaignTitle = (name, gameType) => '<span class="mg-camp"><span class="cn">' + esc(name) + '</span>' +
   (gameType ? '<span class="cg" title="Game / rules">' + esc(gameType) + '</span>' : '') + '</span>';
