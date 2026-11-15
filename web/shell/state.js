@@ -14,13 +14,20 @@ export const S = {
   pick: new Map(),     // referee only: fileKey -> whose copy is shown ('' = the template)
   frames: new Map(),   // frameKey -> iframe
   status: new Map(),   // frameKey -> sync status reported by the page or viewer
-  versions: new Map()  // frameKey -> modified time the frame was loaded with (PDFs, images)
+  versions: new Map(), // frameKey -> modified time the frame was loaded with (PDFs, images)
+  viewAs: null,        // referee only: previewing as this player ('' = no name), or null for the full view
+  look: new Set()      // pages the referee pointed at that the player put off ("later")
 };
+
+/** previewing: the referee is looking at the player view as a player's device would. */
+export const previewing = () => S.isHost && S.viewAs !== null;
+/** whoNow is the player this view acts as: the device's pick, or the one previewed. */
+export const whoNow = () => (previewing() ? S.viewAs || null : S.me);
 
 /** Set by shell.js: redraw, open a tab, reload, full screen, the details overlay. */
 export const app = {
   render: () => {}, show: () => {}, load: async () => {}, setFull: () => {}, detailsOverlay: () => {},
-  dropFrames: () => {}, reconnectEvents: () => {}
+  dropFrames: () => {}, reconnectEvents: () => {}, savePicks: () => {}
 };
 
 export const fileKey = (f) => f.scope + '/' + f.name;

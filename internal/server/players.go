@@ -230,6 +230,7 @@ func (s *Server) apiAddPlayer(w http.ResponseWriter, r *http.Request) {
 		storeError(w, err)
 		return
 	}
+	s.sendPresence()
 	s.changed()
 	writeJSON(w, http.StatusCreated, p)
 }
@@ -282,6 +283,7 @@ func (s *Server) apiRemovePlayer(w http.ResponseWriter, r *http.Request) {
 		storeError(w, err)
 		return
 	}
+	s.sendPresence()
 	s.changed()
 	w.WriteHeader(http.StatusNoContent)
 }

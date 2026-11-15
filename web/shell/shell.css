@@ -31,11 +31,16 @@ body { display: flex; flex-direction: column; height: 100dvh; overflow: hidden; 
 .tab.referee { --scope: var(--referee); }
 .tabs { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
 .tab .t { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.tab .ts { display: none; }
 /* Shrunk tabs (by hand from the tab menu, or by themselves when the row is
-   full) keep their number, icon and the start of their name. */
+   full) keep their number, icon and the start of their name, less a leading
+   "The / A / An", with an ellipsis. */
 .tab.small, .tab.auto-small { padding: 0 6px; gap: 4px; }
-.tab.small .t, .tab.auto-small .t { max-width: 3ch; text-overflow: clip; }
-.tab.small .per, .tab.auto-small .per { display: none; }
+.tab.small .t, .tab.auto-small .t { display: none; }
+.tab.small .ts, .tab.auto-small .ts { display: inline; max-width: 5ch; overflow: hidden; text-overflow: ellipsis; }
+.tab.small .per, .tab.small .aud, .tab.auto-small .per, .tab.auto-small .aud { display: none; }
+/* When the row scrolls, its edges fade, so there's clearly more. */
+.tabs.overflowing { mask-image: linear-gradient(to right, transparent 0, #000 14px, #000 calc(100% - 22px), transparent 100%); }
 .tab.small::after { content: ""; width: 3px; height: 3px; margin-left: -1px; background: var(--muted); align-self: flex-end; margin-bottom: 6px; } /* shrunk by hand */
 .tabs.tight .tab-group .lbl { display: none; }
 .tabs.tight .tab-group { padding: 0 6px; }
@@ -46,11 +51,38 @@ body { display: flex; flex-direction: column; height: 100dvh; overflow: hidden; 
   outline: 1px dashed var(--accent); outline-offset: -3px;
 }
 .tab .n { color: var(--muted); font-weight: 400; }
-/* New (never opened on this device) or updated since: a dot after the name. */
-.tab .seen { flex: none; width: 7px; height: 7px; border-radius: 50%; background: var(--accent); }
-.tab .seen.updated { background: none; border: 2px solid var(--accent); width: 8px; height: 8px; box-sizing: border-box; }
-/* The referee's own view: a page hidden from players, or shown only to some. */
+@media (pointer: coarse) { .tab .n { display: none; } }   /* number keys: no use without a keyboard */
+/* New (never opened here), updated since, or pointed at by the referee:
+   a word as well as the mark (R6), dropped on shrunk tabs. */
+.tab .seen { flex: none; display: inline-flex; align-items: center; gap: 3px; font-size: var(--fs-small); font-weight: 700; color: var(--accent); }
+.tab .seen::before { content: ""; width: 7px; height: 7px; background: var(--accent); }
+.tab .seen.updated::before { background: none; border: 2px solid var(--accent); box-sizing: border-box; width: 8px; height: 8px; }
+.tab .seen.look { color: var(--players-ink); }
+.tab .seen.look::before { background: var(--players); }
+.tab.small .seen, .tab.auto-small .seen { font-size: 0; gap: 0; }
+/* The referee's own view: a page hidden from players (dashed, like the
+   dashboard's tag), or shown only to some (named after the title). */
 .tab .vis { color: var(--muted); }
+.tab.hid { outline: 1px dashed var(--line-strong); outline-offset: -4px; }
+.tab.hid .t, .tab.hid .ts { opacity: .7; }
+.tab .aud { font-size: var(--fs-small); color: var(--players-ink); }
+/* Full screen: the connection state stays in sight, as a word. */
+.full-status { flex: none; display: none; align-items: center; padding: 0 8px; font-size: var(--fs-small); font-weight: 700; border-left: 1px solid var(--line); }
+body.mg-full .full-status:not([hidden]) { display: inline-flex; }
+.full-status.ok { color: var(--live); }
+.full-status.warn { color: var(--warn-ink); }
+.full-status.err { color: var(--danger); }
+#pagesBtn .count { font-size: var(--fs-small); color: var(--muted); }
+/* The referee previewing as a player: the button is shaded, and a strip
+   under the bars says so. */
+#viewAsBtn.on { background: color-mix(in srgb, var(--warn) 24%, var(--bg)); border-color: var(--warn); color: var(--text); }
+.preview-strip {
+  flex: none; display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 4px 10px; font-size: var(--fs-small);
+  background: color-mix(in srgb, var(--warn) 18%, var(--bg)); border-bottom: 1px solid var(--warn);
+}
+.preview-strip > .mg-i { color: var(--warn-ink); }
+.preview-strip span { flex: 1; min-width: 0; }
 /* Notices sit under the two bars (only the tab row in full screen). */
 body { --notice-top: calc(var(--head-h) + var(--tab-h) + 8px); }
 body.mg-full { --notice-top: calc(var(--tab-h) * .75 + 8px); }
@@ -106,6 +138,12 @@ body.mg-full { --notice-top: calc(var(--tab-h) * .75 + 8px); }
 .pick-btn[aria-selected="true"] { background: color-mix(in srgb, var(--players) 32%, var(--bg)); color: var(--text); font-weight: 700; }
 .pick-btn .mg-i { color: var(--players-ink); }
 .pick-note { color: var(--muted); font-size: var(--fs-small); border-right: 0 !important; }
+/* A player's own copy: says whose it is. */
+.pick.mine .pick-btn { margin-left: auto; border-left: 1px solid var(--line); border-right: 0; }
+/* The referee editing the starting copy: an amber warning on the strip. */
+.pick.starting { background: color-mix(in srgb, var(--warn) 14%, var(--bar)); }
+.pick-warn { color: var(--warn-ink); font-size: var(--fs-small); font-weight: 700; border-right: 0 !important; }
+@media (pointer: coarse) { .pick { height: calc(var(--tab-h) - 4px); } }
 
 /* "Who are you?" in place of a per-player page, for a player with no name. */
 .who { position: absolute; inset: 0; overflow: auto; display: grid; place-items: center; padding: 16px; }
@@ -113,7 +151,7 @@ body.mg-full { --notice-top: calc(var(--tab-h) * .75 + 8px); }
 #whoRoster { display: grid; gap: 10px; }
 #whoRoster:empty { display: none; }
 .roster { display: flex; flex-wrap: wrap; gap: 6px; }
-.roster .mg-btn { height: 30px; padding: 0 12px; }
+.roster .mg-btn { height: max(30px, var(--btn-h)); padding: 0 12px; }
 .roster .mg-btn[aria-pressed="true"] { background: color-mix(in srgb, var(--players) 34%, var(--bg)); font-weight: 700; }
 .who-pick { display: grid; gap: 12px; }
 #empty { flex: 1; overflow: auto; }
@@ -145,8 +183,10 @@ body.mg-full .pick-btn { font-size: var(--fs-small); }
   :root[data-labels="text"] .info .mg-actions .lbl, :root[data-labels="text"] #fullBtn .lbl { position: static; width: auto; height: auto; clip-path: none; }
   /* "player dashboard · Ana" doesn't fit: the name moves into the "not you?"
      button, which opens the name picker. The brand always stays MOTHERGOOSE. */
-  .info .whoami .lbl { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
-  :root[data-labels="text"] .info .whoami.ask .lbl { position: static; width: auto; height: auto; clip-path: none; }
+  .info .whoami:not(.ask) .lbl { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  /* With no name picked, "who are you?" keeps its words: it's the first thing to do. */
+  .info .whoami.ask .lbl { position: static; width: auto; height: auto; clip-path: none; }
+  #viewAsBtn .lbl, #pagesBtn .lbl { display: none; }
   .info .whoami .sm-name { display: inline; max-width: 9ch; overflow: hidden; text-overflow: ellipsis; font-weight: 700; color: var(--text); }
   #filterBtn .lbl { display: none; }   /* the icon, shaded while a filter is on */
 }

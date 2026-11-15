@@ -79,7 +79,7 @@ export function bootScreen({ end = false, lines = [], big = '' }) {
   const popover = typeof el.showPopover === 'function';
   if (popover) el.setAttribute('popover', 'manual');
   el.innerHTML = '<div class="scr" aria-hidden="true"><div class="brand">MOTHERGOOSE</div></div>' +
-    '<span class="skip" aria-hidden="true">click or press any key to skip</span>';
+    '<span class="skip" aria-hidden="true">' + (matchMedia('(pointer: coarse)').matches ? 'tap to skip' : 'click or press any key to skip') + '</span>';
   const scr = el.querySelector('.scr');
   document.body.appendChild(el);
   if (popover) { try { el.showPopover(); } catch (e) {} }

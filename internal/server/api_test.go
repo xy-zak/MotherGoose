@@ -42,7 +42,7 @@ func TestRenameMoveAndDeleteFiles(t *testing.T) {
 		return "/api/admin/sessions/" + f.id + "/files/" + scope + "/" + name
 	}
 
-	if rec := f.request("PATCH", file("shared", "sheet.html"), `{"name":"notes.html"}`, nil); rec.Code != 204 {
+	if rec := f.request("PATCH", file("shared", "sheet.html"), `{"name":"notes.html"}`, nil); rec.Code != 200 {
 		t.Fatalf("rename: %d %s", rec.Code, rec.Body.String())
 	}
 	if st, err := f.st.GetState(f.id, store.Shared, "notes.html", ""); err != nil || string(st["#notes"]) != `"kept"` {
@@ -54,7 +54,7 @@ func TestRenameMoveAndDeleteFiles(t *testing.T) {
 	if rec := f.request("PATCH", file("shared", "notes.html"), `{"name":"notes.pdf"}`, nil); rec.Code != 400 {
 		t.Errorf("rename to another kind = %d", rec.Code)
 	}
-	if rec := f.request("PATCH", file("shared", "notes.html"), `{"scope":"gm"}`, nil); rec.Code != 204 {
+	if rec := f.request("PATCH", file("shared", "notes.html"), `{"scope":"gm"}`, nil); rec.Code != 200 {
 		t.Fatalf("move: %d %s", rec.Code, rec.Body.String())
 	}
 	if !f.st.Exists(f.id, store.GM, "notes.html") || f.st.Exists(f.id, store.Shared, "notes.html") {

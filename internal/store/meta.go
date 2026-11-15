@@ -329,10 +329,6 @@ func (s *Store) movePageMeta(id string, sc Scope, name string, toScope Scope, to
 			if !CanBePerPlayer(toScope, kindOrEmpty(toName)) {
 				pm.PerPlayer = false
 			}
-			if toScope != Shared {
-				// Referee pages are never shown to players at all.
-				pm.Hidden, pm.Audience, pm.Allowed = false, AudienceAll, nil
-			}
 			setPage(m, pageKey(toScope, toName), pm)
 		}
 		return nil

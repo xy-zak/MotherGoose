@@ -235,8 +235,10 @@ export function toast(msg, isError) {
  *   action: { label, icon, run } — the button, which also closes the notice
  *   icon:   shown before the text
  *   ms:     how long it stays (while the page is visible)
+ *   onTimeout: runs when it goes by itself or is dismissed with × (not
+ *           after its button), e.g. to carry out what an "undo" didn't stop
  */
-export function notice({ text, strong = '', action = null, icon = 'new', ms = 7000 }) {
+export function notice({ text, strong = '', action = null, icon = 'new', ms = 7000, onTimeout = null }) {
   const stack = messageStack();
   // A few at most: the oldest go first.
   const pops = stack.querySelectorAll('.mg-notice-pop');
@@ -251,8 +253,8 @@ export function notice({ text, strong = '', action = null, icon = 'new', ms = 70
   msg.textContent = text;
   if (strong) { const b = document.createElement('b'); b.textContent = ' ' + strong; msg.appendChild(b); }
   const close = () => { cancel(); el.remove(); };
-  const cancel = later(ms, close);
-  el.querySelector('.x').addEventListener('click', close);
+  const cancel = later(ms, () => { close(); if (onTimeout) onTimeout(); });
+  el.querySelector('.x').addEventListener('click', () => { close(); if (onTimeout) onTimeout(); });
   if (action) el.querySelector('.go').addEventListener('click', () => { close(); action.run(); });
   stack.appendChild(el);
   return close;
@@ -387,36 +389,62 @@ function moreButton(items, choose) {
   btn.setAttribute('aria-haspopup', 'menu');
   btn.innerHTML = withIcon('more', 'more…');
   btn.title = 'More: ' + items.map((a) => a.label).join(', ');
-  btn.addEventListener('click', () => {
-    const menu = document.createElement('div');
-    menu.className = 'mg-menu';
-    menu.setAttribute('role', 'menu');
-    if (typeof menu.showPopover === 'function') menu.setAttribute('popover', 'auto');
-    items.forEach((a) => {
-      const el = document.createElement(a.href ? 'a' : 'button');
-      el.setAttribute('role', 'menuitem');
-      el.className = /danger/.test(a.kind || '') ? 'danger' : '';
-      el.innerHTML = ic(a.icon || 'more') + '<span></span>';
-      el.querySelector('span').textContent = a.label;
-      if (a.href) {
-        el.href = a.href;
-        if (a.download) el.setAttribute('download', ''); else { el.target = '_blank'; el.rel = 'noopener'; }
-        el.style.cssText = 'display:flex;align-items:center;gap:8px;padding:4px 10px;color:inherit;text-decoration:none';
-      } else el.type = 'button';
-      el.addEventListener('click', () => { gone(); if (!a.href) choose(a.value); });
-      menu.appendChild(el);
-    });
-    const gone = () => { try { menu.hidePopover(); } catch (e) {} menu.remove(); };
-    menu.addEventListener('toggle', (e) => { if (e.newState === 'closed') menu.remove(); });
-    btn.closest('dialog').appendChild(menu);
-    try { menu.showPopover(); } catch (e) {}
-    const r = btn.getBoundingClientRect(), m = menu.getBoundingClientRect();
-    menu.style.left = Math.max(4, Math.min(r.left, innerWidth - m.width - 4)) + 'px';
-    menu.style.top = Math.max(4, r.top - m.height - 4) + 'px';
-    const first = menu.querySelector('button, a');
-    if (first) first.focus();
-  });
+  btn.addEventListener('click', () => popMenu(btn, items.map((a) => ({
+    label: a.label, icon: a.icon, danger: /danger/.test(a.kind || ''), href: a.href, download: a.download,
+    run: () => { if (!a.href) choose(a.value); }
+  })), { above: true }));
   return btn;
+}
+
+/**
+ * popMenu opens a small menu by a button: a popover in the top layer, closed
+ * by a choice, Esc or a tap outside. Arrow keys move through it.
+ *   items: [{ label, icon, run, danger, disabled, href, download }] ('-' for a line)
+ *   opts:  { above: open above the button, label: the menu's name }
+ */
+export function popMenu(anchor, items, opts = {}) {
+  const menu = document.createElement('div');
+  menu.className = 'mg-menu';
+  menu.setAttribute('role', 'menu');
+  if (opts.label) menu.setAttribute('aria-label', opts.label);
+  if (typeof menu.showPopover === 'function') menu.setAttribute('popover', 'auto');
+  const gone = () => { try { menu.hidePopover(); } catch (e) {} menu.remove(); };
+  items.forEach((it) => {
+    if (it === '-') { menu.appendChild(document.createElement('hr')); return; }
+    const el = document.createElement(it.href ? 'a' : 'button');
+    el.setAttribute('role', 'menuitem');
+    if (it.danger) el.className = 'danger';
+    el.innerHTML = ic(it.icon || 'more') + '<span></span>';
+    el.querySelector('span').textContent = it.label;
+    if (it.href) {
+      el.href = it.href;
+      if (it.download) el.setAttribute('download', ''); else { el.target = '_blank'; el.rel = 'noopener'; }
+    } else {
+      el.type = 'button';
+      if (it.disabled) el.disabled = true;
+    }
+    el.addEventListener('click', () => { gone(); if (it.run) it.run(); });
+    menu.appendChild(el);
+  });
+  menu.addEventListener('toggle', (e) => { if (e.newState === 'closed') menu.remove(); });
+  menu.addEventListener('keydown', (e) => {
+    const all = Array.from(menu.querySelectorAll('button:not(:disabled), a'));
+    const i = all.indexOf(document.activeElement);
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      const n = all[(i + (e.key === 'ArrowDown' ? 1 : -1) + all.length) % all.length];
+      if (n) n.focus();
+    } else if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); gone(); anchor.focus(); }
+  });
+  (anchor.closest('dialog') || document.body).appendChild(menu);
+  try { menu.showPopover(); } catch (e) {}
+  const r = anchor.getBoundingClientRect(), m = menu.getBoundingClientRect();
+  menu.style.left = Math.max(4, Math.min(r.right - m.width, innerWidth - m.width - 4)) + 'px';
+  const below = r.bottom + 4, above = r.top - m.height - 4;
+  menu.style.top = (opts.above ? (above >= 4 ? above : below) : (below + m.height <= innerHeight - 4 ? below : Math.max(4, above))) + 'px';
+  const first = menu.querySelector('button:not(:disabled), a');
+  if (first) first.focus();
+  return gone;
 }
 
 /**

@@ -29,25 +29,32 @@ export function dismissNotice(key) {
   if (open.has(key)) { open.get(key)(); open.delete(key); }
 }
 
-let showing = null;   // the page whose prompt is open
+let showing = null;   // the page whose prompt is open, and the dialog showing it
 /** onServerMessage handles events other than "changed": "show". */
 export async function onServerMessage(m) {
   if (m.type !== 'show' || typeof m.key !== 'string' || S.isHost) return;
   let f = S.files.find((x) => fileKey(x) === m.key);
   if (!f) { await app.load(); f = S.files.find((x) => fileKey(x) === m.key); }   // revealed a moment ago
-  if (!f || showing === m.key || tourRunning()) return;
+  if (!f || (showing && showing.key === m.key) || tourRunning()) return;
   if (S.active === m.key && !document.hidden) {
-    notice({ text: 'The referee is pointing at this page:', strong: titleOf(f), icon: 'show' });
+    notice({ text: 'The referee is pointing at this page:', strong: titleOf(f), icon: 'point' });
     return;
   }
-  showing = m.key;
+  // A newer prompt replaces one still open.
+  if (showing && showing.dialog) { showing.replaced = true; showing.dialog.close(); }
+  const me = { key: m.key, dialog: null, replaced: false };
+  showing = me;
   const body = document.createElement('div');
   body.innerHTML = '<p>The referee wants everyone to look at:</p><p class="show-title"></p>';
   body.querySelector('.show-title').textContent = titleOf(f);
   const v = await overlay({
-    title: 'Look at this', icon: 'show', body,
-    actions: [{ label: 'later', value: null, kind: 'quiet', icon: 'close' }, { label: 'go to it', value: 'go', kind: 'primary', icon: 'open' }]
+    title: 'Look at this', icon: 'point', body,
+    actions: [{ label: 'later', value: null, kind: 'quiet', icon: 'close' }, { label: 'go to it', value: 'go', kind: 'primary', icon: 'open' }],
+    onOpen: (d) => { me.dialog = d; }
   });
-  showing = null;
-  if (v === 'go' && S.files.some((x) => fileKey(x) === m.key)) app.show(m.key, true);
+  if (showing === me) showing = null;
+  if (v === 'go' && S.files.some((x) => fileKey(x) === m.key)) { app.show(m.key, true); return; }
+  // "later" (or replaced): the tab keeps a "look" mark until it's opened.
+  S.look.add(m.key);
+  app.render();
 }

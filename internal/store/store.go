@@ -285,9 +285,13 @@ func (s *Store) GetSession(id string) (Summary, error) {
 			}
 			if files[i].PerPlayer = pm.PerPlayer && CanBePerPlayer(sc, files[i].Kind); files[i].PerPlayer {
 				files[i].PlayerState = map[string]bool{}
+				files[i].PlayerModified = map[string]time.Time{}
 				for _, pl := range meta.Players {
 					st, err := os.Stat(s.statePath(id, sc, files[i].Name, pl.ID))
 					files[i].PlayerState[pl.ID] = err == nil && st.Size() > 2
+					if err == nil && st.Size() > 2 {
+						files[i].PlayerModified[pl.ID] = st.ModTime()
+					}
 					// A player's entries are an edit to the page too.
 					if err == nil && st.ModTime().After(files[i].Modified) {
 						files[i].Modified = st.ModTime()

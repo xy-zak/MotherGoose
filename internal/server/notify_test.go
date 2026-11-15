@@ -99,7 +99,11 @@ func TestEditsAreAckedAndAnnounced(t *testing.T) {
 	}
 
 	start := time.Now()
-	if m := readMsg(ctx, t, events); m["type"] != "changed" {
+	m := readMsg(ctx, t, events)
+	for m["type"] == "presence" { // the dashboard hears who is connected first
+		m = readMsg(ctx, t, events)
+	}
+	if m["type"] != "changed" {
 		t.Fatalf("events got %v", m)
 	}
 	if d := time.Since(start); d > 2*time.Second {

@@ -244,6 +244,20 @@ func (h *Hub) removeListener(c *client) {
 	h.mu.Unlock()
 }
 
+// listenerPicks is, for each player's device listening for events (not the
+// host's), the names it had picked when it connected: session id -> player.
+func (h *Hub) listenerPicks() []map[string]string {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	var out []map[string]string
+	for c := range h.events {
+		if !c.host {
+			out = append(out, c.who)
+		}
+	}
+	return out
+}
+
 // EventTo sends msg to the shells and dashboards it chooses, and returns
 // how many it reached. Decide what choose needs before calling: it runs
 // under the hub's lock, so it mustn't call the store.

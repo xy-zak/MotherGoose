@@ -32,7 +32,7 @@ func TestNoEntriesAfterDeleteOrMove(t *testing.T) {
 			defer c.CloseNow()
 			readMsg(ctx, t, c) // snapshot
 
-			if rec := f.request(tc.method, "/api/admin/sessions/"+f.id+"/files/shared/sheet.html", tc.body, nil); rec.Code != 204 {
+			if rec := f.request(tc.method, "/api/admin/sessions/"+f.id+"/files/shared/sheet.html", tc.body, nil); rec.Code/100 != 2 {
 				t.Fatalf("%s: %d %s", tc.method, rec.Code, rec.Body.String())
 			}
 			if m := readMsg(ctx, t, c); m["type"] != "gone" {

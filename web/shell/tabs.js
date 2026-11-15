@@ -73,6 +73,7 @@ export function fitTabs() {
   box.classList.remove('tight');
   tabs.forEach((t) => t.classList.remove('auto-small'));
   const over = () => box.scrollWidth > box.clientWidth + 1;
+  box.classList.remove('overflowing');
   if (!over()) return;
   box.classList.add('tight');
   for (let i = tabs.length - 1; i >= 0 && over(); i--) {
@@ -80,6 +81,7 @@ export function fitTabs() {
     if (!t.classList.contains('small') && t.getAttribute('aria-selected') !== 'true') t.classList.add('auto-small');
   }
   if (over()) { const sel = tabs.find((t) => t.getAttribute('aria-selected') === 'true'); if (sel) sel.classList.add('auto-small'); }
+  box.classList.toggle('overflowing', over());   // still too many: the row scrolls, and its edges fade
 }
 let fitFrame = 0;
 new ResizeObserver(() => { cancelAnimationFrame(fitFrame); fitFrame = requestAnimationFrame(fitTabs); }).observe($('tabs'));

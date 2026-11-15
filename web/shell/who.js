@@ -1,8 +1,8 @@
 // Who is on this device: the name in the top bar, picking or changing it,
 // the "who are you?" panel on a per-player page, and the referee's strip to
 // choose whose copy is shown.
-import { $, api, attempt, esc, ic, overlay, PER_PLAYER_HINT, titleOf, withIcon } from '/_mg/ui.js';
-import { activeFile, app, fileKey, meName, S } from './state.js';
+import { $, api, attempt, esc, ic, notice, overlay, PER_PLAYER_HINT, playerName, titleOf, withIcon } from '/_mg/ui.js';
+import { activeFile, app, fileKey, meName, previewing, S, whoNow } from './state.js';
 
 // The blue "player dashboard" note says who this device is, with a way to
 // change it. The referee needs no name, and an empty roster has none to pick.
@@ -19,24 +19,53 @@ export function renderWho() {
   b.title = name ? 'You are ' + name + ' on this device. Not you? Pick another name' : 'Pick your name, so per-player pages show your own copy';
 }
 
-// The referee's strip above a per-player page: template · Ana · Ben …
+// The strip above a per-player page. For the referee: whose copy is shown
+// (the starting copy · Ana · Ben …), with a warning while the starting copy
+// is open, since typing there only reaches players who haven't opened it.
+// For a player: whose copy this is, with "not you?".
 export function renderPick(f, who) {
   const el = $('pick');
-  el.hidden = !(S.isHost && f.perPlayer);
+  const referee = S.isHost && !previewing();
+  el.hidden = !f.perPlayer || (!referee && !who);
+  el.classList.toggle('mine', !referee);
+  el.classList.toggle('starting', referee && who === '');
   if (el.hidden) { el.textContent = ''; return; }
+  if (!referee) {
+    el.setAttribute('role', 'note');
+    el.innerHTML = '<span class="pick-label">' + withIcon('player', playerName(S.players, who) + '\'s copy') + '</span>' +
+      '<span class="pick-note">only you and the referee see it</span>' +
+      (previewing() ? '' : '<button type="button" class="pick-btn" data-not-me>' + withIcon('switch', 'not you?') + '</button>');
+    return;
+  }
+  el.setAttribute('role', 'tablist');
   const btn = (id, html, title) => '<button type="button" class="pick-btn" role="tab" data-who="' + esc(id) + '" aria-selected="' + (id === who) + '" title="' + esc(title) + '">' + html + '</button>';
   el.innerHTML = '<span class="pick-label" title="' + PER_PLAYER_HINT + '">' + withIcon('player', 'whose copy') + '</span>' +
-    btn('', withIcon('template', 'template'), 'The template: its entries are the starting values for each player\'s copy') +
+    btn('', withIcon('template', 'starting copy'), 'The starting copy: its entries are copied into each player\'s copy when they first open it') +
     S.players.map((p) => btn(p.id, '<span>' + esc(p.name) + '</span>', p.name + '\'s copy')).join('') +
-    (S.players.length ? '' : '<span class="pick-note">No players yet. Add them in the referee\'s dashboard, under PARTY in the campaign panel.</span>');
+    (S.players.length ? '' : '<span class="pick-note">No players yet. Add them in the referee\'s dashboard, under PARTY in the campaign panel.</span>') +
+    (who === '' ? '<span class="pick-warn">' + ic('warning') + 'Editing the starting copy: only players who haven\'t opened it yet get these values</span>' : '');
 }
 
 $('pick').addEventListener('click', (e) => {
+  if (e.target.closest('[data-not-me]')) { pickName(); return; }
   const b = e.target.closest('[data-who]');
   const f = activeFile();
   if (!b || !f) return;
   S.pick.set(fileKey(f), b.dataset.who);
+  app.savePicks();
   app.show(fileKey(f));
+});
+// Arrow keys move along the strip, like the tabs.
+$('pick').addEventListener('keydown', (e) => {
+  if (e.key !== 'ArrowLeft' && e.key !== 'ArrowRight') return;
+  const all = Array.from($('pick').querySelectorAll('[data-who]'));
+  const i = all.indexOf(document.activeElement);
+  if (i < 0) return;
+  e.preventDefault();
+  const n = all[(i + (e.key === 'ArrowRight' ? 1 : -1) + all.length) % all.length];
+  n.click();
+  const again = $('pick').querySelector('[data-who="' + CSS.escape(n.dataset.who) + '"]');
+  if (again) again.focus();
 });
 
 const rosterButtons = () => '<div class="roster">' + S.players.map((p) =>
@@ -53,12 +82,20 @@ export function renderAsk(f) {
   $('whoRoster').innerHTML = none ? '' : rosterButtons() + '<p class="mg-muted">Not on the list? Ask the referee to add you.</p>';
 }
 
-const setMe = attempt(async (id) => {
+const setMe = attempt(async (id, quiet) => {
+  const before = S.me;
   await api('POST', '/api/me', { player: id });
-  // Pages already open still speak as the old name: open them afresh.
-  app.dropFrames();
+  // Per-player pages open afresh as the new name; others keep their place.
+  app.dropFrames((k) => k.includes('#'));
   app.reconnectEvents();
   await app.load();
+  if (quiet) return;
+  notice(id
+    ? { text: 'You are', strong: playerName(S.players, id), icon: 'player', action: { label: 'undo', icon: 'reset', run: () => setMe(before, true) } }
+    : { text: 'This device has no name now.', icon: 'player', action: before ? { label: 'undo', icon: 'reset', run: () => setMe(before, true) } : null });
+  // Focus goes to the page's tab, since the button tapped is gone.
+  const t = document.querySelector('.tab[aria-selected="true"]');
+  if (t) t.focus();
 });
 
 $('whoRoster').addEventListener('click', (e) => {

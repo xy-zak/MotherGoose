@@ -16,7 +16,8 @@ import {
 import { A, app, fileCount, livePort, MAX_PLAYERS, playersBase } from './state.js';
 import { tourRunning } from '/_mg/tour.js';
 import { bootScreen, switchLinks } from '/_mg/fx.js';
-import { joinOverlay, dataOverlay, editSession, sessionOverlay, fileOverlay, renamePlayer, removePlayer, toggleHidden, showPage, guideOverlay, templateOverlay } from './overlays.js';
+import { joinOverlay, dataOverlay, editSession, sessionOverlay, fileOverlay, renamePlayer, removePlayer, guideOverlay, templateOverlay } from './overlays.js';
+import { drawPresence, endSession, goLive, moveBy, pointHere, rowMenu, setPresence, toggleHidden } from './table.js';
 import { upload, enablePageDrag } from './pages.js';
 import { tutorial } from './tutorial.js';
 import { isJumpKey, quickJump } from '/_mg/jump.js';
@@ -28,6 +29,7 @@ const left = $('left'), right = $('right'), picker = $('picker');
 function route() {
   const m = location.hash.match(/^#\/s\/(.+)$/);
   A.selectedId = m ? decodeURIComponent(m[1]) : null;
+  left.classList.remove('open');   // a campaign was picked from the folded list
   refresh();
 }
 
@@ -76,9 +78,13 @@ function renderLeft() {
       '<span class="meta"><span>' + sh + '·' + gm + ' · ' + esc(ago(s.lastEdited)) + '</span>' + (s.active ? livePort() : '') + '</span></a>';
   }).join('');
 
+  const cur = A.sessions.find((s) => s.id === A.selectedId);
   left.innerHTML =
     '<div class="mg-panel list">' +
       '<div class="mg-panel-title"><span class="t">' + ic('sessions') + 'Campaigns</span><span class="side"><span class="count">' + A.sessions.length + '</span></span></div>' +
+      // On medium screens the list folds up behind this, above the open campaign.
+      '<button type="button" class="mg-btn list-toggle" data-act="toggle-list" aria-expanded="' + left.classList.contains('open') + '">' +
+        withIcon('sessions', cur ? cur.name : 'choose a campaign') + '<span class="mg-muted">' + (left.classList.contains('open') ? '▴' : '▾') + '</span></button>' +
       '<form class="new-form" id="newForm">' +
         '<input class="mg-input" name="name" placeholder="new campaign name" maxlength="120" required aria-label="New campaign name" title="New campaign (n)">' +
         '<input class="mg-input game" name="gameType" placeholder="game type" maxlength="60" autocomplete="off" aria-label="Game type (optional)">' +
@@ -167,7 +173,8 @@ function filterBar(s, filter) {
 function fileRow(s, f, filter) {
   const vis = visTags(f, s.players);
   const players = f.scope === 'shared';
-  return '<div class="file' + (isHidden(f) ? ' is-hidden' : '') + '" draggable="true" data-scope="' + f.scope + '" data-name="' + esc(f.name) + '"' +
+  return '<div class="file' + (isHidden(f) ? ' is-hidden' : '') + '" draggable="true" tabindex="0" data-scope="' + f.scope + '" data-name="' + esc(f.name) + '"' +
+    ' aria-label="' + esc(titleOf(f)) + ' (Alt+↑/↓ to move it)"' +
     (filter && filter.length && !hasTags(f, filter) ? ' hidden' : '') + '>' +
     '<span class="kindcol">' + kindTag(f.kind) + '</span>' +
     '<div class="what"><div class="title">' + esc(titleOf(f)) + '</div>' +
@@ -178,17 +185,17 @@ function fileRow(s, f, filter) {
       (vis || f.perPlayer || (f.tags && f.tags.length)
         ? '<div class="tagline">' + vis + (f.perPlayer ? perPlayerTag() + playerChips(s, f) : '') + chips(f.tags) + '</div>'
         : '') + '</div>' +
+    // Visibility is one control with its word (hide / reveal); open and info
+    // stay; everything rarer is in the "⋯" menu, so titles keep their room.
     '<div class="row-actions">' +
       (players
-        ? '<button class="mg-btn small compact' + (isHidden(f) ? ' players' : ' quiet') + '" data-act="toggle-hidden" title="' +
-            (isHidden(f) ? 'Reveal: players it\'s for see it straight away' : 'Hide from every player until you reveal it') + '">' +
-            withIcon(isHidden(f) ? 'view' : 'hidden', isHidden(f) ? 'reveal' : 'hide') + '</button>' +
-          (s.active && !isHidden(f)
-            ? '<button class="mg-btn small compact quiet" data-act="show-page" title="Ask every player who can see it to look at it now">' + withIcon('show', 'show') + '</button>'
-            : '')
+        ? '<button class="mg-btn small vis-btn' + (isHidden(f) ? ' players' : ' quiet') + '" data-act="toggle-hidden" title="' +
+            (isHidden(f) ? 'Reveal: players it\'s for see it (you get a moment to undo)' : 'Hide from every player until you reveal it') + '">' +
+            withIcon(isHidden(f) ? 'view' : 'hidden', isHidden(f) ? 'reveal' : 'hide') + '</button>'
         : '') +
-      '<a class="mg-btn small compact" href="' + viewUrl(s.id, f) + '" target="_blank" rel="noopener" title="' + (f.perPlayer ? 'Open the template on its own (players\' copies are under info)' : 'Open on its own') + '">' + withIcon('open', 'open') + '</a>' +
-      '<button class="mg-btn small compact" data-act="file-info" title="Info: rename, description, tags, per player, export, delete">' + withIcon('info', 'info') + '</button>' +
+      '<a class="mg-btn small compact" href="' + viewUrl(s.id, f) + '" target="_blank" rel="noopener" title="' + (f.perPlayer ? 'Open the starting copy on its own (players\' copies are under info)' : 'Open on its own') + '">' + withIcon('open', 'open') + '</a>' +
+      '<button class="mg-btn small compact" data-act="file-info" title="Info: details, who sees it, copies">' + withIcon('info', 'info') + '</button>' +
+      '<button class="mg-btn small compact quiet" data-act="row-menu" aria-haspopup="menu" title="More: point here, move, clear, delete">' + withIcon('more', 'more') + '</button>' +
     '</div></div>';
 }
 
@@ -229,12 +236,12 @@ function party(s) {
   const full = players.length >= MAX_PLAYERS;
   return '<section class="party" aria-label="Party">' +
     '<div class="party-divider"><div class="mg-panel-title"><span class="t">' + ic('players') + 'Party</span>' +
-      '<span class="side"><span class="count">' + players.length + '</span></span></div></div>' +
+      '<span class="side"><span class="presence-sum mg-muted" hidden></span><span class="count">' + players.length + '</span></span></div></div>' +
     '<p class="mg-muted party-note">Players in this campaign only. Each player picks their name on their own device; per-player pages then show them their own copy.</p>' +
     '<div class="party-row">' +
       (players.length
         ? '<ul class="roster" aria-label="Players">' + players.map((p) =>
-            '<li class="pchip compact"><button type="button" class="pname" data-act="rename-player" data-id="' + esc(p.id) + '" title="Rename ' + esc(p.name) + '">' + ic('player', 'deco') + '<span>' + esc(p.name) + '</span></button>' +
+            '<li class="pchip compact" data-id="' + esc(p.id) + '"><button type="button" class="pname" data-act="rename-player" data-id="' + esc(p.id) + '" title="Rename ' + esc(p.name) + '">' + ic('player', 'deco') + '<span>' + esc(p.name) + '</span></button>' +
             '<button type="button" class="pdel" data-act="remove-player" data-id="' + esc(p.id) + '" title="Remove ' + esc(p.name) + ' from the party">' + withIcon('close', 'remove') + '</button></li>').join('') + '</ul>'
         : '<span class="mg-muted">No players yet.</span>') +
       '<form class="add-player" id="addPlayer">' +
@@ -266,8 +273,11 @@ function renderRight() {
         '<span class="mg-grow"></span>' +
         // Going live and ending share a place: the one that applies shows.
         (s.active
-          ? '<button class="mg-btn end-session" data-act="deactivate" title="End the session: players go back to a waiting screen">' + withIcon('end', 'end session') + '</button>'
-          : '<button class="mg-btn go-live" data-act="activate" data-id="' + esc(s.id) + '" title="Start a session: put this campaign on every player\'s screen">' + withIcon('live', 'go live') + '</button>') +
+          ? '<button class="mg-btn end-session" data-act="deactivate" title="End the session: players go back to a waiting screen (you get a moment to undo)">' + withIcon('end', 'end session') + '</button>'
+          : A.sessions.some((x) => x.active)
+            ? '<button class="mg-btn go-live" data-act="activate" data-id="' + esc(s.id) + '" title="Another campaign is live: end its session and start this one">' + withIcon('live', 'switch live here') + '</button>'
+            : '<button class="mg-btn go-live" data-act="activate" data-id="' + esc(s.id) + '" title="Start a session: put this campaign on every player\'s screen">' + withIcon('live', 'go live') + '</button>') +
+        '<span class="act-gap" aria-hidden="true"></span>' +
         '<button class="mg-btn danger" data-act="delete-session" title="Delete this campaign">' + withIcon('delete', 'delete') + '</button>' +
       '</div>' +
       party(s) +
@@ -275,6 +285,7 @@ function renderRight() {
     filterBar(s, filter) +
     '<div class="columns">' + column(s, 'shared', filter) + column(s, 'gm', filter) + '</div>';
 
+  drawPresence();
   const input = document.querySelector('#addPlayer input');
   if (typed && !input.disabled) {
     input.value = typed.value;
@@ -321,18 +332,9 @@ document.addEventListener('click', attempt(async (e) => {
   else if (act === 'help') await helpOverlay();
   else if (act === 'tour') tutorial();
   else if (act === 'activate') {
-    const s = A.sessions.find((x) => x.id === btn.dataset.id) || A.current;
-    const was = A.sessions.find((x) => x.active && x.id !== s.id);
-    await api('POST', '/api/admin/sessions/' + enc(btn.dataset.id) + '/activate');
-    refresh();
-    await bootScreen(startScreen(s, was));
-    toast('Session started: ' + s.name + ' is live');
+    await goLive(btn.dataset.id, { start: startScreen });
   } else if (act === 'deactivate') {
-    const s = A.sessions.find((x) => x.active);
-    await api('DELETE', '/api/admin/active');
-    refresh();
-    if (s) await bootScreen(endScreen(s));
-    toast('Session ended. Players are back on the waiting screen.');
+    endSession({ end: endScreen });
   } else if (act === 'edit-session') {
     await editSession();
   } else if (act === 'reveal') {
@@ -356,6 +358,9 @@ document.addEventListener('click', attempt(async (e) => {
     picker.click();
   } else if (act === 'file-info') {
     await fileOverlay(row.dataset.scope, row.dataset.name);
+  } else if (act === 'toggle-list') {
+    left.classList.toggle('open');
+    renderLeft();
   } else if (act === 'filter-tag') {
     saveList(filterKey(A.current), toggleTag(tagFilter(A.current), btn.dataset.tag));
     renderRight();
@@ -365,7 +370,9 @@ document.addEventListener('click', attempt(async (e) => {
   } else if (act === 'toggle-hidden') {
     await toggleHidden(row.dataset.scope, row.dataset.name);
   } else if (act === 'show-page') {
-    await showPage(row.dataset.scope, row.dataset.name);
+    await pointHere(row.dataset.scope, row.dataset.name);
+  } else if (act === 'row-menu') {
+    rowMenu(btn, row.dataset.scope, row.dataset.name);
   } else if (act === 'rename-player') {
     await renamePlayer(btn.dataset.id);
   } else if (act === 'remove-player') {
@@ -430,6 +437,9 @@ async function goTo(id) {
 }
 
 document.addEventListener('keydown', attempt(async (e) => {
+  // Alt+↑/↓ on a focused page moves it: the keyboard's way to reorder.
+  const row = e.altKey && (e.key === 'ArrowUp' || e.key === 'ArrowDown') && e.target.closest && e.target.closest('.file');
+  if (row && !document.querySelector('dialog[open]')) { e.preventDefault(); await moveBy(row.dataset.scope, row.dataset.name, e.key === 'ArrowUp' ? -1 : 1); return; }
   if (isJumpKey(e) && !document.querySelector('dialog[open]')) { e.preventDefault(); jump(); return; }
   if (!shortcutAllowed(e)) return;
   const k = e.key;
@@ -473,4 +483,5 @@ setInterval(() => { if (!document.hidden) refresh(); }, 60000);
 // The timer skips hidden tabs: catch up as soon as the referee looks again.
 document.addEventListener('visibilitychange', () => { if (!document.hidden) refresh(); });
 route();
-listenEvents(refresh, setServer);
+app.joinOverlay = joinOverlay;
+listenEvents(refresh, setServer, (m) => { if (m.type === 'presence') setPresence(m); });

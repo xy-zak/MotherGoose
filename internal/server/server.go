@@ -108,6 +108,31 @@ func (s *Server) routes() *http.ServeMux {
 	return m
 }
 
+// sendPresence tells the referee's dashboards which players' devices are
+// connected to the live campaign: how many devices picked each player, and
+// how many haven't picked a name. Sent whenever a device connects or goes,
+// and when the live campaign or its party changes.
+func (s *Server) sendPresence() {
+	id := s.store.Active()
+	players, unnamed := map[string]int{}, 0
+	var roster store.PageAccess
+	if id != "" {
+		roster.Players, _ = s.store.Players(id)
+	}
+	for _, who := range s.hub.listenerPicks() {
+		if pid := who[id]; roster.HasPlayer(pid) {
+			players[pid]++
+		} else {
+			unnamed++
+		}
+	}
+	if id == "" {
+		unnamed = 0
+	}
+	msg := map[string]any{"type": "presence", "session": id, "players": players, "unnamed": unnamed}
+	s.hub.EventTo(msg, func(c *client) bool { return c.host })
+}
+
 // changed tells every open shell/admin page to refresh, within changeDelay.
 // Changes made close together share one event.
 func (s *Server) changed() { s.notify.within(changeDelay) }

@@ -37,6 +37,8 @@ type FileInfo struct {
 	// PlayerState says, for a per-player page, which rostered players have
 	// entries of their own (player id -> true).
 	PlayerState map[string]bool `json:"playerState,omitempty"`
+	// PlayerModified is when each player's copy last changed (per-player pages).
+	PlayerModified map[string]time.Time `json:"playerModified,omitempty"`
 	// Who sees a players' page: nobody while Hidden, otherwise everyone, or
 	// only the Allowed players when Audience is AudienceOnly.
 	Hidden   bool     `json:"hidden"`

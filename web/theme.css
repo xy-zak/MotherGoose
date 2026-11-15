@@ -383,13 +383,15 @@ textarea.mg-input { height: auto; min-height: 84px; padding: 6px 8px; line-heigh
   font: 400 var(--fs-body)/1.5 var(--font); letter-spacing: var(--track);
 }
 .mg-menu .head { padding: 2px 10px 4px; font-size: var(--fs-small); color: var(--muted); border-bottom: 1px solid var(--line); margin-bottom: 3px; max-width: 280px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.mg-menu button {
+.mg-menu button, .mg-menu a {
   display: flex; align-items: center; gap: 8px; width: 100%;
   padding: 4px 10px; border: 0; background: none; color: var(--text);
   font: 500 var(--fs-body)/1.4 var(--font); text-align: left; cursor: pointer;
 }
-@media (pointer: coarse) { .mg-menu button { min-height: 40px; } }
-.mg-menu button.danger { color: var(--danger); }
+@media (pointer: coarse) { .mg-menu button, .mg-menu a { min-height: 40px; } }
+.mg-menu a { text-decoration: none; box-sizing: border-box; }
+.mg-menu .danger { color: var(--danger); }
+.mg-menu a:hover, .mg-menu a:focus-visible { background: color-mix(in srgb, var(--accent) 20%, var(--bar)); }
 .mg-menu button:hover, .mg-menu button:focus-visible { background: color-mix(in srgb, var(--accent) 20%, var(--bar)); box-shadow: none; }
 .mg-menu button:disabled { opacity: .45; cursor: default; background: none; }
 .mg-menu button kbd { margin-left: auto; }

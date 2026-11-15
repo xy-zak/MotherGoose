@@ -41,6 +41,11 @@ func TestMarkdownPages(t *testing.T) {
 	if res["status"] != 200 || !f.st.Exists(f.id, store.Shared, "quests.md") {
 		t.Fatalf("upload: %v", res)
 	}
+	// Added while live, so it starts hidden; reveal it to look at it as a player.
+	if h := res["hidden"].([]any); len(h) != 1 || h[0] != "quests.md" {
+		t.Fatalf("not hidden on arrival while live: %v", res)
+	}
+	f.setVis(t, "quests.md", `{"hidden":false}`)
 	sum, _ := f.st.GetSession(f.id)
 	var md store.FileInfo
 	for _, fi := range sum.Files[store.Shared] {

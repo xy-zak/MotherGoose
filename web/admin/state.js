@@ -10,11 +10,12 @@ export const A = {
   selectedId: null,    // from the URL: #/s/<id>
   pickScope: 'shared', // which column the file picker adds to
   refreshQueued: false,
-  holdRefresh: false   // a dragged page is being put in its place: the redraw waits
+  holdRefresh: false,  // a dragged page is being put in its place: the redraw waits
+  presence: null       // the latest presence event: which players' devices are connected
 };
 
 /** Set by admin.js: refetch and redraw, redraw from A, and follow the address. */
-export const app = { refresh: async () => {}, render: () => {}, route: () => {} };
+export const app = { refresh: async () => {}, render: () => {}, route: () => {}, joinOverlay: () => {} };
 
 export const MAX_PLAYERS = 24;
 export const livePort = () => liveTag(A.info ? String(A.info.port) : '');

@@ -5,6 +5,7 @@ package server
 import (
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"net/url"
 	"path"
@@ -44,11 +45,20 @@ func (s *Server) apiUpload(w http.ResponseWriter, r *http.Request) {
 	// What checking each saved page found worth telling the referee about:
 	// what it loads from the internet, and fields without a name.
 	warnings := map[string]pages.Report{}
+	// Files that replaced one of the same name (keeping its entries and
+	// details), and new players' pages that start hidden because the
+	// campaign is live: nothing appears on players' screens by accident.
+	replaced, hidden := []string{}, []string{}
+	live := sc == store.Shared && s.store.Active() == id
 	for _, fh := range r.MultipartForm.File["files"] {
 		f, err := fh.Open()
 		if err != nil {
 			failed = append(failed, fh.Filename+": "+err.Error())
 			continue
+		}
+		existed := false
+		if clean, err := store.CleanFileName(fh.Filename); err == nil {
+			existed = s.store.Exists(id, sc, clean)
 		}
 		name, rep, err := s.store.SavePage(id, sc, fh.Filename, f)
 		f.Close()
@@ -64,6 +74,11 @@ func (s *Server) apiUpload(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		saved = append(saved, name)
+		if existed {
+			replaced = append(replaced, name)
+		} else if live && s.hideNew(id, sc, name) {
+			hidden = append(hidden, name)
+		}
 		if len(rep.Web) > 0 || rep.Unnamed > 0 {
 			warnings[name] = rep
 		}
@@ -76,7 +91,21 @@ func (s *Server) apiUpload(w http.ResponseWriter, r *http.Request) {
 	if len(saved) == 0 && len(failed) > 0 {
 		status = http.StatusBadRequest
 	}
-	writeJSON(w, status, map[string]any{"saved": saved, "errors": failed, "warnings": warnings})
+	writeJSON(w, status, map[string]any{"saved": saved, "errors": failed, "warnings": warnings, "replaced": replaced, "hidden": hidden})
+}
+
+// hideNew hides a players' page that just arrived while its campaign is
+// live, so the referee reveals it when they choose. It reports whether it did.
+func (s *Server) hideNew(id string, sc store.Scope, name string) bool {
+	if sc != store.Shared || s.store.Active() != id {
+		return false
+	}
+	yes := true
+	if _, _, err := s.store.UpdatePageMeta(id, sc, name, store.PageUpdate{Hidden: &yes}); err != nil {
+		log.Printf("hiding %s/%s: %v", id, name, err)
+		return false
+	}
+	return true
 }
 
 func (s *Server) fileTarget(w http.ResponseWriter, r *http.Request) (string, store.Scope, string, bool) {
@@ -119,8 +148,14 @@ func (s *Server) apiMoveFile(w http.ResponseWriter, r *http.Request) {
 		storeError(w, err)
 		return
 	}
+	newName := name
+	if body.Name != "" {
+		newName, _ = store.CleanFileName(body.Name)
+	}
+	// A page moved to the players' side while live starts hidden.
+	hidden := to != sc && s.hideNew(id, to, newName)
 	s.changed()
-	w.WriteHeader(http.StatusNoContent)
+	writeJSON(w, http.StatusOK, map[string]any{"name": newName, "scope": to, "hidden": hidden})
 }
 
 func (s *Server) apiDeleteFile(w http.ResponseWriter, r *http.Request) {

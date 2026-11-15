@@ -9,16 +9,19 @@ import {
 } from '/_mg/ui.js';
 import { A, app, fileBase, filledCount, livePort, MAX_PLAYERS, other, playersBase } from './state.js';
 import { tourRunning } from '/_mg/tour.js';
+import { clearAllCopies, clearEntries, deletePage, move, pointHere } from './table.js';
 
 // Join Info: the address players open, as a link and a QR code. The
 // computer's name (<name>.local) stays the same between game nights, unlike
 // its IP address, so it goes first when it answers here; any address can be
 // picked to show its QR code instead.
-export function joinOverlay() {
+export async function joinOverlay() {
+  // The addresses are read again each time: the network may have changed.
+  if (!tourRunning()) { try { A.info = await api('GET', '/api/info'); } catch (e) { /* keep the last ones */ } }
   const info = A.info || {};
   const urls = info.urls || [];
   if (!urls.length) {
-    overlay({ title: 'Join Info', icon: 'join', body: '<p>No network connection found. Connect this computer to Wi-Fi or a LAN, then reload.</p>' });
+    overlay({ title: 'Join Info', icon: 'join', body: '<p>No network connection found. Connect this computer to Wi-Fi or a LAN, then open Join Info again.</p>' });
     return;
   }
   const body = document.createElement('div');
@@ -47,7 +50,10 @@ export function joinOverlay() {
     const b = e.target.closest('[data-qr]');
     if (b) { shown = b.dataset.qr; draw(); }
   });
-  overlay({ title: 'Join Info', icon: 'join', body });
+  overlay({
+    title: 'Join Info', icon: 'join', body, size: 'wide',
+    actions: [{ label: 'show to the table', value: 'present', icon: 'present', kind: 'primary', title: 'A big QR code and address, to turn the screen towards the players' }]
+  }).then((v) => { if (v === 'present') presentJoin(shown); });
   if (!info.localUrl || tourRunning()) return;
   // Does this computer's name answer on this network? Ask it, from here.
   reachable(info.localUrl).then((ok) => {
@@ -55,6 +61,17 @@ export function joinOverlay() {
     if (ok) { addrs = [local].concat(addrs); if (shown === urls[0]) shown = local.url; }
     else addrs = addrs.concat([local]);
     if (body.isConnected) draw();
+  });
+}
+
+// presentJoin fills the screen with one address and its QR code, big enough
+// to read across the table. Esc or a tap closes it.
+function presentJoin(url) {
+  overlay({
+    title: 'Join: ' + url, icon: 'join', size: 'xwide',
+    body: '<div class="present"><div class="qr big"><img src="/api/qr.png?u=' + enc(url) + '" alt="QR code for ' + esc(url) + '"></div>' +
+      '<p class="present-url">' + esc(url) + '</p><p class="mg-muted">Open this on your device, on the same Wi-Fi as this computer, or scan the code.</p></div>',
+    onOpen: (d) => { d.classList.add('presenting'); d.addEventListener('click', (e) => { if (e.target.closest('.present')) d.close(); }); }
   });
 }
 
@@ -125,10 +142,11 @@ export async function sessionOverlay() {
 // Per-player pages: the template and each player's copy, with who has
 // entries and what can be done with each copy.
 function copiesList(s, f) {
+  const changed = (who) => who && f.playerModified && f.playerModified[who] ? ' · ' + agoText(f.playerModified[who]) : '';
   const row = (who, name, note, filled) =>
     '<li class="copy' + (who ? '' : ' template') + '">' +
       '<span class="who">' + ic(who ? 'player' : 'template', 'deco') + '<b>' + esc(name) + '</b><span class="mg-muted">' + note + '</span></span>' +
-      '<span class="state">' + (filled ? '<span class="mg-tag filled">filled in</span>' : '<span class="mg-muted">no entries</span>') + '</span>' +
+      '<span class="state">' + (filled ? '<span class="mg-tag filled">filled in</span><span class="mg-muted">' + esc(changed(who)) + '</span>' : '<span class="mg-muted">no entries</span>') + '</span>' +
       '<span class="acts">' +
         '<a class="mg-btn quiet small compact" href="' + viewUrl(s.id, f, '', who) + '" target="_blank" rel="noopener" title="Open ' + esc(who ? name + '\'s copy' : 'the template') + '">' + withIcon('open', 'open') + '</a>' +
         '<a class="mg-btn quiet small compact" href="' + filledUrl(s.id, f, who) + '"' + (f.kind === 'pdf' ? ' target="_blank" rel="noopener"' : ' download') +
@@ -264,17 +282,17 @@ export async function fileOverlay(scope, name) {
   const actions = [];
   // The footer (R3): looking at the page on the left, rarer and dangerous
   // actions under "more…", cancel and save on the right.
-  if (scope === 'shared' && s.active && !isHidden(f)) actions.push({ label: 'show to players', value: 'show', kind: 'quiet', icon: 'show', side: 'left' });
+  if (scope === 'shared' && s.active && !isHidden(f)) actions.push({ label: 'point here', value: 'show', kind: 'quiet', icon: 'point', side: 'left', title: 'Ask every player who can see it to look at it now' });
   if (!per) actions.push({ label: 'open', href: viewUrl(s.id, f), kind: 'quiet', icon: 'open', side: 'left', keepOpen: true });
   if (!per && hasEntries(f)) actions.push({ label: 'export filled', href: filledUrl(s.id, f), download: f.kind !== 'pdf', icon: 'export', kind: 'quiet', side: 'left', keepOpen: true });
   const to = other(scope);
   actions.push({ label: 'move to ' + SCOPE[to].label, value: 'move', icon: to === 'gm' ? 'to-referee' : 'to-players', more: true });
   if (!per && f.hasState) actions.push({ label: 'clear entries', value: 'reset', kind: 'danger', icon: 'reset', more: true });
+  if (per && filledCount(s, f)) actions.push({ label: 'clear every copy', value: 'clear-all', kind: 'danger', icon: 'reset', more: true });
   actions.push({ label: 'delete', value: 'delete', kind: 'danger', icon: 'delete', more: true });
   actions.push({ label: 'cancel', value: null, kind: 'quiet', icon: 'close' });
   actions.push({ label: 'save', value: 'save', kind: 'primary', icon: 'check' });
 
-  let reset;  // a copy to reset, from the list: '' is the template
   const v = await overlay({
     title: titleOf(f),
     icon: 'info',
@@ -304,7 +322,8 @@ export async function fileOverlay(scope, name) {
       d.addEventListener('click', attempt(async (e) => {
         if (e.target.closest('[data-guide]')) { guideOverlay(); return; }
         const r = e.target.closest('[data-copy-reset]');
-        if (r && !r.disabled) { reset = r.dataset.copyReset; d.close(); return; }
+        // Clearing a copy happens here, and the popup stays open.
+        if (r && !r.disabled) { if (await clearEntries(scope, name, r.dataset.copyReset)) await reloadSession(); return; }
         const rm = e.target.closest('[data-fremove]');
         if (rm) { if (await removePlayer(rm.dataset.fremove)) await reloadSession(); return; }
         if (e.target.closest('[data-fadd]')) await addFromPopup();
@@ -324,25 +343,11 @@ export async function fileOverlay(scope, name) {
       }
     }
   });
-  if (reset !== undefined) {
-    const whose = reset ? playerName(A.current.players, reset) + '\'s copy of "' + f.name + '"' : 'the template of "' + f.name + '"';
-    if (await confirmDialog('Reset entries', 'Clear everything typed into ' + whose + '? Anyone viewing it reloads empty.' +
-        (reset ? '' : ' Players\' copies are kept.'), 'clear entries')) {
-      await api('DELETE', base + '/state' + (reset ? '?player=' + enc(reset) : ''));
-      toast('Entries cleared');
-    }
-  } else if (v === 'reset' && await confirmDialog('Reset entries', 'Clear everything typed into "' + f.name + '"? Every device viewing it reloads empty.', 'clear entries')) {
-    await api('DELETE', base + '/state');
-    toast('Entries cleared');
-  } else if (v === 'show') {
-    await showPage(scope, name);
-  } else if (v === 'move') {
-    await move(scope, name, to);
-    return;
-  } else if (v === 'delete' && await confirmDialog('Delete file', 'Delete "' + f.name + '"' + (per ? ' and every player\'s copy of it' : f.hasState ? ' and everything typed into it' : '') + '? This can\'t be undone.', 'delete file')) {
-    await api('DELETE', base);
-    toast('Deleted ' + f.name);
-  }
+  if (v === 'reset') { await clearEntries(scope, name); return; }
+  if (v === 'clear-all') { await clearAllCopies(scope, name); return; }
+  if (v === 'show') await pointHere(scope, name);
+  else if (v === 'move') { await move(scope, name, to); return; }
+  else if (v === 'delete') { await deletePage(scope, name); return; }
   app.refresh();
 }
 
@@ -448,25 +453,6 @@ function visibilityFields(s, f) {
       'Reveal it from its row when the moment comes; it then goes to whoever is chosen above.</span></span></label>';
 }
 
-// toggleHidden hides a players' page, or reveals it, from its row.
-export async function toggleHidden(scope, name) {
-  const f = (A.current.files[scope] || []).find((x) => x.name === name);
-  if (!f) return;
-  const hide = !isHidden(f);
-  await api('PUT', fileBase(A.current, scope, name) + '/meta', { hidden: hide });
-  toast(hide ? 'Hid ' + titleOf(f) + ' from players' : 'Revealed ' + titleOf(f) + ' to ' + audienceText(f, A.current.players));
-  app.refresh();
-}
-
-// showPage asks every player who can see a page to look at it now.
-export async function showPage(scope, name) {
-  const f = (A.current.files[scope] || []).find((x) => x.name === name);
-  if (!f) return;
-  const r = await api('POST', fileBase(A.current, scope, name) + '/show');
-  const n = r && r.devices || 0;
-  toast(n ? 'Asked ' + n + ' device' + (n === 1 ? '' : 's') + ' to look at ' + titleOf(f) : 'No player\'s device is connected to see ' + titleOf(f), !n);
-}
-
 // ---- the party -------------------------------------------------------------------------
 
 export async function renamePlayer(id) {
@@ -499,11 +485,4 @@ export async function removePlayer(id) {
   toast('Removed ' + p.name + (choice === 'delete' ? ' and their entries' : '. Their entries are kept.'));
   app.refresh();
   return true;
-}
-
-
-export async function move(scope, name, to) {
-  await api('PATCH', fileBase(A.current, scope, name), { scope: to });
-  toast('Moved ' + name + ' to the ' + SCOPE[to].label);
-  app.refresh();
 }

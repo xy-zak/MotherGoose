@@ -38,6 +38,10 @@ ICONS = {
     "search": "search", "outline": "list", "filter": "filter",
     # Markdown pages, the page guide and its AI skill
     "kind-md": "text-box", "guide": "book", "skill": "sparks", "copy": "copy",
+    # at the table: pointing players to a page, the pages list, moving pages,
+    # showing Join Info to the table
+    "point": "cursor-pointer", "pages": "multiple-pages", "up": "arrow-up", "down": "arrow-down",
+    "present": "presentation",
 }
 
 def main(pkg: Path) -> None:

@@ -10,16 +10,29 @@ import (
 	"mothergoose/internal/store"
 )
 
+// apiActive is the live campaign as this device may see it. On the host,
+// ?as=<player> (or ?as= for a player with no name picked) previews it as
+// that player's device would get it: the referee checking what is shown.
 func (s *Server) apiActive(w http.ResponseWriter, r *http.Request) {
 	host := s.isHost(r)
+	full := host // sees everything, with who-sees-what
+	_, preview := r.URL.Query()["as"]
+	preview = preview && host
 	resp := map[string]any{"isHost": host, "session": nil, "files": []store.FileInfo{}, "players": []store.Player{}, "me": nil}
 	if id := s.store.Active(); id != "" {
 		if sum, err := s.store.GetSession(id); err == nil {
 			resp["session"] = map[string]string{"id": sum.ID, "name": sum.Name, "gameType": sum.GameType}
 			me := s.me(r, id, sum.Players)
+			if preview {
+				full, me = false, ""
+				if as := r.URL.Query().Get("as"); (store.PageAccess{Players: sum.Players}).HasPlayer(as) {
+					me = as
+				}
+				resp["viewAs"] = me
+			}
 			files := []store.FileInfo{}
 			for _, f := range sum.Files[store.Shared] {
-				if host {
+				if full {
 					files = append(files, f)
 				} else if f.Access(sum.Players).Visible(me) {
 					// Who else a page is shown to is the referee's business.
@@ -27,7 +40,7 @@ func (s *Server) apiActive(w http.ResponseWriter, r *http.Request) {
 					files = append(files, f)
 				}
 			}
-			if host {
+			if full {
 				files = append(files, sum.Files[store.GM]...)
 			}
 			for i := range files {
@@ -161,6 +174,7 @@ func (s *Server) apiActivate(w http.ResponseWriter, r *http.Request) {
 	if prev != "" && prev != r.PathValue("id") {
 		s.hub.kickPlayers(prev + "/")
 	}
+	s.sendPresence()
 	s.changed()
 	w.WriteHeader(http.StatusNoContent)
 }
@@ -174,6 +188,7 @@ func (s *Server) apiDeactivate(w http.ResponseWriter, r *http.Request) {
 	if prev != "" {
 		s.hub.kickPlayers(prev + "/")
 	}
+	s.sendPresence()
 	s.changed()
 	w.WriteHeader(http.StatusNoContent)
 }

@@ -175,7 +175,8 @@ func (s *Server) wsEvents(w http.ResponseWriter, r *http.Request) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	s.hub.addListener(c)
-	defer s.hub.removeListener(c)
+	s.sendPresence()
+	defer func() { s.hub.removeListener(c); s.sendPresence() }()
 	go c.writeLoop(ctx)
 	for {
 		if _, _, err := conn.Read(ctx); err != nil {

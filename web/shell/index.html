@@ -20,6 +20,7 @@
       <span class="label" id="sessionName">nothing live</span><span id="sessionGame" class="hide-sm"></span>
     </button>
     <button class="mg-btn mg-state warn" id="syncBtn" type="button" title="Connection details (i)"><span id="syncLabel">connecting</span></button>
+    <button class="mg-btn referee" id="viewAsBtn" type="button" hidden aria-haspopup="menu" title="See this view as a player's device would"></button>
     <span class="mg-grow"></span>
     <span class="mg-actions">
       <a class="mg-btn referee" id="adminLink" href="/admin" data-switch="referee" hidden title="The referee's dashboard (this computer only)"><svg class="mg-i" aria-hidden="true"><use href="/_mg/icons.svg#view"></use></svg><span class="lbl">referee's dashboard</span></a>
@@ -29,10 +30,14 @@
   </header>
   <nav class="tabbar" aria-label="Campaign pages">
     <div class="tabs" id="tabs" role="tablist"></div>
+    <span class="full-status" id="fullStatus" hidden></span>
+    <button class="bar-btn" id="pagesBtn" type="button" hidden aria-haspopup="dialog" title="Every page, to search or pick (ctrl k or /)"></button>
     <button class="bar-btn" id="filterBtn" type="button" hidden aria-haspopup="dialog" title="Show only pages with a tag (t)"></button>
     <button class="bar-btn" id="fullBtn" type="button" title="Full screen (f)"></button>
   </nav>
 
+  <div class="preview-strip" id="previewStrip" hidden></div>
+  <div id="srStatus" class="mg-vh" aria-live="polite"></div>
   <main id="stage" hidden>
     <div class="pick" id="pick" role="tablist" aria-label="Whose copy" hidden></div>
     <div id="frames">

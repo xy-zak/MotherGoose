@@ -116,6 +116,10 @@ func (s *Server) apiAddTemplate(w http.ResponseWriter, r *http.Request) {
 	if sc == store.Shared {
 		up.PerPlayer, up.Hidden = &t.PerPlayer, &t.Hidden
 	}
+	if sc == store.Shared && s.store.Active() == id {
+		yes := true
+		up.Hidden = &yes // added while live: hidden until revealed
+	}
 	pm, _, err := s.store.UpdatePageMeta(id, sc, name, up)
 	if err != nil {
 		storeError(w, err)
