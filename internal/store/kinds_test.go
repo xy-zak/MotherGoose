@@ -137,7 +137,7 @@ func TestPDFsHaveState(t *testing.T) {
 	if f := findFile(mustFiles(t, s, sess.ID, Shared), "sheet.pdf"); f == nil || !f.HasState {
 		t.Fatalf("listed = %+v", f)
 	}
-	if err := s.ResetState(sess.ID, Shared, "sheet.pdf", ""); err != nil {
+	if _, err := s.ResetState(sess.ID, Shared, "sheet.pdf", ""); err != nil {
 		t.Fatal(err)
 	}
 	if st, _ := s.GetState(sess.ID, Shared, "sheet.pdf", ""); len(st) != 0 {
@@ -155,7 +155,7 @@ func TestImagesHaveNoState(t *testing.T) {
 	if err := s.SetValue(sess.ID, Shared, "map.png", "", "k", json.RawMessage(`1`)); !errors.Is(err, ErrInvalid) {
 		t.Errorf("SetValue: %v", err)
 	}
-	if err := s.ResetState(sess.ID, Shared, "map.png", ""); !errors.Is(err, ErrInvalid) {
+	if _, err := s.ResetState(sess.ID, Shared, "map.png", ""); !errors.Is(err, ErrInvalid) {
 		t.Errorf("ResetState: %v", err)
 	}
 	// Moving and deleting still work.
@@ -168,7 +168,7 @@ func TestImagesHaveNoState(t *testing.T) {
 	if err := s.MoveFile(sess.ID, GM, "map.png", GM, "world.jpg"); err != nil {
 		t.Errorf("renaming between image types: %v", err)
 	}
-	if err := s.DeleteFile(sess.ID, GM, "world.jpg"); err != nil {
+	if _, err := s.DeleteFile(sess.ID, GM, "world.jpg"); err != nil {
 		t.Fatal(err)
 	}
 }

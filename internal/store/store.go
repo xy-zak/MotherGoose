@@ -17,6 +17,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"sort"
 	"strings"
 	"sync"
@@ -87,10 +88,13 @@ type config struct {
 
 // Store is safe for concurrent use.
 //
-// Lock order: ioMu, then mu. metaMu is never held together with either.
+// Lock order: trashMu, then ioMu, then mu. metaMu is never held together
+// with ioMu or mu.
 type Store struct {
 	root   string
 	metaMu sync.Mutex // serialises session.json read-modify-writes
+	// trashMu is held by every move into or out of the trash (see trash.go).
+	trashMu sync.Mutex
 	// ioMu orders every write, move and removal of state files. Saves run
 	// with it but without mu, so typing never waits on the disk, and a save
 	// can still never land after a reset, move or delete of the same file.
@@ -112,6 +116,7 @@ func Open(root string) (*Store, error) {
 		return nil, err
 	}
 	s := &Store{root: abs, states: map[string]*fileState{}}
+	s.purgeTrash(TrashKeep)
 	b, err := os.ReadFile(s.configPath())
 	switch {
 	case err == nil:
@@ -349,30 +354,6 @@ func (s *Store) CreateSession(name, gameType string) (Session, error) {
 	return meta, s.writeMeta(meta)
 }
 
-// DeleteSession removes the folder and everything in it.
-func (s *Store) DeleteSession(id string) error {
-	if err := s.checkSession(id); err != nil {
-		return err
-	}
-	s.ioMu.Lock()
-	defer s.ioMu.Unlock()
-	s.mu.Lock()
-	for k, st := range s.states {
-		if strings.HasPrefix(k, id+"/") {
-			if st.timer != nil {
-				st.timer.Stop()
-			}
-			delete(s.states, k)
-		}
-	}
-	if s.cfg.ActiveSession == id {
-		s.cfg.ActiveSession = ""
-		_ = s.saveConfig()
-	}
-	s.mu.Unlock()
-	return os.RemoveAll(s.dir(id))
-}
-
 // Active returns the active session id, or "" when none is active.
 func (s *Store) Active() string {
 	s.mu.Lock()
@@ -395,4 +376,65 @@ func (s *Store) SetActive(id string) error {
 	defer s.mu.Unlock()
 	s.cfg.ActiveSession = id
 	return s.saveConfig()
+}
+
+// DuplicateSession makes a new campaign from another: the same game type,
+// pages, page details and order, and the party too when withParty is set.
+// Entries are never copied, so the new campaign starts empty. Pages shown
+// only to some players are shown to nobody but the referee without the party.
+func (s *Store) DuplicateSession(id, name string, withParty bool) (Session, error) {
+	src, err := s.loadMeta(id)
+	if err != nil {
+		return Session{}, err
+	}
+	dst, err := s.CreateSession(name, src.GameType)
+	if err != nil {
+		return Session{}, err
+	}
+	for _, sc := range Scopes {
+		entries, _ := os.ReadDir(filepath.Join(s.dir(id), string(sc)))
+		for _, e := range entries {
+			if e.IsDir() || !isPage(e.Name()) || !validName(e.Name()) {
+				continue
+			}
+			if err := copyFile(filepath.Join(s.dir(id), string(sc), e.Name()), filepath.Join(s.dir(dst.ID), string(sc), e.Name())); err != nil {
+				_, _ = s.DeleteSession(dst.ID)
+				return Session{}, fmt.Errorf("copying %s: %w", e.Name(), err)
+			}
+		}
+	}
+	return s.updateMeta(dst.ID, func(m *Session) error {
+		if withParty {
+			m.Players = slices.Clone(src.Players)
+		}
+		if len(src.Pages) > 0 {
+			m.Pages = map[string]PageMeta{}
+			for k, pm := range src.Pages {
+				pm.Tags = slices.Clone(pm.Tags)
+				if withParty {
+					pm.Allowed = slices.Clone(pm.Allowed)
+				} else {
+					pm.Allowed = nil
+				}
+				setPage(m, k, pm)
+			}
+		}
+		if len(src.Order) > 0 {
+			m.Order = map[Scope][]string{}
+			for sc, list := range src.Order {
+				m.Order[sc] = slices.Clone(list)
+			}
+		}
+		return nil
+	})
+}
+
+// copyFile copies a page into place atomically.
+func copyFile(from, to string) error {
+	f, err := os.Open(from)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	return writeAtomicFrom(to, f)
 }

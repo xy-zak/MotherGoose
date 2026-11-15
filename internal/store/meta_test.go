@@ -79,7 +79,7 @@ func TestPageMeta(t *testing.T) {
 	}
 
 	// Deleting drops them, so a new file with the old name starts clean.
-	if err := s.DeleteFile(sess.ID, GM, "lower-map.html"); err != nil {
+	if _, err := s.DeleteFile(sess.ID, GM, "lower-map.html"); err != nil {
 		t.Fatal(err)
 	}
 	s.SaveFile(sess.ID, GM, "lower-map.html", strings.NewReader("<p>"))
@@ -214,7 +214,7 @@ func TestPageOrder(t *testing.T) {
 		t.Fatalf("referee after move = %s", got)
 	}
 	// Deleted: gone from the order too.
-	if err := s.DeleteFile(sess.ID, Shared, "z.html"); err != nil {
+	if _, err := s.DeleteFile(sess.ID, Shared, "z.html"); err != nil {
 		t.Fatal(err)
 	}
 	meta, _ := s.loadMeta(sess.ID)

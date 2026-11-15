@@ -88,9 +88,11 @@ The dashboard has two panes. The campaigns list is on the left and the selected 
 - **Export filled** (HTML and Markdown pages, and fillable PDFs): download a copy with every entry filled in. An HTML copy works offline; a PDF copy is a normal filled-in PDF you can open anywhere. Archive it or send it to a player.
 - **Move to referee / players**: the same as dragging it onto the other panel.
 - **Reset entries** (HTML pages and fillable PDFs): clear everything typed into the page.
-- **Delete**: remove the file.
+- **Delete**: remove the page, with its entries and every copy.
 
-Deleting or resetting always asks first. **Join Info** in the top bar shows the players' address and a QR code, and **data folder** shows where everything is stored, with a button to open it in your file explorer.
+Deleting or clearing always asks first, and nothing is gone at once: deleted pages and campaigns, cleared entries and removed players go to the trash for 30 days. The notice that follows has **undo**, and **data folder** lists the trash, with **put back** and **empty the trash**.
+
+A campaign's **more** menu has **export all**, a .zip of every page filled in (each player's copy beside a per-player page, and PDFs with their entries as JSON), and **duplicate**, a new campaign with the same pages, details and order (and the party, if you like) but nothing typed into them: handy for running the same adventure for another group. **Join Info** in the top bar shows the players' address and a QR code, and **data folder** shows where everything is stored, with a button to open it in your file explorer.
 
 **edit** on a campaign changes its name or game type. On the host computer, the player view (`/`) also shows the referee pages, in their own orange group of tabs. On every other device they are hidden and refused.
 

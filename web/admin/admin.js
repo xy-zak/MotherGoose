@@ -16,8 +16,8 @@ import {
 import { A, app, fileCount, livePort, MAX_PLAYERS, playersBase } from './state.js';
 import { tourRunning } from '/_mg/tour.js';
 import { bootScreen, switchLinks } from '/_mg/fx.js';
-import { joinOverlay, dataOverlay, editSession, sessionOverlay, fileOverlay, renamePlayer, removePlayer, guideOverlay, templateOverlay } from './overlays.js';
-import { drawPresence, endSession, goLive, moveBy, pointHere, rowMenu, setPresence, toggleHidden } from './table.js';
+import { joinOverlay, dataOverlay, editSession, sessionMenu, sessionOverlay, fileOverlay, renamePlayer, removePlayer, guideOverlay, templateOverlay } from './overlays.js';
+import { drawPresence, endSession, goLive, moveBy, pointHere, rowMenu, setPresence, toggleHidden, trashed } from './table.js';
 import { upload, enablePageDrag } from './pages.js';
 import { tutorial } from './tutorial.js';
 import { isJumpKey, quickJump } from '/_mg/jump.js';
@@ -284,6 +284,7 @@ function renderRight() {
         '<button class="mg-btn quiet" data-act="edit-session" title="Change the name or game type">' + withIcon('edit', 'edit') + '</button>' +
         '<button class="mg-btn quiet" data-act="reveal" title="Open this campaign\'s folder">' + withIcon('folder', 'open folder') + '</button>' +
         '<button class="mg-btn quiet" data-act="session-info" title="Campaign details">' + withIcon('info', 'info') + '</button>' +
+        '<button class="mg-btn quiet" data-act="session-menu" aria-haspopup="menu" title="Export all, duplicate">' + withIcon('more', 'more') + '</button>' +
         '<span class="mg-grow"></span>' +
         // Going live and ending share a place: the one that applies shows.
         (s.active
@@ -355,11 +356,15 @@ document.addEventListener('click', attempt(async (e) => {
     await api('POST', '/api/admin/sessions/' + enc(A.current.id) + '/reveal');
   } else if (act === 'session-info') {
     await sessionOverlay();
+  } else if (act === 'session-menu') {
+    sessionMenu(btn);
   } else if (act === 'delete-session') {
-    const n = fileCount(A.current);
-    if (await confirmDialog('Delete campaign', 'Delete "' + A.current.name + '"' + (n ? ' and its ' + n + ' file' + (n === 1 ? '' : 's') + ', with everything typed into them' : '') + '? This can\'t be undone.', 'delete campaign')) {
-      await api('DELETE', '/api/admin/sessions/' + enc(A.current.id));
-      toast('Campaign deleted');
+    const s = A.current, n = fileCount(s);
+    if (await confirmDialog('Delete campaign', 'Delete "' + s.name + '"' + (n ? ' and its ' + n + ' page' + (n === 1 ? '' : 's') + ', with everything typed into them' : '') + '?' +
+        (s.active ? ' It is live: its session ends, and players go back to the waiting screen.' : '') +
+        ' It stays in the trash (in the data folder) for 30 days.', 'delete campaign')) {
+      const r = await api('DELETE', '/api/admin/sessions/' + enc(s.id));
+      trashed('Deleted the campaign', s.name, [r && r.trash]);
       location.hash = '#/';
     }
   } else if (act === 'template') {

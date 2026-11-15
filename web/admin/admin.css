@@ -297,3 +297,11 @@ body { display: flex; flex-direction: column; min-height: 100dvh; }
 .upload-progress { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 4px 8px; align-items: center; padding: 8px 10px; border: 1px dashed var(--accent); font-size: var(--fs-small); }
 .upload-progress .track { grid-column: 1 / -1; height: 4px; background: var(--deep); }
 .upload-progress .fill { display: block; height: 100%; width: 0; background: var(--accent); }
+
+/* The trash, in the data folder popup. */
+.trash-sec { margin-top: 14px; }
+.trash-list ul { list-style: none; margin: 0; padding: 0; max-height: 40vh; overflow-y: auto; }
+.trash-list li { display: flex; align-items: center; gap: 8px; padding: 4px 0; border-bottom: 1px solid var(--line); }
+.trash-list li .what { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.trash-list li .mg-i { flex: none; color: var(--muted); }
+.trash-foot { display: flex; align-items: center; gap: 8px; justify-content: space-between; margin: 8px 0 0; }

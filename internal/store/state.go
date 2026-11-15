@@ -254,50 +254,12 @@ func (s *Store) flushLocked(k string) {
 	}
 }
 
-// ResetState clears all saved values for a file, or for one player's copy
-// of it. A reset copy starts again from the template's entries.
-func (s *Store) ResetState(id string, sc Scope, name, player string) error {
-	if err := s.checkState(id, sc, name, player); err != nil {
-		return err
-	}
-	return s.resetState(id, sc, name, player)
-}
-
-// resetState drops any saved entries for a file, whatever its kind.
-func (s *Store) resetState(id string, sc Scope, name, player string) error {
-	s.ioMu.Lock()
-	defer s.ioMu.Unlock()
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.dropLocked(stateKey(id, sc, name, player))
-	if err := os.Remove(s.statePath(id, sc, name, player)); err != nil && !errors.Is(err, os.ErrNotExist) {
-		return err
-	}
-	return nil
-}
-
 // dropLocked forgets a cached state without writing it.
 func (s *Store) dropLocked(k string) {
 	if st, ok := s.states[k]; ok && st.timer != nil {
 		st.timer.Stop()
 	}
 	delete(s.states, k)
-}
-
-// dropCopies removes every player's copy of a deleted file, including those
-// of players who were taken off the roster with their entries kept: a new
-// file with the same name must not inherit them.
-func (s *Store) dropCopies(id, name string) {
-	s.ioMu.Lock()
-	defer s.ioMu.Unlock()
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	for _, pid := range s.copyOwnersLocked(id, name) {
-		s.dropLocked(stateKey(id, Shared, name, pid))
-		if err := os.Remove(s.statePath(id, Shared, name, pid)); err != nil && !errors.Is(err, os.ErrNotExist) {
-			log.Printf("removing %s's entries for %s: %v", pid, name, err)
-		}
-	}
 }
 
 // copyOwnersLocked lists the players who may have a copy of a file: those

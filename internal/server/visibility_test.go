@@ -130,7 +130,7 @@ func TestRemovingAPlayerUnlistsThem(t *testing.T) {
 	f := setup(t)
 	f.st.AddPlayer(f.id, "Ana")
 	f.setVis(t, "sheet.html", `{"audience":"only","allowed":["ana"]}`)
-	if rec := f.request("DELETE", "/api/admin/sessions/"+f.id+"/players/ana", "", nil); rec.Code != 204 {
+	if rec := f.request("DELETE", "/api/admin/sessions/"+f.id+"/players/ana", "", nil); rec.Code != 200 {
 		t.Fatal(rec.Code)
 	}
 	// Ana coming back (or someone else called Ana) doesn't get it back...

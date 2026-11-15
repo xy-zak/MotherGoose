@@ -56,7 +56,7 @@ func TestSessionLifecycle(t *testing.T) {
 	if got.Name != "Keep, Renamed" || !got.Active {
 		t.Fatalf("got %+v", got.Session)
 	}
-	if err := s2.DeleteSession(a.ID); err != nil {
+	if _, err := s2.DeleteSession(a.ID); err != nil {
 		t.Fatal(err)
 	}
 	if s2.Active() != "" {
@@ -144,12 +144,12 @@ func TestFilesAndState(t *testing.T) {
 	if len(files) != 1 || !files[0].HasState {
 		t.Fatalf("files = %+v", files)
 	}
-	s2.ResetState(sess.ID, GM, name, "")
+	_, _ = s2.ResetState(sess.ID, GM, name, "")
 	st, _ = s2.GetState(sess.ID, GM, name, "")
 	if len(st) != 0 {
 		t.Fatal("reset did not clear")
 	}
-	if err := s2.DeleteFile(sess.ID, GM, name); err != nil {
+	if _, err := s2.DeleteFile(sess.ID, GM, name); err != nil {
 		t.Fatal(err)
 	}
 	if s2.Exists(sess.ID, GM, name) {

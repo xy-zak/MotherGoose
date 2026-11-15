@@ -164,7 +164,7 @@ func (s *Server) apiDeleteFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.syncMu.Lock()
-	err := s.store.DeleteFile(id, sc, name)
+	tid, err := s.store.DeleteFile(id, sc, name)
 	if err == nil {
 		s.hub.toFile(id, string(sc), name, map[string]string{"type": "gone"})
 	}
@@ -174,7 +174,7 @@ func (s *Server) apiDeleteFile(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.changed()
-	w.WriteHeader(http.StatusNoContent)
+	writeJSON(w, http.StatusOK, map[string]string{"trash": tid})
 }
 
 func (s *Server) apiResetState(w http.ResponseWriter, r *http.Request) {
@@ -198,7 +198,7 @@ func (s *Server) apiResetState(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 	s.syncMu.Lock()
-	err := s.store.ResetState(id, sc, name, player)
+	tid, err := s.store.ResetState(id, sc, name, player)
 	if err == nil {
 		reload := map[string]string{"type": "reload"}
 		if player != "" {
@@ -214,7 +214,7 @@ func (s *Server) apiResetState(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.changed()
-	w.WriteHeader(http.StatusNoContent)
+	writeJSON(w, http.StatusOK, map[string]string{"trash": tid})
 }
 
 // apiSetOrder sets the order of one scope's pages: the dashboard's columns
@@ -367,29 +367,47 @@ func (s *Server) apiExport(w http.ResponseWriter, r *http.Request) {
 	if !ok || !requireHTML(w, name) {
 		return
 	}
-	doc, err := s.readPage(id, sc, name)
-	if err != nil {
-		storeError(w, err)
-		return
-	}
 	player, err := s.copyFor(r, id, sc, name, r.URL.Query().Get("player"))
 	if err != nil {
 		s.accessFail(w, r, err)
 		return
 	}
-	st, err := s.store.GetState(id, sc, name, player)
+	doc, err := s.filledPage(id, sc, name, player)
 	if err != nil {
 		storeError(w, err)
 		return
 	}
-	tag := stateTag(st) + "<script>\n" + string(s.injectJS) + "\n</script>\n"
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	attachment(w, filledName(name, player))
+	w.Write(doc)
+}
+
+// filledPage is a page with its entries (or one player's copy) built in: a
+// file that opens anywhere with what was typed into it.
+func (s *Server) filledPage(id string, sc store.Scope, name, player string) ([]byte, error) {
+	doc, err := s.readPage(id, sc, name)
+	if err != nil {
+		return nil, err
+	}
+	st, err := s.store.GetState(id, sc, name, player)
+	if err != nil {
+		return nil, err
+	}
+	return injectBefore(doc, stateTag(st)+"<script>\n"+string(s.injectJS)+"\n</script>\n"), nil
+}
+
+// filledName is what an exported page is called: "notes-filled.html", or
+// "notes-ana-filled.html" for Ana's copy.
+func filledName(name, player string) string {
 	base := strings.TrimSuffix(name, path.Ext(name))
 	if player != "" {
 		base += "-" + player
 	}
-	out := base + "-filled.html"
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	return base + "-filled.html"
+}
+
+// attachment makes the browser save the response as a file called name.
+func attachment(w http.ResponseWriter, name string) {
 	w.Header().Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"; filename*=UTF-8''%s`,
-		strings.ReplaceAll(out, `"`, ""), url.PathEscape(out)))
-	w.Write(injectBefore(doc, tag))
+		strings.ReplaceAll(name, `"`, ""), url.PathEscape(name)))
 }

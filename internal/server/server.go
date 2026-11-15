@@ -103,6 +103,12 @@ func (s *Server) routes() *http.ServeMux {
 	m.HandleFunc("POST /api/admin/sessions/{id}/files/{scope}/{file}/show", s.hostOnly(s.apiShowPage))
 	m.HandleFunc("GET /api/admin/sessions/{id}/files/{scope}/{file}/check", s.hostOnly(s.apiCheckPage))
 
+	m.HandleFunc("GET /api/admin/trash", s.hostOnly(s.apiListTrash))
+	m.HandleFunc("POST /api/admin/trash/{item}/restore", s.hostOnly(s.apiRestoreTrash))
+	m.HandleFunc("DELETE /api/admin/trash", s.hostOnly(s.apiEmptyTrash))
+	m.HandleFunc("POST /api/admin/sessions/{id}/duplicate", s.hostOnly(s.apiDuplicateSession))
+	m.HandleFunc("GET /api/admin/sessions/{id}/export.zip", s.hostOnly(s.apiExportAll))
+
 	m.HandleFunc("GET /ws/file", s.wsFile)
 	m.HandleFunc("GET /ws/events", s.wsEvents)
 	return m

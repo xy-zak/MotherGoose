@@ -343,22 +343,6 @@ func (s *Store) OpenFile(id string, sc Scope, name string) (*os.File, os.FileInf
 	return f, fi, nil
 }
 
-// DeleteFile removes a file, its saved state and every player's copy of it.
-func (s *Store) DeleteFile(id string, sc Scope, name string) error {
-	p, err := s.filePath(id, sc, name)
-	if err != nil {
-		return err
-	}
-	if err := os.Remove(p); errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("file %q: %w", name, ErrNotFound)
-	} else if err != nil {
-		return err
-	}
-	s.movePageMeta(id, sc, name, "", "")
-	s.dropCopies(id, name)
-	return s.resetState(id, sc, name, "")
-}
-
 // MoveFile moves and/or renames a file, carrying its state and every
 // player's copy of it along.
 func (s *Store) MoveFile(id string, sc Scope, name string, toScope Scope, toName string) error {

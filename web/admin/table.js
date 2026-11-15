@@ -146,7 +146,8 @@ export async function move(scope, name, to) {
 
 /**
  * clearEntries clears what was typed into a page, or into one copy of a
- * per-player page (player: '' is the starting copy). It resolves true when cleared.
+ * per-player page (player: '' is the starting copy), keeping it in the trash
+ * with a moment to undo. It resolves true when cleared.
  */
 export async function clearEntries(scope, name, player) {
   const f = (A.current.files[scope] || []).find((x) => x.name === name);
@@ -156,8 +157,8 @@ export async function clearEntries(scope, name, player) {
     : copy ? playerName(A.current.players, copy) + '\'s copy of "' + titleOf(f) + '"' : 'the starting copy of "' + titleOf(f) + '"';
   if (!(await confirmDialog('Clear entries', 'Clear everything typed into ' + whose + '? Anyone viewing it reloads empty.' +
       (player === '' ? ' Players\' own copies are kept.' : ''), 'clear entries', { icon: 'reset' }))) return false;
-  await api('DELETE', fileBase(A.current, scope, name) + '/state' + (copy ? '?player=' + enc(copy) : ''));
-  toast('Entries cleared');
+  const r = await api('DELETE', fileBase(A.current, scope, name) + '/state' + (copy ? '?player=' + enc(copy) : ''));
+  trashed('Cleared the entries of', titleOf(f), [r && r.trash]);
   app.refresh();
   return true;
 }
@@ -169,22 +170,57 @@ export async function clearAllCopies(scope, name) {
   const filled = (A.current.players || []).filter((p) => f.playerState && f.playerState[p.id]);
   if (!filled.length) return false;
   if (!(await confirmDialog('Clear every copy', 'Clear what ' + filled.map((p) => p.name).join(', ') + ' typed into their copies of "' + titleOf(f) + '"? The starting copy is kept.', 'clear every copy', { icon: 'reset' }))) return false;
-  for (const p of filled) await api('DELETE', fileBase(A.current, scope, name) + '/state?player=' + enc(p.id));
-  toast('Cleared ' + filled.length + ' cop' + (filled.length === 1 ? 'y' : 'ies'));
+  const tids = [];
+  for (const p of filled) tids.push((await api('DELETE', fileBase(A.current, scope, name) + '/state?player=' + enc(p.id)) || {}).trash);
+  trashed('Cleared ' + filled.length + ' cop' + (filled.length === 1 ? 'y' : 'ies') + ' of', titleOf(f), tids);
   app.refresh();
   return true;
 }
 
-/** deletePage deletes a page, after asking. It resolves true when deleted. */
+/** deletePage moves a page to the trash, after asking. It resolves true when deleted. */
 export async function deletePage(scope, name) {
   const f = (A.current.files[scope] || []).find((x) => x.name === name);
   if (!f) return false;
   const live = A.current.active && scope === 'shared' ? ' Players looking at it lose it now.' : '';
-  if (!(await confirmDialog('Delete page', 'Delete "' + titleOf(f) + '"' + (f.perPlayer ? ' and every player\'s copy of it' : f.hasState ? ' and everything typed into it' : '') + '?' + live, 'delete page'))) return false;
-  await api('DELETE', fileBase(A.current, scope, name));
-  toast('Deleted ' + titleOf(f));
+  if (!(await confirmDialog('Delete page', 'Delete "' + titleOf(f) + '"' + (f.perPlayer ? ' and every player\'s copy of it' : f.hasState ? ' and everything typed into it' : '') + '?' + live +
+      ' It stays in the trash (in the data folder) for 30 days.', 'delete page'))) return false;
+  const r = await api('DELETE', fileBase(A.current, scope, name));
+  trashed('Deleted', titleOf(f), [r && r.trash]);
   app.refresh();
   return true;
+}
+
+// ---- the trash: undoing a delete or a clear ---------------------------------------------
+
+/**
+ * trashed says what went to the trash, with "undo" to put it back (every
+ * item, for an action that made several).
+ */
+export function trashed(text, strong, tids) {
+  const ids = (tids || []).filter(Boolean);
+  if (!ids.length) { toast(text + ' ' + strong); return; }
+  notice({
+    text, strong, icon: 'delete', ms: 10000,
+    action: { label: 'undo', icon: 'reset', run: async () => { for (const id of ids) await restoreTrash(id, true); toast('Put back: ' + strong); app.refresh(); } }
+  });
+}
+
+/** restoreTrash puts a trash item back; quiet leaves the toast and refresh to the caller. */
+export async function restoreTrash(id, quiet) {
+  try {
+    const it = await api('POST', '/api/admin/trash/' + enc(id) + '/restore');
+    if (!quiet) { toast('Put back: ' + trashLabel(it)); app.refresh(); }
+    return it;
+  } catch (e) { toast(e.message, true); return null; }
+}
+
+/** trashLabel names a trash item for people. */
+export function trashLabel(it) {
+  const page = it.title || it.name;
+  if (it.kind === 'campaign') return 'the campaign ' + it.sessionName;
+  if (it.kind === 'player') return it.title + ' (party of ' + it.sessionName + ')' + (it.copies ? ', with their entries' : '');
+  if (it.kind === 'entries') return 'entries of ' + page + (it.player ? ' (' + it.player + '\'s copy)' : '') + ' in ' + it.sessionName;
+  return page + ' in ' + it.sessionName;
 }
 
 // ---- starting, switching and ending a session --------------------------------------------

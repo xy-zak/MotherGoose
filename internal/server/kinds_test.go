@@ -79,7 +79,7 @@ func TestStateRoutesRefuseImages(t *testing.T) {
 	if got := f.do("GET", "/api/admin/sessions/"+f.id+"/files/gm/secret-map.pdf/export", host).Code; got != 400 {
 		t.Errorf("export pdf = %d", got)
 	}
-	if got := f.do("DELETE", "/api/admin/sessions/"+f.id+"/files/gm/secret-map.pdf/state", host).Code; got != 204 {
+	if got := f.do("DELETE", "/api/admin/sessions/"+f.id+"/files/gm/secret-map.pdf/state", host).Code; got != 200 {
 		t.Errorf("reset pdf = %d", got)
 	}
 	if got := f.do("DELETE", "/api/admin/sessions/"+f.id+"/files/shared/map.png/state", host).Code; got != 400 {

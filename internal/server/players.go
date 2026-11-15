@@ -270,7 +270,7 @@ func (s *Server) apiRemovePlayer(w http.ResponseWriter, r *http.Request) {
 	// Under syncMu, so that no edit already checked against the old roster
 	// can land after the copies are deleted and bring them back.
 	s.syncMu.Lock()
-	err := s.store.RemovePlayer(id, pid, del)
+	tid, err := s.store.RemovePlayer(id, pid, del)
 	if err == nil {
 		s.hub.toPlayer(id, pid, map[string]string{"type": "gone"})
 		// Their own copies, and pages that were shown only to them.
@@ -285,5 +285,5 @@ func (s *Server) apiRemovePlayer(w http.ResponseWriter, r *http.Request) {
 	}
 	s.sendPresence()
 	s.changed()
-	w.WriteHeader(http.StatusNoContent)
+	writeJSON(w, http.StatusOK, map[string]string{"trash": tid})
 }

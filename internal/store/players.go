@@ -1,11 +1,8 @@
 package store
 
 import (
-	"errors"
 	"fmt"
 	"log"
-	"os"
-	"path/filepath"
 	"regexp"
 	"slices"
 	"strings"
@@ -192,56 +189,4 @@ func (s *Store) RenamePlayer(id, player, name string) (Player, error) {
 		return nil
 	})
 	return p, err
-}
-
-// RemovePlayer takes a player off the roster. Their copies of per-player
-// pages stay in state/players/<id>/ unless deleteEntries is set.
-func (s *Store) RemovePlayer(id, player string, deleteEntries bool) error {
-	_, err := s.updateMeta(id, func(m *Session) error {
-		i := findPlayer(m.Players, player)
-		if i < 0 {
-			return fmt.Errorf("player %q: %w", player, ErrNotFound)
-		}
-		m.Players = append(m.Players[:i], m.Players[i+1:]...)
-		// Pages shown only to some players stop listing them. A page left
-		// with nobody stays shown to nobody but the referee.
-		for k, pm := range m.Pages {
-			if j := slices.Index(pm.Allowed, player); j >= 0 {
-				pm.Allowed = slices.Delete(slices.Clone(pm.Allowed), j, j+1)
-				if len(pm.Allowed) == 0 {
-					pm.Allowed = nil
-				}
-				m.Pages[k] = pm
-			}
-		}
-		return nil
-	})
-	if err != nil {
-		return err
-	}
-	s.ioMu.Lock()
-	defer s.ioMu.Unlock()
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	prefix := id + "/players/" + player + "/"
-	for k := range s.states {
-		if strings.HasPrefix(k, prefix) {
-			if deleteEntries {
-				s.dropLocked(k)
-			} else {
-				// Kept entries are written now: nothing will flush them later
-				// once nobody can open the copy.
-				s.flushLocked(k)
-				delete(s.states, k)
-			}
-		}
-	}
-	if !deleteEntries {
-		return nil
-	}
-	dir := filepath.Join(s.playersStateDir(id), player)
-	if err := os.RemoveAll(dir); err != nil && !errors.Is(err, os.ErrNotExist) {
-		return fmt.Errorf("removing %s's entries: %w", player, err)
-	}
-	return nil
 }

@@ -46,10 +46,10 @@ func TestRosterAndSlugIDs(t *testing.T) {
 	if _, err := s.RenamePlayer(sess.ID, "nobody", "X"); !errors.Is(err, ErrNotFound) {
 		t.Errorf("rename unknown: %v", err)
 	}
-	if err := s.RemovePlayer(sess.ID, "ana-2", false); err != nil {
+	if _, err := s.RemovePlayer(sess.ID, "ana-2", false); err != nil {
 		t.Fatal(err)
 	}
-	if err := s.RemovePlayer(sess.ID, "ana-2", false); !errors.Is(err, ErrNotFound) {
+	if _, err := s.RemovePlayer(sess.ID, "ana-2", false); !errors.Is(err, ErrNotFound) {
 		t.Errorf("remove twice: %v", err)
 	}
 	got, _ := s.GetSession(sess.ID)
@@ -165,7 +165,7 @@ func TestCopyStartsFromTemplate(t *testing.T) {
 	}
 
 	// Resetting a copy sends it back to the template's entries.
-	if err := s2.ResetState(id, Shared, "sheet.html", "ana"); err != nil {
+	if _, err := s2.ResetState(id, Shared, "sheet.html", "ana"); err != nil {
 		t.Fatal(err)
 	}
 	if got := val(t, s2, id, "ana", "#hp"); got != `"12"` {
@@ -259,7 +259,7 @@ func TestRemovePlayerKeepsOrDeletesEntries(t *testing.T) {
 
 	// Keep (the default): pending entries are written, and re-adding the
 	// same name restores them.
-	if err := s.RemovePlayer(id, "ana", false); err != nil {
+	if _, err := s.RemovePlayer(id, "ana", false); err != nil {
 		t.Fatal(err)
 	}
 	if b, err := os.ReadFile(filepath.Join(dir("ana"), "sheet.html.json")); err != nil || !strings.Contains(string(b), "Ana") {
@@ -276,7 +276,7 @@ func TestRemovePlayerKeepsOrDeletesEntries(t *testing.T) {
 	}
 
 	// Delete: gone from disk, and a pending write doesn't bring it back.
-	if err := s.RemovePlayer(id, "ben", true); err != nil {
+	if _, err := s.RemovePlayer(id, "ben", true); err != nil {
 		t.Fatal(err)
 	}
 	s.Flush()
@@ -329,8 +329,8 @@ func TestMoveRenameDeleteCarryCopies(t *testing.T) {
 
 	// Deleting removes every copy, even of a player no longer on the roster,
 	// so a new page with the same name starts clean.
-	s.RemovePlayer(id, "ben", false)
-	if err := s.DeleteFile(id, Shared, "hero.html"); err != nil {
+	_, _ = s.RemovePlayer(id, "ben", false)
+	if _, err := s.DeleteFile(id, Shared, "hero.html"); err != nil {
 		t.Fatal(err)
 	}
 	if left, _ := filepath.Glob(filepath.Join(s.Root(), "sessions", id, "state", "players", "*", "*")); len(left) != 0 {

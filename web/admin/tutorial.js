@@ -71,7 +71,8 @@ function tourSteps() {
       '<li>' + ic('folder') + ' <b>open folder</b> on this computer, to add files by hand</li>' +
       '<li>' + ic('info') + ' <b>info</b>: id, party, dates and where it\'s stored</li>' +
       '<li>' + ic('live') + ' <b>go live</b>: start a session, putting it on every player\'s screen. While it\'s live, the same button is <b>end session</b>, which sends players back to a waiting screen</li>' +
-      '<li>' + ic('delete') + ' <b>delete</b> it with all its pages and entries (it asks first)</li></ul>' },
+      '<li>' + ic('more') + ' <b>more</b>: <b>export all</b> (every page filled in, as a .zip) and <b>duplicate</b> (the same pages for another group, without anything typed into them)</li>' +
+      '<li>' + ic('delete') + ' <b>delete</b> it with all its pages and entries (it asks first, and you can undo it: deleted things stay in the trash, in <b>data folder</b>, for 30 days)</li></ul>' },
 
     { section: 'Party', title: 'The party', target: '.party', text:
       '<p>Below the line in the campaign panel: the players in this campaign. Each player picks their name from this list on their own device, and <b class="players">per player</b> pages then show them their own copy.</p>' +

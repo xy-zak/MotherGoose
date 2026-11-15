@@ -152,7 +152,7 @@ func (s *Server) apiUpdateSession(w http.ResponseWriter, r *http.Request) {
 func (s *Server) apiDeleteSession(w http.ResponseWriter, r *http.Request) {
 	id := r.PathValue("id")
 	s.syncMu.Lock()
-	err := s.store.DeleteSession(id)
+	tid, err := s.store.DeleteSession(id)
 	if err == nil {
 		s.hub.toRoomsWithPrefix(id+"/", map[string]string{"type": "gone"})
 	}
@@ -162,7 +162,7 @@ func (s *Server) apiDeleteSession(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	s.changed()
-	w.WriteHeader(http.StatusNoContent)
+	writeJSON(w, http.StatusOK, map[string]string{"trash": tid})
 }
 
 func (s *Server) apiActivate(w http.ResponseWriter, r *http.Request) {

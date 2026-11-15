@@ -129,7 +129,7 @@ func TestTamperedCookieIsIgnored(t *testing.T) {
 		}
 	}
 	// A player taken off the roster is no longer anyone's "me".
-	f.st.RemovePlayer(f.id, "ana", false)
+	_, _ = f.st.RemovePlayer(f.id, "ana", false)
 	if body := f.request("GET", "/api/active", "", withCookie(whoCookieFor(f.id, "ana"))).Body.String(); !strings.Contains(body, `"me":null`) {
 		t.Fatalf("removed player still me: %s", body)
 	}
@@ -342,7 +342,7 @@ func TestRosterAPIAndEvents(t *testing.T) {
 		t.Errorf("bad entries = %d", rec.Code)
 	}
 
-	if rec := f.request("DELETE", base+"/ana?entries=delete", "", nil); rec.Code != 204 {
+	if rec := f.request("DELETE", base+"/ana?entries=delete", "", nil); rec.Code != 200 {
 		t.Fatalf("remove: %d %s", rec.Code, rec.Body.String())
 	}
 	if m := readMsg(ctx, t, conn); m["type"] != "gone" {
@@ -364,7 +364,7 @@ func TestRosterAPIAndEvents(t *testing.T) {
 
 	// Keep is the default.
 	f.st.SetValue(f.id, store.Shared, "sheet.html", "ben", "#notes", json.RawMessage(`"ben's"`))
-	if rec := f.request("DELETE", base+"/ben", "", nil); rec.Code != 204 {
+	if rec := f.request("DELETE", base+"/ben", "", nil); rec.Code != 200 {
 		t.Fatalf("remove ben: %d", rec.Code)
 	}
 	if _, err := os.Stat(filepath.Join(f.st.Root(), "sessions", f.id, "state", "players", "ben", "sheet.html.json")); err != nil {
@@ -443,7 +443,7 @@ func TestPerPlayerSwitchAPI(t *testing.T) {
 		t.Errorf("reset unknown player = %d", got)
 	}
 	f.st.SetValue(f.id, store.Shared, "sheet.html", "", "#notes", json.RawMessage(`"template"`))
-	if got := f.do("DELETE", "/api/admin/sessions/"+f.id+"/files/shared/sheet.html/state?player=ana", host).Code; got != 204 {
+	if got := f.do("DELETE", "/api/admin/sessions/"+f.id+"/files/shared/sheet.html/state?player=ana", host).Code; got != 200 {
 		t.Fatalf("reset copy = %d", got)
 	}
 	if st, _ := f.st.GetState(f.id, store.Shared, "sheet.html", ""); string(st["#notes"]) != `"template"` {

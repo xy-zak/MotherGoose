@@ -114,7 +114,7 @@ These are the rules the code follows. A change that breaks one should change the
    - Entries are kept in memory and saved by a timer. The timer writes while holding `ioMu` but not `mu`.
    - `SetValue` and `GetState` take only `mu`.
    - Admin operations that move or remove state files take `ioMu` first, so a save can never land after one of them.
-8. **Lock order:** `syncMu` (server), then `ioMu`, then `mu` (store), then `hub.mu`. `metaMu` (`session.json` read-modify-write) is never held together with `ioMu` or `mu`. The notifier's lock is a leaf: nothing is called while holding it.
+8. **Lock order:** `syncMu` (server), then `trashMu`, then `ioMu`, then `mu` (store), then `hub.mu`. `metaMu` (`session.json` read-modify-write) is never held together with `ioMu` or `mu`. The notifier's lock is a leaf: nothing is called while holding it.
 9. **Every `session.json` change goes through `updateMeta`.** It reads, changes and writes under `metaMu`, and repairs or sets aside a broken file instead of failing. Every write in the data folder is atomic (`writeAtomic`: temporary file, fsync, rename, fsync the folder).
 
 ### The UI
@@ -205,6 +205,7 @@ data/
     gm/<page>                         referee's pages
     state/<scope>/<page>.json         a page's entries (the template, when per player)
     state/players/<player>/<page>.json  one player's copy
+  trash/<item>/                       something deleted or cleared, kept 30 days (see store/trash.go)
 ```
 
 These rules follow from the model:
@@ -215,7 +216,8 @@ These rules follow from the model:
 - **HTML and Markdown pages are one file.** `CheckPage` refuses one that loads files from beside it, on upload; a page copied in by hand is reported in its info instead.
 - **A copy starts from the template.** A player's copy that doesn't exist yet reads as the template. It becomes a file the first time that player writes to it.
 - **Switching per player off keeps the copies,** and so does removing a player unless the referee says otherwise. They come back when the switch or the player does.
-- **Deleting a page deletes its entries and every copy,** so a new page with the same name starts empty.
+- **Deleting a page takes its entries and every copy with it** (to the trash), so a new page with the same name starts empty.
+- **Nothing the referee deletes or clears is gone at once.** Pages (with entries and copies), campaigns, cleared entries and removed players go to `trash/` for 30 days, and can be put back. A page put back under a taken name gets a free one; entries put back replace what was typed since.
 - **Limits:** names up to 120 characters, game types 60, descriptions 1,000, 12 tags of 32, 24 players with names of 40. Each field value is up to 1 MiB, HTML pages and images up to 32 MB, Markdown pages up to 8 MB, and PDFs up to 100 MB.
 
 ---

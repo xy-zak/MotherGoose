@@ -61,7 +61,7 @@ func TestRenameMoveAndDeleteFiles(t *testing.T) {
 		t.Fatal("move didn't move")
 	}
 
-	if rec := f.request("DELETE", file("gm", "notes.html"), "", nil); rec.Code != 204 {
+	if rec := f.request("DELETE", file("gm", "notes.html"), "", nil); rec.Code != 200 {
 		t.Fatalf("delete: %d", rec.Code)
 	}
 	if rec := f.request("DELETE", file("gm", "notes.html"), "", nil); rec.Code != 404 {
@@ -105,7 +105,7 @@ func TestEndAndDeleteSession(t *testing.T) {
 		t.Fatal("still live")
 	}
 
-	if rec := f.request("DELETE", "/api/admin/sessions/"+f.id, "", nil); rec.Code != 204 {
+	if rec := f.request("DELETE", "/api/admin/sessions/"+f.id, "", nil); rec.Code != 200 {
 		t.Fatalf("delete: %d", rec.Code)
 	}
 	if m := readMsg(ctx, t, ref); m["type"] != "gone" {

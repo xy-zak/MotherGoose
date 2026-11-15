@@ -84,7 +84,7 @@ Everything returns JSON except the pages themselves. Routes marked *host* answer
 
 | Method and path | Who | Purpose |
 |---|---|---|
-| `GET /api/active` | anyone | The live campaign, its files (shared files this device may see, unless you are the host), roster and `me` (this device's player). For players, `hidden`, `audience` and `allowed` are blanked, and `modified` is when the file itself changed (not anyone's entries). |
+| `GET /api/active[?as=<player>]` | anyone | The live campaign, its files (shared files this device may see, unless you are the host), roster and `me` (this device's player). For players, `hidden`, `audience` and `allowed` are blanked, and `modified` is when the file itself changed (not anyone's entries). The host can add `?as=` (a player id, or empty for "no name picked") to get the list a player's device would get, with `viewAs` set; players' `?as=` is ignored. |
 | `POST /api/me` | anyone | `{"player": "<id>" \| null}`: pick or forget this device's player in the live session. Sets `mg_who`. |
 | `GET /api/info` | host | Port, LAN URLs, `localUrl` (`http://<name>.local:<port>/`, or empty) and data folder. |
 | `GET /api/qr.png[?u=]` | host | QR code of the players' address, or of `u` if it is one of the LAN URLs or the `.local` one. |
@@ -93,18 +93,23 @@ Everything returns JSON except the pages themselves. Routes marked *host* answer
 | `POST /api/admin/sessions/{id}/templates` | host | `{"template", "scope"?}`: adds a template as a new page, under a free name, with its details. |
 | `GET /api/admin/sessions` | host | Every session, as summaries. |
 | `GET /api/admin/sessions/{id}` | host | One session: files per scope, `hasState`, `playerState`, `lastEdited`. |
-| `POST / PATCH / DELETE /api/admin/sessions/{id}` | host | Create, rename or change game type, delete. |
+| `POST / PATCH / DELETE /api/admin/sessions/{id}` | host | Create, rename or change game type, delete. Deleting moves the campaign to the trash and answers `{trash}` (the item's id). |
+| `POST /api/admin/sessions/{id}/duplicate` | host | `{"name", "party"?}`: a new campaign with the same game type, pages, page details and order, and the party when `party` is true. Entries are never copied. Answers the new session. |
+| `GET /api/admin/sessions/{id}/export.zip` | host | Every page as a zip, in `players/` and `referee/`: HTML and Markdown pages filled in (`<page>-filled.html`, and `<page>-<player>-filled.html` for each copy of a per-player page), PDFs as they are plus `<page>[-<player>].entries.json`, images as they are. |
 | `POST /api/admin/sessions/{id}/reveal`, `POST /api/admin/data/reveal` | host | Open the session's folder, or the whole data folder, in the computer's file explorer. |
 | `POST /api/admin/sessions/{id}/activate`, `DELETE /api/admin/active` | host | Go live, end the session. |
-| `POST /api/admin/sessions/{id}/files` | host | Multipart upload: `scope` plus one or more `files`. Answers `{saved, errors, warnings}`: an HTML or Markdown page that loads files from beside it is refused (in `errors`); `warnings` maps a saved page to what checking it found (`web` hosts it loads from, `unnamed` fields). |
+| `POST /api/admin/sessions/{id}/files` | host | Multipart upload: `scope` plus one or more `files`. Answers `{saved, errors, warnings, replaced, hidden}`: an HTML or Markdown page that loads files from beside it is refused (in `errors`); `warnings` maps a saved page to what checking it found (`web` hosts it loads from, `unnamed` fields); `replaced` lists saved names that replaced a page (its entries and details are kept); `hidden` lists new players' pages that start hidden because the campaign is live. |
 | `PUT /api/admin/sessions/{id}/order` | host | `{"scope", "names": [...]}`: page order. |
-| `PATCH / DELETE /api/admin/sessions/{id}/files/{scope}/{file}` | host | Move or rename, delete. |
-| `PUT …/files/{scope}/{file}/meta` | host | Any of `description`, `tags`, `perPlayer`, `hidden`, `audience` (`""` or `"only"`), `allowed` (player ids). Fields left out stay as they are. |
+| `PATCH / DELETE /api/admin/sessions/{id}/files/{scope}/{file}` | host | Move or rename (`{"scope"?, "name"?}`, answers `{name, scope, hidden}`: a page moved to the players' side while live starts hidden), delete (moves the page, its entries and every copy to the trash; answers `{trash}`). |
+| `PUT …/files/{scope}/{file}/meta` | host | Any of `name` (a new file name, same type), `title` (shown in place of the page's own; `""` uses the page's own), `description`, `tags`, `perPlayer`, `hidden`, `audience` (`""` or `"only"`), `allowed` (player ids). Fields left out stay as they are. The rename and the details are applied together; answers `{name, meta}`. |
 | `GET …/files/{scope}/{file}/check` | host | What checking an HTML or Markdown page finds: `{report: {local, web, fields, unnamed}, error?}`. |
 | `POST …/files/{scope}/{file}/show` | host | Asks every player's device that can see the page to look at it: sends `show` on `/ws/events`. The campaign must be live and the page not hidden. Answers `{devices}`. |
-| `DELETE …/files/{scope}/{file}/state[?player=]` | host | Reset entries. |
+| `DELETE …/files/{scope}/{file}/state[?player=]` | host | Clear entries (the page's own, or one player's copy), moving them to the trash. Answers `{trash}`, empty when there was nothing to clear. |
 | `GET …/files/{scope}/{file}/export[?player=]` | host | Filled-in HTML download (Markdown pages export as HTML). |
-| `POST / PATCH / DELETE /api/admin/sessions/{id}/players[/{player}]` | host | Roster. |
+| `POST / PATCH / DELETE /api/admin/sessions/{id}/players[/{player}]` | host | Roster. Removing (`?entries=keep` or `delete`) records the player in the trash, with their copies when deleted, and answers `{trash}`. |
+| `GET /api/admin/trash` | host | What is in the trash, newest first: `{items: [{id, kind, session, sessionName, scope?, name?, title?, player?, deleted, …}], keepDays}`. `kind` is `page`, `campaign`, `entries` or `player`. Items older than `keepDays` (30) are emptied when MotherGoose starts. |
+| `POST /api/admin/trash/{item}/restore` | host | Puts an item back and answers it as restored: a page whose name was taken meanwhile comes back under a free one (`name`), a campaign whose id was taken under a free id (`session`). Entries put back reload whoever is viewing them. |
+| `DELETE /api/admin/trash` | host | Empties the trash for good. |
 | `GET /s/{session}/{scope}/{file}[?player=]` | per access rules | The page. HTML pages come back with their saved entries and the page script added before `</body>` (and, with `<meta name="mothergoose" content="theme">`, `tokens.css` and `page-theme.js` added to the `<head>`). Markdown pages are turned into HTML first. PDFs and images are sent as they are, with Range support. |
 | `GET /_mg/guide/` | anyone | The guide to making pages, as a page. `/_mg/guide/SKILL.md` is the file itself (an AI skill). |
 | `GET /_mg/inject.js` | anyone | The page script: `sync.js` and `inject.js` as one script, wrapped in a function. |
@@ -186,6 +191,7 @@ This socket is opened by the referee dashboard and by every player view. It carr
 |---|---|
 | `{"type":"changed"}` | Something the dashboards show has changed. Refetch. |
 | `{"type":"show","key":"shared/<file>"}` | The referee asks this device's player to look at a page. Sent only to players' devices that can see it, judged by the `mg_who` cookie the socket connected with: the player view reconnects this socket after picking a name. The player view asks the player; it never switches tabs by itself. |
+| `{"type":"presence","session":id,"players":{player: devices},"unnamed":n}` | Host dashboards only: which players' devices are connected to the live campaign (by the name each picked) and how many haven't picked one. Sent when a device connects or goes, and when the live campaign or its party changes. The host's own views don't count. |
 | `{"type":"ping"}` | A heartbeat every 25 s. Ignored apart from the 60 s dead-connection check. |
 
 On every (re)connect, and on every `changed`, the client refetches:
@@ -228,7 +234,7 @@ Each kind of change reaches clients at its own speed:
 | A field value | Everyone viewing that copy | `set` on `/ws/file` | 200 ms batching + network |
 | A page's entries, as the dashboards see them ("filled" marks, "edited 2m ago") | Dashboards and player views | Saved to disk, then `changed` | About 0.85 s for the first edit, then at most one event every 5 s while someone keeps typing |
 | Sessions, pages, order, roster, details, going live (any API change) | Dashboards and player views | `changed` | 150 ms (one event for a whole burst) |
-| A page's file replaced, entries reset, per-player switched, player renamed | That page's open copies | `reload` on `/ws/file` | Instant |
+| A page's file replaced, entries cleared or put back from the trash, per-player switched, player renamed | That page's open copies | `reload` on `/ws/file` | Instant |
 | A page deleted or moved, session ended, player removed | That page's open copies | `gone` on `/ws/file` | Instant |
 | Files added, changed or removed in the data folder by hand | Dashboards and player views | `Watch` sees the change, then `changed` | Up to 2 s, plus 150 ms |
 | Time passing ("edited 2m ago") | Referee dashboard | 60 s timer while the tab is visible, plus a refresh when the tab becomes visible again | Up to 60 s |

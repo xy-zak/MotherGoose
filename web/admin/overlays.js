@@ -4,12 +4,12 @@
 import {
   agoText, allTags, api, attempt, audienceText, canPerPlayer, confirmDialog, enc, esc, filledUrl, isPage, perPlayerTag, tagField,
   formOverlay, gameTag, hasEntries, ic, isHidden, isOnly, KIND_NAME, kindTag, kv, overlay,
-  parseTags, playerName, SCOPE, scopeTag, size, titleOf, toast, viewUrl,
+  parseTags, playerName, popMenu, SCOPE, scopeTag, size, titleOf, toast, viewUrl,
   visTags, when, withIcon
 } from '/_mg/ui.js';
 import { A, app, fileBase, filledCount, livePort, MAX_PLAYERS, other, playersBase } from './state.js';
 import { tourRunning } from '/_mg/tour.js';
-import { clearAllCopies, clearEntries, deletePage, move, pointHere } from './table.js';
+import { clearAllCopies, clearEntries, deletePage, move, pointHere, restoreTrash, trashed, trashLabel } from './table.js';
 
 // Join Info: the address players open, as a link and a QR code. The
 // computer's name (<name>.local) stays the same between game nights, unlike
@@ -90,15 +90,47 @@ async function reachable(base) {
 }
 
 export async function dataOverlay() {
+  const body = document.createElement('div');
+  body.innerHTML = kv([['location', '<code>' + esc(A.info ? A.info.dataDir : '') + '</code>']]) +
+    '<pre class="tree">data/\n  config.json              which campaign is live\n  sessions/                one folder per campaign\n    the-sunken-keep/\n      session.json         name, game type, party, page details and who sees them\n' +
+    '      shared/              players\' pages\n      gm/                  referee\'s pages (this computer only)\n      state/               what people typed (managed for you)\n        players/           each player\'s copy of per-player pages\n' +
+    '  trash/                   what was deleted or cleared, kept for 30 days</pre>' +
+    '<p class="mg-muted">Copy .html, .md, .pdf, .png or .jpg files into <code>shared/</code> (players) or <code>gm/</code> (referee) and they appear within a couple of seconds. Back up by copying the whole folder.</p>' +
+    '<section class="fsec trash-sec"><h3 class="fsec-t">Trash</h3><div class="trash-list" id="trashList"><p class="mg-muted">' + ic('search') + ' looking…</p></div></section>';
+  const list = body.querySelector('#trashList');
+  const KIND_ICON = { page: 'kind-html', campaign: 'sessions', entries: 'reset', player: 'player' };
+  // The trash, newest first: each item with "put back"; "empty the trash" at the end.
+  async function draw() {
+    let t;
+    try { t = await api('GET', '/api/admin/trash'); } catch (e) { list.innerHTML = '<p class="mg-muted">' + esc(e.message) + '</p>'; return; }
+    if (!t.items.length) {
+      list.innerHTML = '<p class="mg-muted">The trash is empty. Deleted pages and campaigns, cleared entries and removed players stay here for ' + t.keepDays + ' days.</p>';
+      return;
+    }
+    list.innerHTML = '<ul>' + t.items.map((it) =>
+      '<li>' + ic(KIND_ICON[it.kind] || 'delete', 'deco') + '<span class="what">' + esc(trashLabel(it)) + '<span class="mg-muted mg-small"> · ' + esc(it.kind === 'entries' ? 'cleared' : it.kind === 'player' ? 'removed' : 'deleted') + ' ' + esc(agoText(it.deleted)) + '</span></span>' +
+        '<button type="button" class="mg-btn small quiet" data-restore="' + esc(it.id) + '">' + withIcon('reset', 'put back') + '</button></li>').join('') + '</ul>' +
+      '<p class="trash-foot"><span class="mg-muted mg-small">Kept for ' + t.keepDays + ' days.</span><button type="button" class="mg-btn small danger" data-empty>' + withIcon('delete', 'empty the trash') + '</button></p>';
+  }
   const v = await overlay({
     title: 'Data folder',
     icon: 'data',
     wide: true,
     actions: [{ label: 'open folder', value: 'reveal', icon: 'folder' }],
-    body: kv([['location', '<code>' + esc(A.info ? A.info.dataDir : '') + '</code>']]) +
-      '<pre class="tree">data/\n  config.json              which campaign is live\n  sessions/                one folder per campaign\n    the-sunken-keep/\n      session.json         name, game type, party, page details and who sees them\n' +
-      '      shared/              players\' pages\n      gm/                  referee\'s pages (this computer only)\n      state/               what people typed (managed for you)\n        players/           each player\'s copy of per-player pages</pre>' +
-      '<p class="mg-muted">Copy .html, .md, .pdf, .png or .jpg files into <code>shared/</code> (players) or <code>gm/</code> (referee) and they appear within a couple of seconds. Back up by copying the whole folder.</p>'
+    body,
+    onOpen: (d) => {
+      draw();
+      d.addEventListener('click', attempt(async (e) => {
+        const r = e.target.closest('[data-restore]');
+        if (r) { r.disabled = true; await restoreTrash(r.dataset.restore); await draw(); return; }
+        if (e.target.closest('[data-empty]')) {
+          if (!(await confirmDialog('Empty the trash', 'Delete everything in the trash for good? This can\'t be undone.', 'empty the trash'))) return;
+          await api('DELETE', '/api/admin/trash');
+          toast('The trash is empty');
+          await draw();
+        }
+      }));
+    }
   });
   if (v === 'reveal') await api('POST', '/api/admin/data/reveal');
 }
@@ -117,6 +149,36 @@ export async function editSession() {
   await api('PATCH', '/api/admin/sessions/' + enc(s.id), { name: v.name, gameType: v.gameType });
   toast('Saved');
   app.refresh();
+}
+
+/** sessionMenu opens a campaign's rarer actions: export all and duplicate. */
+export function sessionMenu(btn) {
+  const s = A.current;
+  popMenu(btn, [
+    { label: 'export all (.zip)', icon: 'export', href: '/api/admin/sessions/' + enc(s.id) + '/export.zip', download: true },
+    { label: 'duplicate', icon: 'copy', run: attempt(duplicateSession) }
+  ], { label: 'More for ' + s.name });
+}
+
+/**
+ * duplicateSession makes a new campaign from this one, for another group or
+ * another run: its pages, their details and order, and the party if asked.
+ */
+export async function duplicateSession() {
+  const s = A.current;
+  const v = await formOverlay({
+    title: 'Duplicate campaign', icon: 'copy', submitLabel: 'duplicate', submitIcon: 'copy',
+    fields: [
+      { name: 'name', label: 'Name', value: (s.name + ' (copy)').slice(0, 120), max: 120, required: true,
+        hint: 'pages, their details and order are copied; what was typed into them never is' },
+      { name: 'party', type: 'checkbox', label: 'Copy the party too', checked: false, icon: 'players',
+        hint: (s.players || []).length ? (s.players || []).map((p) => p.name).join(', ') : 'there are no players yet' }
+    ]
+  });
+  if (!v) return;
+  const d = await api('POST', '/api/admin/sessions/' + enc(s.id) + '/duplicate', { name: v.name, party: !!v.party });
+  toast('Made the campaign ' + d.name);
+  location.hash = '#/s/' + enc(d.id);
 }
 
 export async function sessionOverlay() {
@@ -539,13 +601,13 @@ export async function removePlayer(id) {
       label: p.name + '\'s entries',
       options: [
         { value: 'keep', label: 'keep them', hint: 'adding ' + p.name + ' again brings them back' },
-        { value: 'delete', label: 'delete them', hint: 'every per-player page they filled in. This can\'t be undone.' }
+        { value: 'delete', label: 'delete them', hint: 'every per-player page they filled in (kept in the trash for 30 days)' }
       ]
     }
   });
   if (!choice) return false;
-  await api('DELETE', playersBase(A.current) + '/' + enc(id) + (choice === 'delete' ? '?entries=delete' : ''));
-  toast('Removed ' + p.name + (choice === 'delete' ? ' and their entries' : '. Their entries are kept.'));
+  const r = await api('DELETE', playersBase(A.current) + '/' + enc(id) + (choice === 'delete' ? '?entries=delete' : ''));
+  trashed('Removed', p.name + (choice === 'delete' ? ' and their entries' : ' (their entries are kept)'), [r && r.trash]);
   app.refresh();
   return true;
 }
