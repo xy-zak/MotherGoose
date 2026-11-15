@@ -2,7 +2,7 @@
 
 A small server for running tabletop RPG sessions over your local network. It runs on the referee's computer (the game master, GM or DM).
 
-A **campaign** is a folder of pages, such as character sheets, a player handout, the referee's notes, a rulebook PDF or a map. You make these anywhere you like, or start from MotherGoose's templates, then drop them in. Each campaign has a **game type**, the game or rules being played, written in your own words and shown next to its name so you can tell your campaigns apart. A **session** is one evening of play: from **go live** to **end session**.
+A **campaign** is a folder of pages, such as character sheets, a player handout, the referee's notes, a rulebook PDF or a map. You make these anywhere you like, or start from MotherGoose's ready-made pages, then drop them in. Each campaign has a **game type**, the game or rules being played, written in your own words and shown next to its name so you can tell your campaigns apart. A **session** is one evening of play: from **go live** to **end session**.
 
 | Page type | Files | What players get |
 |---|---|---|
@@ -73,34 +73,36 @@ mothergoose --no-browser       # don't open the dashboard on start
 ## Running a session
 
 1. In the dashboard (`/admin`), create a campaign. Give it a name and, optionally, a game type.
-2. Drag `.html`, `.md`, `.pdf`, `.png` or `.jpg` files into **Players** or **Referee**, or use **+ add**, or **template** for a ready-made page. Drag a page up or down to reorder it (players' tabs follow the same order), or onto the other panel to change which side it's on.
-3. Click **▶ go live** to start a session. Only one campaign is live at a time, and players see its shared pages as tabs. A short boot screen plays on the referee's and the players' screens.
-4. Click **■ end session** when you're done. Players see a shutdown screen and return to a waiting screen, and every entry is kept for next time.
+2. Drag `.html`, `.md`, `.pdf`, `.png` or `.jpg` files into **Players** or **Referee**, or use **+ add**, or **ready-made** for a built-in page. Drag a page up or down to reorder it (players' tabs follow the same order), or onto the other panel to change which side it's on. Uploads show their progress on the column, and say when a page of the same name was replaced (its entries and details are kept).
+3. Click **▶ go live** to start a session. Only one campaign is live at a time, and players see its shared pages as tabs. A short boot screen plays on the referee's and the players' screens, then a notice offers **join info**. If another campaign is live, the button reads **switch live here** and asks first.
+4. Click **■ end session** when you're done. You get five seconds to **undo** it; then players see a shutdown screen and return to a waiting screen, and every entry is kept for next time.
 
 With no campaign open, the dashboard shows **Getting started**: everything the app does, one line each, with buttons for both tutorials and the guide to making pages.
 
-The dashboard has two panes. The campaigns list is on the left and the selected campaign is on the right. Each file row has **open ↗** and **info**; players' pages also have **hide** / **reveal** and, while the session is live, **show**. Above the columns, the campaign's tags filter the pages (pick one or more; this device remembers it). **info** opens the page's details, where you can edit it and reach the less common actions:
+The dashboard has two panes. The campaigns list is on the left and the selected campaign is on the right (on narrower screens the list folds up above it). While a session is live, the party shows which players' devices are connected ("here", "away", or "2 devices" when two picked the same name).
 
-- **Edit the page**: change its file name (the type stays the same), description, tags and, for players' pages, **per player** and **who can see it**. **save** applies them together.
-- **Checked**: for HTML and Markdown pages, what MotherGoose found when it checked the page: files it can't load, things it loads from the internet, fields without a name.
-- **Party** (per-player pages): add or remove players right there. This changes the campaign's party and applies straight away.
-- **Show to players** (while the session is live): ask every player who can see it to look at it now.
-- **Export filled** (HTML and Markdown pages, and fillable PDFs): download a copy with every entry filled in. An HTML copy works offline; a PDF copy is a normal filled-in PDF you can open anywhere. Archive it or send it to a player.
-- **Move to referee / players**: the same as dragging it onto the other panel.
-- **Reset entries** (HTML pages and fillable PDFs): clear everything typed into the page.
-- **Delete**: remove the page, with its entries and every copy.
+Each page row has **hide** / **reveal** (players' pages), **open ↗**, **info** and **⋯**, a menu with **point here** (while live: ask every player who can see it to look at it now), **move up** / **move down** (or Alt+↑/↓ on a focused row), **move to referee / players**, **clear entries** and **delete**. Revealing waits four seconds with **undo**, in case of a slip; hiding is immediate. While a session is live, pages added or moved to the players' side start hidden, so nothing reaches players before you're ready.
+
+Above the columns, the campaign's tags filter the pages (pick one or more; this device remembers it; **clear filter** shows them all). **info** opens the page's details:
+
+- **Details**: a **title** (what tabs and lists call it, in place of the page's own), its file name (the type stays the same), description and tags (as chips, with suggestions from your other pages).
+- **Who sees it** (players' pages): **per player**, and who can see it.
+- **Copies** (per-player pages): the party, to add or remove players straight away, and each copy with when it last changed.
+- **More about this page**: what MotherGoose found when it checked the page (files it can't load, things it loads from the internet, fields without a name), its type, size and entries.
+
+**save** applies everything together; closing with unsaved changes asks first. The footer also has **open**, **export filled** (a copy with every entry filled in: an HTML copy works offline, a PDF copy is a normal filled-in PDF) and, under **more…**, move, clear entries and delete.
 
 Deleting or clearing always asks first, and nothing is gone at once: deleted pages and campaigns, cleared entries and removed players go to the trash for 30 days. The notice that follows has **undo**, and **data folder** lists the trash, with **put back** and **empty the trash**.
 
-A campaign's **more** menu has **export all**, a .zip of every page filled in (each player's copy beside a per-player page, and PDFs with their entries as JSON), and **duplicate**, a new campaign with the same pages, details and order (and the party, if you like) but nothing typed into them: handy for running the same adventure for another group. **Join Info** in the top bar shows the players' address and a QR code, and **data folder** shows where everything is stored, with a button to open it in your file explorer.
+A campaign's **more** menu has **export all**, a .zip of every page filled in (each player's copy beside a per-player page, and PDFs with their entries as JSON), and **duplicate**, a new campaign with the same pages, details and order (and the party, if you like) but nothing typed into them: handy for running the same adventure for another group. **join info** in the top bar shows the players' address and a QR code, with **show to the table** for a full-screen version, and **data folder** shows where everything is stored, with a button to open it in your file explorer.
 
 **edit** on a campaign changes its name or game type. On the host computer, the player view (`/`) also shows the referee pages, in their own orange group of tabs. On every other device they are hidden and refused.
 
-### Templates
+### Ready-made pages
 
-**template** at the top of each column adds a ready-made page, with a live preview. They work with any game, look like MotherGoose, and follow each reader's theme and font:
+**ready-made** at the top of each column adds a built-in page, with a live preview (↑ ↓ to choose, Enter to add). They work with any game, look like MotherGoose, and follow each reader's theme and font:
 
-| Template | What it is |
+| Page | What it is |
 |---|---|
 | Character sheet | Name, concept, six stats you rename, resources with − and +, abilities, inventory, notes. Added **per player**. |
 | Notes | Rich-text notes with headings, lists and quotes. |
@@ -108,9 +110,9 @@ A campaign's **more** menu has **export all**, a .zip of every page filled in (e
 | Turn order | Names and order, sorted with one tap, a marker on whoever's turn it is, and the round. |
 | Clocks | Progress clocks of 4 to 12 segments, and a countdown timer. |
 | Party loot | The party's money and shared items: who carries what. |
-| Handout | A letter on paper, added **hidden**: write it, lock it, then reveal it. |
+| Handout | A letter on paper, added **hidden**: write it, lock it, then reveal it. Only the referee can unlock it. |
 
-Once added, a template is an ordinary page: rename it, change its details, or edit the file.
+Once added, a ready-made page is an ordinary page: rename it, give it a title, change its details, or edit the file. Adding one twice titles the second "Notes 2".
 
 ### Who sees a players' page
 
@@ -119,7 +121,9 @@ A players' page's **info** has **Who can see it**:
 - **every player** (the default), or **only these players**: tick their names. Ticking nobody keeps it for the referee alone.
 - **hidden until I reveal it**: no player sees it, not even its name, while you prepare it. **reveal** on its row (or unticking it) shows it to whoever is chosen above.
 
-Players are never told that a page is hidden, or meant for someone else: it simply isn't there for them, and asking for it by its address gets "not found". When a page is revealed (or added) while they watch, players get a note with a button to open it, and its tab gets a dot until they do. **show** asks every player who can see a page to look at it now; their device asks them first.
+To check what a player sees, open the player view on the host computer and use **view as** to see exactly what that player's device shows.
+
+Players are never told that a page is hidden, or meant for someone else: it simply isn't there for them, and asking for it by its address gets "not found". When a page is revealed (or added) while they watch, players get a note with a button to open it, and its tab gets a dot until they do. **point here** asks every player who can see a page to look at it now; their device asks them first.
 
 This works on the name each device picked (see below), so it keeps pages out of the way rather than secret.
 
@@ -127,33 +131,34 @@ This works on the name each device picked (see below), so it keeps pages out of 
 
 The top of the player view has two slim rows:
 
-- **Info bar:** campaign name, connection status, theme. Click the campaign name or the status for details.
-- **Tab bar:** one tab per page, numbered, with PDF and image pages marked by an icon. The open tab is tinted blue for players' pages and orange for the referee's.
+- **Info bar:** campaign name, connection status (**waiting**, **connected**, or **offline**: changes are kept and sent when back), theme. Tap the campaign name or the status for details.
+- **Tab bar:** one tab per page, numbered, with PDF and image pages marked by an icon. The open tab is tinted blue for players' pages and orange for the referee's. **pages** lists every page with a search box: the quickest way to find one on a tablet.
   - **Drag tabs** to put them in your own order. It's kept on that device only; **reset tab order** goes back to the referee's.
   - **Right-click a tab** (or hold it on a touch screen) to **shrink** it, move it left or right, or reset the order.
   - When the tabs don't all fit, the ones at the end shrink by themselves so the row never needs scrolling. The open tab stays full size.
   - A **dot** marks a page this device hasn't opened yet, a **ring** one that changed since it was last opened.
   - **filter** (or `t`) shows only the tabs with the tags you pick, on this device.
+  - A **!** marks a tab whose page is reconnecting on its own; what's typed there is kept.
 
 Press **⤢ full** (or `f`) for full screen. The browser goes full screen where it can, and MotherGoose hides everything except a thin row of tabs at the top. Press **⤡ shrink** at the top right, or `Esc`, to come back. On iPhones, which don't support browser full screen, you still get the full-screen layout.
 
-PDFs open in MotherGoose's viewer: page numbers, zoom, fit to width, **search** (`/` or Ctrl+F, with the matches highlighted) and, when the PDF has one, its **contents** (`o`), to jump to a chapter. A scanned PDF has no text, so search says so.
+PDFs open in MotherGoose's viewer: page numbers, zoom (pinch, or double-tap, on a touch screen), fit to width, **search** (`/` or Ctrl+F, with the matches highlighted) and, when the PDF has one, its **contents** (`o`), to jump to a chapter. A scanned PDF has no text, so search says so.
 
 The help button (`?`) and the dashboard's Getting started have a **referee tutorial** or **player tutorial**: a guided tour of the dashboard you are on, one part at a time. The referee's tour uses an example campaign, so nothing real changes.
 
-Keyboard shortcuts (press `?` to see them): `Ctrl+K` or `/` jump to a page by name or tag (`#map`), `f` full screen, `1`–`9` jump to a tab, `[` `]` previous/next tab, `t` filter the tabs, `i` details. In the dashboard: `Ctrl+K` or `/` jump to any campaign, page, tag or player, `n` new campaign, `↑` `↓` move through campaigns, `e` edit the campaign, `p` add a player to the party, `u` add players' files, `j` Join Info.
+Keyboard shortcuts (press `?` to see them): `Ctrl+K` or `/` jump to a page by name or tag (`#map`), `f` full screen, `1`–`9` jump to a tab, `[` `]` previous/next tab, `t` filter the tabs, `i` details. In the dashboard: `Ctrl+K` or `/` jump to any campaign, page, tag or player, `n` new campaign, `↑` `↓` move through campaigns, `e` edit the campaign, `p` add a player to the party, `u` add players' pages, `j` join info. On a touch screen, help lists the gestures instead.
 
 ### Players and per-player sheets
 
 Each campaign has a **PARTY**: the players' names, added under **PARTY** in the campaign panel of the referee's dashboard.
 
-- **Who are you?** On a player's device, per-player tabs ask the player to pick their name from the roster. The device remembers it. **not you?** in the player dashboard header switches to another name.
-- **Per-player pages:** in a players' page's **info**, tick **per player** and **save**. That one file becomes a template: every player gets their own copy, with their own entries, saved and synced separately. HTML pages and fillable PDFs both work.
-- **Starting values:** anything the referee fills into the template is copied into a player's sheet the first time they open it. A player added later starts from the same template.
-- **Only their own copy:** a player's device only ever gets the copy of the player it picked: never another player's, and never the template itself.
-- **The referee's view:** on the host computer, a per-player tab has a strip at the top to switch between the template and each player's copy. In the dashboard, a per-player page's row names each player, shaded once they've filled in their copy, and its **info** lists every copy with open, export filled and reset.
+- **Who are you?** On a player's device, per-player tabs ask the player to pick their name from the roster. The device remembers it. **not you?** in the player view's header switches to another name, and a strip on per-player pages says whose copy it is.
+- **Per-player pages:** in a players' page's **info**, tick **per player** and **save**. That one file becomes the **starting copy**: every player gets their own copy, with their own entries, saved and synced separately. HTML pages and fillable PDFs both work.
+- **Starting values:** anything the referee fills into the starting copy is copied into a player's sheet the first time they open it. A player added later starts from the same starting copy.
+- **Only their own copy:** a player's device only ever gets the copy of the player it picked: never another player's, and never the starting copy itself.
+- **The referee's view:** on the host computer, a per-player tab has a strip at the top to switch between the starting copy and each player's copy (with a warning while the starting copy is selected). In the dashboard, a per-player page's row names each player, shaded once they've filled in their copy, and its **info** lists every copy with open, export filled and clear entries.
 - **Turning per player off** goes back to the single shared copy. Everyone's copies stay on disk and come back if you turn it on again.
-- **Removing a player** asks whether to keep their entries. They're kept by default and come back if a player with the same name is added again. Pages shown only to them stop listing them (and stay hidden from everyone else).
+- **Removing a player** asks whether to keep their entries. They're kept by default and come back if a player with the same name is added again; either way, **undo** (or **put back** in the trash) restores the player as they were. Pages shown only to them stop listing them (and stay hidden from everyone else).
 
 Choosing a name is an honour system, not a login: anyone can pick any name. It keeps sheets out of each other's way rather than secret.
 
@@ -164,9 +169,9 @@ The UI is a terminal-style layout in the [Catppuccin](https://catppuccin.com) pa
 - **Colour theme:** **Auto** (Latte when the device is in light mode, Mocha in dark mode), **Latte**, **Frappé**, **Macchiato** or **Mocha**.
 - **Font:** JetBrains Mono (the default), **Atkinson Hyperlegible Mono** or **Atkinson Hyperlegible**, both designed for readers with low vision, **OpenDyslexic** for dyslexic readers, or the device's own font.
 - **Buttons show:** icons and text, icons only (names appear on hover and are read out by screen readers), or text only.
-- **Animations:** retro CRT effects (popups switch on like an old monitor, switching between the player and referee dashboards changes channel, and sessions boot up and shut down), **Reduced** (quick fades) or **Off**. **Auto**, the default, uses Reduced when the device asks for less motion.
+- **Animations:** retro CRT effects (popups switch on like an old monitor, switching between the player view and the referee's dashboard changes channel, and sessions boot up and shut down), **Reduced** (quick fades) or **Off**. **Auto**, the default, uses Reduced when the device asks for less motion.
 
-These change MotherGoose itself, Markdown pages, the templates, and any page that asks to follow them (see *Looking like MotherGoose*). Other pages keep their own fonts and colours.
+These change MotherGoose itself, Markdown pages, the ready-made pages, and any page that asks to follow them (see *Looking like MotherGoose*). Other pages keep their own fonts and colours.
 
 ---
 
@@ -189,13 +194,14 @@ data/
         shared/aria-sheet.html.json
         gm/gm-notes.html.json
         players/ana/aria-sheet.html.json   Ana's copy of a per-player page
+  trash/                      what was deleted or cleared, kept for 30 days (put back from "data folder")
 ```
 
 - **Adding pages by hand:** copy `.html`, `.md`, `.pdf`, `.png` or `.jpg` files into `shared/` (players) or `gm/` (referee). The folder names are kept from earlier versions, so older data folders keep working. They appear in the dashboard and in players' tabs within a couple of seconds.
 - **Adding a campaign by hand:** create a folder in `sessions/` with `shared/` and/or `gm/` inside it. (Campaigns are kept in `sessions/`, and their details in `session.json`, as in earlier versions.)
 - **Replacing a page:** upload or copy a file with the same name. The entries already typed into it, and its description and tags, are kept.
 - **Editing by hand:** `session.json` is plain JSON, with `gameType` and a `pages` object (for example `"shared/intro.html": {"description": "...", "tags": ["handout"], "hidden": true, "audience": "only", "allowed": ["ana"]}`). Changes show up within a couple of seconds.
-- **Backing up:** copy the `data` folder.
+- **Backing up:** copy the `data` folder. To keep one campaign's filled-in pages, use **export all** in its **more** menu.
 - **Broken files:** if a `.json` file can't be read, for example after a hand edit with a typo, MotherGoose renames it to `<name>.corrupt-<date>` and starts that file fresh. It never overwrites it, so you can fix it and copy it back.
 
 ---
@@ -232,7 +238,7 @@ When two people edit the same field at the same moment, the last change wins. If
 
 ### Looking like MotherGoose
 
-Add `<meta name="mothergoose" content="theme">` to a page's `<head>` and it follows each reader's MotherGoose colour theme and font. MotherGoose adds its design tokens as CSS custom properties (`--bg`, `--surface`, `--line`, `--text`, `--muted`, `--accent`, `--font`, `--fs-body` and more; the guide lists them), kept in step with Display settings. Use them with fallbacks, so the page still looks right on its own, for example as an exported copy. The templates are written this way.
+Add `<meta name="mothergoose" content="theme">` to a page's `<head>` and it follows each reader's MotherGoose colour theme and font. MotherGoose adds its design tokens as CSS custom properties (`--bg`, `--surface`, `--line`, `--text`, `--muted`, `--accent`, `--font`, `--fs-body` and more; the guide lists them), kept in step with Display settings. Use them with fallbacks, so the page still looks right on its own, for example as an exported copy. The ready-made pages are written this way.
 
 ---
 
@@ -280,7 +286,7 @@ web/                 embedded UI, no build step:
   icons.svg            Iconoir icon sprite (rebuild with scripts/icons.py)
   sync.js              the live-sync connection, shared by HTML pages and the PDF viewer
   inject.js            the save-and-sync script added to HTML pages (served together with sync.js)
-  templates/           the built-in templates, and templates.json (their names and details)
+  templates/           the ready-made pages, and templates.json (their names and details)
   guide/SKILL.md       the guide to making pages, which is also an AI skill
   vendor/              PDF.js (library, viewer component, scripting sandbox), bundled
 ```

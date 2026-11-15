@@ -125,12 +125,27 @@ MotherGoose's own style: square corners, 1px lines, small uppercase panel titles
 
 ## Per-player pages
 
-The referee can mark a players' page **per player** (in its info). Every player in the campaign's party then gets their own copy, seen only by them and the referee. Nothing changes in how you write the page: write one sheet, and MotherGoose keeps a copy per player. Anything the referee fills into the page first becomes every player's starting values.
+The referee can mark a players' page **per player** (in its info). Every player in the campaign's party then gets their own copy, seen only by them and the referee. Nothing changes in how you write the page: write one sheet, and MotherGoose keeps a copy per player. Anything the referee fills into the page first becomes the **starting copy**: every player's copy starts from it.
 
 ## Size, and where it's shown
 
 - Pages are shown in a frame filling the screen under two slim bars, on anything from a phone to a laptop. Use `<meta name="viewport" content="width=device-width, initial-scale=1">` and a layout that works at 360 px wide.
-- Keep the page readable on its own: give it a `<title>`. It names the page's tab.
+- Keep the page readable on its own: give it a `<title>`. It names the page's tab (the referee can give it another title in its info).
+- **Tablets are common at the table.** Make anything tapped at least 40 px high (36 px for small buttons), with some space between, and give inputs a font size of at least 16 px, or iOS zooms in when one is tapped. Use `pointerdown` or `click`, never hover alone, to show something. A simple way to do this is one block for coarse pointers:
+
+  ```css
+  @media (pointer: coarse) {
+    button, input, select { min-height: 40px; font-size: 16px; }
+    input[type=checkbox], input[type=radio] { width: 22px; height: 22px; }
+    button { touch-action: manipulation; }   /* no double-tap zoom on steppers */
+  }
+  ```
+- **Motion.** With `<meta name="mothergoose" content="theme">`, `<html>` gets `data-anim` from the reader's settings: `full`, `reduced` or `off`. Gate animations on it, and on `prefers-reduced-motion`:
+
+  ```css
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+  html[data-anim="off"] * { animation: none !important; transition: none !important; }
+  ```
 - Big embedded images make a page slow to open on phones. Shrink pictures before embedding them.
 
 ## Checklist
@@ -141,7 +156,8 @@ The referee can mark a players' page **per player** (in its info). Every player 
 4. Custom state goes through `MotherGoose.set / get / on`, shown with `textContent`, never `innerHTML`.
 5. Fields only for one device have `data-mg-ignore`.
 6. A `<title>`, and the viewport meta tag.
-7. Optionally, `<meta name="mothergoose" content="theme">` with token fallbacks.
+7. Tap targets of 40 px and inputs of 16 px on touch screens.
+8. Optionally, `<meta name="mothergoose" content="theme">` with token fallbacks.
 
 ## A complete example
 

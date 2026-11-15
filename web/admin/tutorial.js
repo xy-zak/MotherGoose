@@ -49,7 +49,7 @@ function tourSteps() {
     { section: 'Top bar', title: 'The top bar', target: 'header.top', text:
       '<ul><li><b>MOTHERGOOSE</b>: back to the start, with no campaign open</li>' +
       '<li>the <b class="referee">referee\'s dashboard</b> label: this page only opens on this computer, the host</li>' +
-      '<li>' + ic('join') + ' <b>Join Info</b>: the address players open (<kbd>j</kbd>)</li>' +
+      '<li>' + ic('join') + ' <b>join info</b>: the address players open (<kbd>j</kbd>)</li>' +
       '<li>' + ic('view') + ' <b class="players">player view</b>: see exactly what players see</li>' +
       '<li>' + ic('data') + ' <b>data folder</b>: where everything is kept on this computer, with a button to open it</li>' +
       '<li>' + ic('settings') + ' <b>display</b>: theme, font and icons, for this device</li>' +
@@ -81,18 +81,20 @@ function tourSteps() {
     { section: 'Pages', title: 'Players and referee', target: '.columns', text:
       '<p><b class="players">Players</b> pages go to every player while the session is live. <b class="referee">Referee</b> pages only open on this computer.</p>' +
       '<p>Add <b>.html</b> pages (anything typed in is saved and synced live), <b>.md</b> Markdown pages, <b>.pdf</b> files (form fields sync too) or <b>.png</b> / <b>.jpg</b> images with ' + ic('add') + ' <b>add</b> (<kbd>u</kbd>), or drop them on a column. Drag pages to reorder them, or across to change who they\'re for.</p>' +
-      '<p>' + ic('template') + ' <b>template</b> adds a ready-made page instead: a character sheet, notes, a tracker, turn order, clocks, party loot or a handout.</p>' },
+      '<p>' + ic('template') + ' <b>ready-made</b> adds a ready-made page instead: a character sheet, notes, a tracker, turn order, clocks, party loot or a handout.</p>' },
     { section: 'Pages', title: 'Filter by tag', target: '.tagfilter', optional: true, text:
-      '<p>Every tag used in the campaign. Pick one or more to show only the pages that have them all; <b>clear</b> shows everything again. This device remembers it.</p>' },
+      '<p>Every tag used in the campaign. Pick one or more to show only the pages that have them all; <b>clear filter</b> shows everything again. This device remembers it.</p>' },
     { section: 'Pages', title: 'A page', target: ROW, text:
       '<p>Each page is a card: type, title, description, file name, size and last change. <span class="mg-tag filled">filled in</span> means someone has typed into it.</p>' +
-      '<ul><li>' + ic('open') + ' <b>open</b> it on its own, in a new tab</li>' +
-      '<li>' + ic('info') + ' <b>info</b>: its details, where it is edited (next)</li></ul>' +
-      '<p>Drag a card up or down to reorder the pages (players\' tabs follow), or onto the other column to change who it\'s for.</p>' },
+      '<ul><li>' + ic('hidden') + ' <b>hide</b> / ' + ic('view') + ' <b>reveal</b> (players\' pages): whether players get it yet</li>' +
+      '<li>' + ic('open') + ' <b>open</b> it on its own, in a new tab</li>' +
+      '<li>' + ic('info') + ' <b>info</b>: its details, where it is edited (next)</li>' +
+      '<li>' + ic('more') + ' <b>⋯</b>: ' + ic('point') + ' <b>point here</b> (while live), move up or down, move to the other side, clear entries, delete</li></ul>' +
+      '<p>Drag a card up or down to reorder the pages (players\' tabs follow), or onto the other column to change who it\'s for. With the keyboard, <kbd>alt</kbd> + <kbd>↑</kbd> <kbd>↓</kbd> moves the focused card.</p>' },
     { section: 'Pages', title: 'Hidden, or for some players', target: '.file[data-name="drowned-letter.html"]', text:
-      '<p><span class="mg-tag hidden">' + ic('hidden') + ' hidden</span> pages are kept from every player, name and all, until you reveal them with ' + ic('view') + ' <b>reveal</b>. ' + ic('hidden') + ' <b>hide</b> puts one away again.</p>' +
+      '<p><span class="mg-tag hidden">' + ic('hidden') + ' hidden</span> pages are kept from every player, name and all, until you reveal them with ' + ic('view') + ' <b>reveal</b>, which waits a few seconds with <b>undo</b> in case of a slip. ' + ic('hidden') + ' <b>hide</b> puts one away at once. While a session is live, pages you add or move to the players start hidden.</p>' +
       '<p><span class="mg-tag only">' + ic('only') + ' only</span> pages are shown to some players: here, only Cass. Who sees a page is set in its <b>info</b>.</p>' +
-      '<p>While the session is live, ' + ic('show') + ' <b>show</b> asks every player who can see a page to look at it now. Their device asks them first; nothing switches by itself.</p>' },
+      '<p>While the session is live, ' + ic('point') + ' <b>point here</b> (in the card\'s ' + ic('more') + ' menu) asks every player who can see a page to look at it now. Their device asks them first; nothing switches by itself.</p>' },
     { section: 'Pages', title: 'A per-player page', target: '.file[data-name="character-sheet.html"] .tagline', text:
       '<p><b class="players">Per player</b>: every player fills in their own copy, seen only by them and you. Each name gets a ' + ic('check') + ' once that player has filled in their copy.</p>' },
 
@@ -118,7 +120,7 @@ function tourSteps() {
 
     { section: 'Per-player copies', title: 'Party and copies', scene: 'sheet', target: ['#fparty', '#fcopies'], text:
       '<p>A per-player page\'s popup (the example\'s <b>Character sheet</b>) also shows the party, to add or remove players straight away.</p>' +
-      '<p>Then every copy: the <b>template</b> holds each new copy\'s starting values, then each player\'s own. For each: ' + ic('open') + ' <b>open</b>, ' + ic('export') + ' <b>export filled</b> or ' + ic('reset') + ' <b>reset</b>.</p>' },
+      '<p>Then every copy: the <b>starting copy</b>, which each new copy starts from, then each player\'s own, with when it last changed. For each: ' + ic('open') + ' <b>open</b>, ' + ic('export') + ' <b>export filled</b> or ' + ic('reset') + ' <b>clear entries</b>.</p>' },
 
     { section: 'Done', title: 'That\'s the dashboard', target: 'header [data-act="help"]', text:
       '<p>When this tour ends, your own campaigns come back. To get going: create a campaign, add pages and players, then press <b>go live</b>.</p>' +

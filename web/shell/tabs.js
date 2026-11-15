@@ -126,7 +126,7 @@ export async function filterOverlay() {
     draw();
     app.render();
   });
-  const v = await overlay({ title: 'Filter tabs', icon: 'filter', body, actions: [{ label: 'show all', value: 'all', kind: 'quiet', icon: 'close' }, { label: 'done', value: null, kind: 'primary', icon: 'check' }] });
+  const v = await overlay({ title: 'Filter tabs', icon: 'filter', body, actions: [{ label: 'clear filter', value: 'all', kind: 'quiet', icon: 'close' }, { label: 'done', value: null, kind: 'primary', icon: 'check' }] });
   if (v === 'all') { saveList(filterKey(), []); app.render(); }
 }
 

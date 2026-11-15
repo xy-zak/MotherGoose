@@ -77,11 +77,11 @@ async function uploadReport(res, scope) {
     (errors.length ? '<div class="mg-section-label">Not added</div><ul class="report bad">' + errors.map((e) => '<li>' + esc(e) + '</li>').join('') + '</ul>' : '') +
     (Object.keys(warnings).length ? '<div class="mg-section-label">Worth a look</div><ul class="report">' +
       Object.keys(warnings).map((n) => '<li><b>' + esc(n) + '</b>' + checkNotes(warnings[n]) + '</li>').join('') + '</ul>' : '') +
-    '<p class="mg-muted">Pages must be one file, with everything inside it. <b>Making HTML pages</b> shows how, and can be given to an AI assistant to write pages for you.</p>';
+    '<p class="mg-muted">Pages must be one file, with everything inside it. <b>making HTML pages</b> shows how, and can be given to an AI assistant to write pages for you.</p>';
   const v = await overlay({
-    title: errors.length ? (saved.length ? 'Some files weren\'t added' : 'Not added') : 'Added, with notes',
+    title: errors.length ? (saved.length ? 'Some pages weren\'t added' : 'Not added') : 'Added, with notes',
     icon: errors.length ? 'warning' : 'info', wide: true, body,
-    actions: [{ label: 'Making HTML pages', value: 'guide', icon: 'guide', kind: 'quiet' }, { label: 'OK', value: null, kind: 'primary', icon: 'check' }]
+    actions: [{ label: 'making HTML pages', value: 'guide', icon: 'guide', kind: 'quiet' }, { label: 'ok', value: null, kind: 'primary', icon: 'check' }]
   });
   if (v === 'guide') guideOverlay();
 }

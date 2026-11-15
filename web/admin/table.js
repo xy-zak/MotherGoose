@@ -239,7 +239,7 @@ export async function goLive(id, screens) {
   await api('POST', '/api/admin/sessions/' + enc(s.id) + '/activate');
   app.refresh();
   await bootScreen(screens.start(s, was));
-  notice({ text: 'Session started:', strong: s.name, icon: 'live', action: { label: 'Join Info', icon: 'join', run: () => app.joinOverlay() } });
+  notice({ text: 'Session started:', strong: s.name, icon: 'live', action: { label: 'join info', icon: 'join', run: () => app.joinOverlay() } });
   if (noPages) notice({ text: 'There are no players\' pages yet: players will see an empty campaign.', icon: 'warning', ms: 10000 });
   if (noParty) notice({ text: 'There are per-player pages but no party: add players so each gets their own copy.', icon: 'warning', ms: 10000 });
 }

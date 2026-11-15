@@ -4,7 +4,7 @@
 import { $, api, attempt, esc, ic, notice, overlay, PER_PLAYER_HINT, playerName, titleOf, withIcon } from '/_mg/ui.js';
 import { activeFile, app, fileKey, meName, previewing, S, whoNow } from './state.js';
 
-// The blue "player dashboard" note says who this device is, with a way to
+// The blue "player view" note says who this device is, with a way to
 // change it. The referee needs no name, and an empty roster has none to pick.
 export function renderWho() {
   const name = S.isHost ? '' : meName();  // the host may have picked one in the past

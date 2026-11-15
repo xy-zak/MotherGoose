@@ -136,7 +136,7 @@ These are the rules the code follows. A change that breaks one should change the
 12. **Views are HTML strings, and every value from data goes through `esc()`.** Text set from data uses `textContent`. HTML typed by players into editable areas is cleaned against an allowlist before it is shown (`inject.js`), because it can come from any device.
 13. **Listeners on redrawn content are attached once, to the container,** and find their target with `closest()`. A redraw never adds listeners.
 14. **One sync client.**
-    - `sync.js` holds everything about the `/ws/file` connection: batching, acks, echo suppression, reconnecting and dead-connection checks.
+    - `sync.js` holds everything about the `/ws/file` connection: batching, acks, echo suppression, reconnecting and dead-connection checks. When the device wakes or comes back online, a quiet connection is replaced at once (`listenEvents` does the same), and changes that haven't reached the server are mirrored to `sessionStorage`, so typing done offline survives a reload.
     - `inject.js` (HTML pages) and `pdf.js` (PDFs) only read and write their fields.
     - The server serves `sync.js` and `inject.js` as one script, wrapped in a function, so a game page gets exactly one global: `window.MotherGoose`.
 15. **Styles:** `tokens.css` holds the palettes, the semantic tokens and the fonts, with no styles of their own, so pages that ask for the theme (and Markdown pages) can have them too. `theme.css` imports it and holds everything else shared (components, notices, motion). Each page's own layout is in its own stylesheet (`admin/admin.css`, `shell/shell.css`, `viewer/viewer.css`); Markdown pages use `md.css`.
@@ -152,7 +152,29 @@ These are the rules the code follows. A change that breaks one should change the
 20. **Layers (R4).** The order is the `--z-*` ladder in `tokens.css`. Toasts and notices share one stack in the top layer (a popover, shown again on each message), so they appear above open popups; it sits bottom left, clear of the viewers' toolbar (bottom right) and search bar (top right), and under the bars on narrow screens.
 21. **Words (R5).** One word per concept; the glossary is below.
 22. **State is never colour-only (R6).** A state also has a shape, an icon or a word (dashed for hidden, a lock for "only", "new" beside the dot, the connection state in words).
-23. **Breakpoints (R7).** `max-width: 560px` (narrow) and `max-width: 900px` (medium), plus `pointer: coarse` for touch. No other widths.
+23. **Breakpoints (R7).** `max-width: 560px` (narrow) and `max-width: 900px` (medium), plus `pointer: coarse` for touch. No other widths. The one exception is a container, not the window: the dashboard's page columns rearrange their cards below 420 px of their own width (`@container col`), which touch sizes reach on a 1024 px screen.
+
+### Glossary
+
+The words the UI, tutorials, README and errors use. Code names (`template`, `shared`, `gm`, `reset`) stay as they are; only what people read follows this.
+
+| Concept | Word | Not |
+|---|---|---|
+| A folder of pages, a party and entries | **campaign** | session (in the UI) |
+| One evening, from go live to end session | **session** | |
+| An item in a column, a tab | **page** | file (except where it means the file on disk) |
+| The gallery of built-in pages | **ready-made** ("Add a ready-made page") | template |
+| A per-player page's default values | **starting copy** | template |
+| Asking players to look at a page | **point here** | show |
+| Whether players get a page yet | **hide / reveal** | |
+| Clearing what was typed | **clear entries** | reset |
+| Putting back from the trash | **put back** (or **undo** right after) | restore |
+| The players' screen | **player view** | player dashboard |
+| The referee's screen | **referee's dashboard** | |
+| The player view's info popup | **details** | campaign / session / connection details |
+| Removing the tag filter | **clear filter** | clear, show all |
+
+Button labels are lowercase ("join info", "ok", "making HTML pages"); popup titles are in sentence case ("Join Info" stays the popup's name).
 
 ---
 

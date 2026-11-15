@@ -21,7 +21,7 @@ export async function joinOverlay() {
   const info = A.info || {};
   const urls = info.urls || [];
   if (!urls.length) {
-    overlay({ title: 'Join Info', icon: 'join', body: '<p>No network connection found. Connect this computer to Wi-Fi or a LAN, then open Join Info again.</p>' });
+    overlay({ title: 'Join Info', icon: 'join', body: '<p>No network connection found. Connect this computer to Wi-Fi or a LAN, then open join info again.</p>' });
     return;
   }
   const body = document.createElement('div');
@@ -202,7 +202,7 @@ export async function sessionOverlay() {
   if (v === 'edit') await editSession();
 }
 
-// Per-player pages: the template and each player's copy, with who has
+// Per-player pages: the starting copy and each player's copy, with who has
 // entries and what can be done with each copy.
 function copiesList(s, f) {
   const changed = (who) => who && f.playerModified && f.playerModified[who] ? ' · ' + agoText(f.playerModified[who]) : '';
@@ -211,14 +211,14 @@ function copiesList(s, f) {
       '<span class="who">' + ic(who ? 'player' : 'template', 'deco') + '<b>' + esc(name) + '</b><span class="mg-muted">' + note + '</span></span>' +
       '<span class="state">' + (filled ? '<span class="mg-tag filled">filled in</span><span class="mg-muted">' + esc(changed(who)) + '</span>' : '<span class="mg-muted">no entries</span>') + '</span>' +
       '<span class="acts">' +
-        '<a class="mg-btn quiet small compact" href="' + viewUrl(s.id, f, '', who, true) + '" target="_blank" rel="noopener" title="Open ' + esc(who ? name + '\'s copy' : 'the template') + '">' + withIcon('open', 'open') + '</a>' +
+        '<a class="mg-btn quiet small compact" href="' + viewUrl(s.id, f, '', who, true) + '" target="_blank" rel="noopener" title="Open ' + esc(who ? name + '\'s copy' : 'the starting copy') + '">' + withIcon('open', 'open') + '</a>' +
         '<a class="mg-btn quiet small compact" href="' + filledUrl(s.id, f, who) + '"' + (f.kind === 'pdf' ? ' target="_blank" rel="noopener"' : ' download') +
-          ' title="Export ' + esc(who ? name + '\'s copy' : 'the template') + ' filled in' + (f.kind === 'pdf' ? ' (opens the viewer, which downloads it)' : '') + '">' + withIcon('export', 'export filled') + '</a>' +
-        '<button type="button" class="mg-btn danger small compact" data-copy-reset="' + esc(who) + '"' + (filled ? '' : ' disabled') + ' title="Clear ' + esc(who ? name + '\'s entries' : 'the template\'s entries') + '">' + withIcon('reset', 'clear entries') + '</button>' +
+          ' title="Export ' + esc(who ? name + '\'s copy' : 'the starting copy') + ' filled in' + (f.kind === 'pdf' ? ' (opens the viewer, which downloads it)' : '') + '">' + withIcon('export', 'export filled') + '</a>' +
+        '<button type="button" class="mg-btn danger small compact" data-copy-reset="' + esc(who) + '"' + (filled ? '' : ' disabled') + ' title="Clear ' + esc(who ? name + '\'s entries' : 'the starting copy\'s entries') + '">' + withIcon('reset', 'clear entries') + '</button>' +
       '</span></li>';
   const players = s.players || [];
   return '<div><div class="mg-section-label">' + ic('player') + ' Copies</div>' +
-    '<ul class="copies">' + row('', 'template', 'starting values', f.hasState) +
+    '<ul class="copies">' + row('', 'starting copy', 'each new copy starts from it', f.hasState) +
       players.map((p) => row(p.id, p.name, '', !!(f.playerState && f.playerState[p.id]))).join('') + '</ul></div>' +
     (players.length ? '' : '<p class="mg-muted">No players in the party yet: add them under PARTY in the campaign panel.</p>');
 }
@@ -508,7 +508,7 @@ async function copyText(text) {
   return ok;
 }
 
-// The template gallery: ready-made pages, each with a live preview, added
+// The ready-made gallery: pages, each with a live preview, added
 // to a column of the open campaign.
 export async function templateOverlay(scope) {
   const list = await api('GET', '/api/admin/templates');
@@ -523,7 +523,7 @@ export async function templateOverlay(scope) {
     '<iframe class="tg-preview" title="Preview" src="/api/admin/templates/' + enc(list[0].file) + '"></iframe></div>';
   let at = 0;
   const v = await overlay({
-    title: 'Add a page from a template', icon: 'template', size: 'xwide', body,
+    title: 'Add a ready-made page', icon: 'template', size: 'xwide', body,
     actions: [{ label: 'cancel', value: null, kind: 'quiet', icon: 'close' }, { label: 'add for the ' + SCOPE[scope].label, value: 'add', kind: 'primary', icon: 'add' }],
     onOpen: (d) => {
       const pick = (i) => {

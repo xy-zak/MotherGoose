@@ -24,8 +24,8 @@ body { display: flex; flex-direction: column; min-height: 100dvh; }
 }
 .srow:last-child { border-bottom: 0; }
 .srow:hover { background: color-mix(in srgb, var(--surface) 70%, transparent); }
-/* Selected: shaded with the accent, not a thicker line. */
-.srow[aria-current="true"] { background: color-mix(in srgb, var(--accent) 22%, var(--bg)); }
+/* Selected: shaded with the accent, and a bar on the left, so it isn't told by colour alone. */
+.srow[aria-current="true"] { background: color-mix(in srgb, var(--accent) 22%, var(--bg)); box-shadow: inset 3px 0 0 var(--accent); }
 .srow[aria-current="true"] .name { color: var(--accent); }
 .srow .what { display: grid; min-width: 0; }
 .srow .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 700; }
@@ -43,8 +43,11 @@ body { display: flex; flex-direction: column; min-height: 100dvh; }
 .actions .act-gap { width: 18px; }
 
 /* players / referee panels */
-.columns { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; align-items: start; }
-.files-panel { padding: 14px 0 0; }
+.columns { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; align-items: start; }
+/* Each column knows its own width (a container), so its cards can rearrange
+   when the column is narrow, however wide the window is: touch sizes on a
+   1024 px screen leave a column about 330 px wide. */
+.files-panel { padding: 14px 0 0; container: col / inline-size; }
 .files-panel.drag { border-style: dashed; --panel-bg: color-mix(in srgb, var(--accent) 14%, var(--bg)); }
 /* Each upload is its own outlined card, so it's clear where one ends. */
 .files { display: grid; gap: 6px; padding: 4px 10px 0; }
@@ -241,6 +244,15 @@ body { display: flex; flex-direction: column; min-height: 100dvh; }
 .present-url { font-size: calc(var(--fs-title) * 2); font-weight: 700; color: var(--players-ink); word-break: break-all; }
 .tree { margin: 0; padding: 8px 10px; background: var(--deep); border: 1px solid var(--line); font-size: var(--fs-small); line-height: 1.5; overflow-x: auto; }
 .desc-full { white-space: pre-wrap; }
+
+/* A narrow column: a card's actions go on their own line under its details
+   (as on phones), and the column's buttons show their icons only. */
+@container col (max-width: 420px) {
+  .file { grid-template-columns: auto minmax(0, 1fr); }
+  .file .row-actions { grid-column: 2; margin-top: 4px; }
+  .files-panel .mg-panel-title .side .mg-btn .mg-i ~ .lbl { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+}
+:root[data-labels="text"] .files-panel .mg-panel-title .side .mg-btn .lbl { position: static; width: auto; height: auto; clip-path: none; }
 
 @media (max-width: 900px) {
   .layout { grid-template-columns: 1fr; }

@@ -154,7 +154,7 @@ export function saveList(key, list) {
 }
 
 // Where a page is viewed: HTML directly, PDFs and images in the bundled viewers.
-// player picks one player's copy of a per-player page (none: the template).
+// player picks one player's copy of a per-player page (none: the starting copy).
 // The PDF viewer takes it next to src, not inside it: src stays the plain
 // file address, which is the same for every copy.
 // edit marks the referee's own view of an HTML page (?edit), for pages that
@@ -594,6 +594,9 @@ export const keysList = (keys) => kv(keys.map((k) => ['<kbd>' + k[0] + '</kbd>',
 // than this is taken for dead (Wi-Fi dropped, laptop slept) and replaced,
 // rather than waiting minutes for the browser to notice.
 export const SILENT_MS = 60000;
+// When the device wakes up or comes back online, a socket quiet this long is
+// replaced at once.
+const WAKE_MS = 30000;
 
 /**
  * listenEvents keeps a WebSocket open to /ws/events, reconnecting with
@@ -603,8 +606,9 @@ export const SILENT_MS = 60000;
  * fresh connection now: the server reads who this device is when it connects.
  */
 export function listenEvents(onEvent, onState, onMessage) {
-  let retry = 0, current = null;
+  let retry = 0, current = null, retryTimer = null;
   function connect() {
+    retryTimer = null;
     const ws = new WebSocket((location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + location.host + '/ws/events');
     let heard = Date.now(), done = false;
     const watch = setInterval(() => { if (Date.now() - heard > SILENT_MS) drop(); }, 10000);
@@ -615,14 +619,14 @@ export function listenEvents(onEvent, onState, onMessage) {
       if (current === conn) current = null;
       if (!again) return;
       onState(false);
-      setTimeout(connect, Math.min(5000, 500 * Math.pow(2, retry++)));
+      retryTimer = setTimeout(connect, Math.min(5000, 500 * Math.pow(2, retry++)));
     };
     const drop = (again = true) => {
       ws.onopen = ws.onmessage = ws.onclose = null;
       try { ws.close(); } catch (e) { /* already closing */ }
       closed(again);
     };
-    const conn = { drop };
+    const conn = { drop, quiet: () => Date.now() - heard };
     current = conn;
     ws.onopen = () => { retry = 0; heard = Date.now(); onState(true); onEvent(); };
     ws.onmessage = (ev) => {
@@ -635,10 +639,19 @@ export function listenEvents(onEvent, onState, onMessage) {
     };
     ws.onclose = () => closed();
   }
+  // A device waking up or coming back online: replace a connection that has
+  // gone quiet (it is probably dead), and retry one that was waiting.
+  const wake = () => {
+    if (current && current.quiet() > WAKE_MS) current.drop();
+    else if (!current && retryTimer) { clearTimeout(retryTimer); retry = 0; connect(); }
+  };
+  addEventListener('online', wake);
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') wake(); });
   connect();
   return {
     reconnect() {
       if (current) current.drop(false);
+      if (retryTimer) clearTimeout(retryTimer);
       retry = 0;
       connect();
     }

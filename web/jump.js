@@ -17,9 +17,15 @@ const MAX = 50;
 export function quickJump({ items, placeholder = 'jump to…', title = 'Jump to' }) {
   const body = document.createElement('div');
   body.className = 'jump';
-  body.innerHTML = '<input class="mg-input jump-q" type="search" autocomplete="off" spellcheck="false" aria-label="Search" placeholder="' + esc(placeholder) + '">' +
-    '<ul class="jump-list" role="listbox" aria-label="Results"></ul>' +
-    '<p class="mg-muted jump-help"><kbd>↑</kbd> <kbd>↓</kbd> choose · <kbd>enter</kbd> open · <kbd>#tag</kbd> only pages with that tag</p>';
+  // A combobox: focus stays in the box, ↑ ↓ move the highlighted result
+  // (aria-activedescendant), and the number of results is read out.
+  const touch = matchMedia('(pointer: coarse)').matches;
+  body.innerHTML = '<input class="mg-input jump-q" type="search" role="combobox" aria-expanded="true" aria-controls="jump-list" aria-autocomplete="list"' +
+      ' autocomplete="off" spellcheck="false" aria-label="Search" placeholder="' + esc(placeholder) + '">' +
+    '<ul class="jump-list" id="jump-list" role="listbox" aria-label="Results"></ul>' +
+    '<p class="mg-vh jump-count" aria-live="polite"></p>' +
+    '<p class="mg-muted jump-help">' + (touch ? 'Tap one to open it · <kbd>#tag</kbd> only pages with that tag'
+      : '<kbd>↑</kbd> <kbd>↓</kbd> choose · <kbd>enter</kbd> open · <kbd>#tag</kbd> only pages with that tag') + '</p>';
   const q = body.querySelector('.jump-q');
   const list = body.querySelector('.jump-list');
   let shown = [], at = 0, picked = null;
@@ -35,6 +41,7 @@ export function quickJump({ items, placeholder = 'jump to…', title = 'Jump to'
       '</li>').join('')
       : '<li class="none mg-muted">Nothing matches.</li>';
     q.setAttribute('aria-activedescendant', shown.length ? 'jump-' + at : '');
+    body.querySelector('.jump-count').textContent = shown.length ? shown.length + ' result' + (shown.length === 1 ? '' : 's') : 'Nothing matches';
     const on = list.querySelector('[aria-selected="true"]');
     if (on) on.scrollIntoView({ block: 'nearest' });
   };
@@ -50,6 +57,10 @@ export function quickJump({ items, placeholder = 'jump to…', title = 'Jump to'
         if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
           e.preventDefault();
           if (shown.length) { at = (at + (e.key === 'ArrowDown' ? 1 : -1) + shown.length) % shown.length; draw(); }
+        } else if ((e.key === 'Home' || e.key === 'End') && e.ctrlKey) {
+          e.preventDefault();
+          at = e.key === 'Home' ? 0 : Math.max(0, shown.length - 1);
+          draw();
         } else if (e.key === 'Enter') {
           e.preventDefault();
           if (shown[at]) { picked = shown[at]; d.close(); }

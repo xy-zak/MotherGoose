@@ -22,12 +22,21 @@
  *   });
  *   sync.changed(key)   a field changed here: send it soon
  *   sync.flush()        send what's waiting now
+ *   sync.waiting()      how many changes haven't reached the server yet
+ *
+ * Changes that haven't reached the server are also kept in sessionStorage,
+ * so typing done offline survives a reload of the page (for KEEP_MS). And
+ * when the device wakes up or comes back online, a connection that has gone
+ * quiet is replaced at once rather than after the dead-connection check.
  */
 function createSync(o) {
   'use strict';
   var BATCH_MS = 200;      // changes this close together go out together
   var ACK_MS = 20000;      // no ack this long after a send: the connection is dead
   var SILENT_MS = 60000;   // the server says something every 25 s
+  var WAKE_MS = 30000;     // quiet this long when the device wakes: reconnect now
+  var KEEP_MS = 3600000;   // unsent changes kept over a reload for an hour
+  var KEEP = 'mg-out:' + o.query;
 
   var outbox = {};         // keys changed here, not yet sent
   var lastSeen = {};       // key -> the value the server is known to have
@@ -36,7 +45,8 @@ function createSync(o) {
   // in the outbox, to be sent again after reconnecting.
   var unacked = {};
   var ws = null, synced = false, gone = false, retry = 0, seq = 0;
-  var ackDue = 0, heard = 0, watch = null, sendTimer = null;
+  var ackDue = 0, heard = 0, watch = null, sendTimer = null, retryTimer = null;
+  var kept = load();       // unsent changes from before a reload: key -> value
 
   function norm(v) { return v === undefined ? null : v; }
   function same(a, b) { return JSON.stringify(norm(a)) === JSON.stringify(norm(b)); }
@@ -44,7 +54,35 @@ function createSync(o) {
 
   function changed(key) {
     outbox[key] = true;
+    if (!synced) keep();
     if (!sendTimer) sendTimer = setTimeout(flush, BATCH_MS);
+  }
+
+  function pendingKeys() {
+    var m = {};
+    Object.keys(outbox).forEach(function (k) { m[k] = true; });
+    Object.keys(unacked).forEach(function (k) { m[k] = true; });
+    return Object.keys(m);
+  }
+
+  // keep mirrors what hasn't reached the server into sessionStorage.
+  function keep() {
+    try {
+      var keys = pendingKeys();
+      if (!keys.length) { sessionStorage.removeItem(KEEP); return; }
+      var v = {};
+      keys.forEach(function (k) { v[k] = norm(o.read(k)); });
+      sessionStorage.setItem(KEEP, JSON.stringify({ t: Date.now(), v: v }));
+    } catch (e) { /* storage off or full: the outbox in memory still works */ }
+  }
+
+  function load() {
+    try {
+      var x = JSON.parse(sessionStorage.getItem(KEEP) || 'null');
+      if (x && x.v && Date.now() - x.t < KEEP_MS) return x.v;
+      sessionStorage.removeItem(KEEP);
+    } catch (e) { /* nothing kept */ }
+    return null;
   }
 
   function flush() {
@@ -79,9 +117,20 @@ function createSync(o) {
       if (outbox[k] && !same(o.read(k), state[k])) { lastSeen[k] = norm(state[k]); return; }
       remote(k, state[k]);
     });
+    // Changes typed offline before a reload: shown again, and sent.
+    if (kept) {
+      Object.keys(kept).forEach(function (k) {
+        if (!o.accept(k)) return;
+        if (!(k in lastSeen)) lastSeen[k] = null;
+        o.apply(k, kept[k]);
+        outbox[k] = true;
+      });
+      kept = null;
+    }
   }
 
   function connect() {
+    retryTimer = null;
     o.onStatus('connecting');
     ws = new WebSocket((location.protocol === 'https:' ? 'wss:' : 'ws:') + '//' + location.host + '/ws/file?' + o.query);
     heard = Date.now();
@@ -105,6 +154,7 @@ function createSync(o) {
       } else if (m.type === 'ack') {
         Object.keys(unacked).forEach(function (k) { if (unacked[k] <= m.seq) delete unacked[k]; });
         ackDue = isEmpty(unacked) ? 0 : Date.now() + ACK_MS;
+        if (isEmpty(unacked) && isEmpty(outbox)) keep();
       } else if (m.type === 'reload') {
         location.reload();
       } else if (m.type === 'gone') {
@@ -125,10 +175,25 @@ function createSync(o) {
     Object.keys(unacked).forEach(function (k) { outbox[k] = true; });
     unacked = {};
     ackDue = 0;
+    keep();
     if (o.onClose) o.onClose();
     if (gone) return;
     o.onStatus('offline');
-    setTimeout(connect, Math.min(5000, 500 * Math.pow(2, retry++)));
+    retryTimer = setTimeout(connect, Math.min(5000, 500 * Math.pow(2, retry++)));
+  }
+
+  // wake: the device woke up or came back online. A connection that has been
+  // quiet for a while is probably dead: replace it now. One waiting to retry
+  // tries now.
+  function wake() {
+    if (gone) return;
+    if (ws && Date.now() - heard > WAKE_MS) { drop(); return; }
+    if (!ws && retryTimer) {
+      clearTimeout(retryTimer);
+      retryTimer = null;
+      retry = 0;
+      connect();
+    }
   }
 
   // drop gives up on a connection: the browser can take minutes to notice one
@@ -141,7 +206,9 @@ function createSync(o) {
     closed();
   }
 
-  addEventListener('pagehide', flush);
+  addEventListener('pagehide', function () { flush(); keep(); });
+  addEventListener('online', wake);
+  document.addEventListener('visibilitychange', function () { if (document.visibilityState === 'visible') wake(); });
   connect();
-  return { changed: changed, flush: flush };
+  return { changed: changed, flush: flush, waiting: function () { return pendingKeys().length; } };
 }

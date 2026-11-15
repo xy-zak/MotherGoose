@@ -11,7 +11,7 @@ export const S = {
   me: null,            // this device's player id in it, or null
   active: null,        // the open tab: fileKey
   shown: null,         // the frame on screen: frameKey, or null (the "who are you?" panel)
-  pick: new Map(),     // referee only: fileKey -> whose copy is shown ('' = the template)
+  pick: new Map(),     // referee only: fileKey -> whose copy is shown ('' = the starting copy)
   frames: new Map(),   // frameKey -> iframe
   status: new Map(),   // frameKey -> sync status reported by the page or viewer
   versions: new Map(), // frameKey -> modified time the frame was loaded with (PDFs, images)
@@ -32,7 +32,7 @@ export const app = {
 
 export const fileKey = (f) => f.scope + '/' + f.name;
 // A per-player page has one frame per copy: "shared/sheet.html#ana", and
-// "shared/sheet.html#" for the template.
+// "shared/sheet.html#" for the starting copy.
 export const frameKey = (f, who) => f.perPlayer ? fileKey(f) + '#' + who : fileKey(f);
 export const activeFile = () => S.files.find((f) => fileKey(f) === S.active);
 export const meName = () => S.me ? playerName(S.players, S.me) : '';

@@ -300,6 +300,7 @@
     setLocal(key, readValue(key));
     delete deferred[key];
     if (sync) sync.changed(key);
+    if (status === 'offline' && window.parent === window) badge(status);   // the count of changes waiting
   }
 
   // ---- connection -----------------------------------------------------------
@@ -314,20 +315,31 @@
     }
   }
 
+  // badge shows a page opened on its own (not in the player view) whether it
+  // is saving: a symbol as well as a colour, read out as a status, never in
+  // the way of a tap. Colours come from the theme when the page follows it.
   var badgeEl = null;
   function badge(s) {
     if (!badgeEl) {
       badgeEl = document.createElement('div');
       badgeEl.setAttribute('data-mg-ignore', '');
-      badgeEl.style.cssText = 'position:fixed;right:10px;bottom:10px;z-index:2147483647;width:10px;height:10px;' +
-        'border-radius:50%;border:2px solid #8839ef;box-sizing:border-box;pointer-events:auto;transition:background .2s';
+      badgeEl.setAttribute('role', 'status');
+      badgeEl.style.cssText = 'position:fixed;right:8px;bottom:8px;z-index:2147483647;min-width:22px;height:22px;padding:0 5px;' +
+        'border-radius:11px;border:2px solid;box-sizing:border-box;pointer-events:none;' +
+        'font:700 12px/18px system-ui,sans-serif;text-align:center;background:var(--surface,#eff1f5)';
       document.documentElement.appendChild(badgeEl);
     }
-    var labels = { live: 'Saved · live', connecting: 'Connecting…', offline: 'Offline — changes will sync when back', closed: 'This page was closed by the referee' };
-    badgeEl.title = 'MotherGoose: ' + (labels[s] || s);
-    // Catppuccin colours that read on both light and dark pages.
-    badgeEl.style.background = s === 'live' ? '#40a02b' : 'transparent';
-    badgeEl.style.borderColor = s === 'live' ? '#40a02b' : s === 'connecting' ? '#df8e1d' : s === 'closed' ? '#d20f39' : '#8c8fa1';
+    var waiting = sync && sync.waiting ? sync.waiting() : 0;
+    var look = {
+      live: ['\u2713', 'var(--live,#40a02b)', 'Saved, live'],
+      connecting: ['\u2026', 'var(--warn-ink,#df8e1d)', 'Connecting'],
+      offline: ['!', 'var(--warn-ink,#df8e1d)', 'Offline: ' + (waiting ? waiting + ' change' + (waiting === 1 ? '' : 's') + ' waiting, sent' : 'changes are sent') + ' when back'],
+      closed: ['\u00d7', 'var(--danger,#d20f39)', 'This page was closed by the referee']
+    }[s] || ['?', 'var(--muted,#8c8fa1)', s];
+    badgeEl.textContent = look[0];
+    badgeEl.style.color = badgeEl.style.borderColor = look[1];
+    badgeEl.setAttribute('aria-label', 'MotherGoose: ' + look[2]);
+    badgeEl.title = 'MotherGoose: ' + look[2];
   }
 
   function connect() {
@@ -393,6 +405,7 @@
     set: function (name, v) {
       setLocal(CUSTOM + name, v);
       if (sync) sync.changed(CUSTOM + name);
+      if (status === 'offline' && window.parent === window) badge(status);
     },
     /** Call fn(value) now (if saved) and whenever another device changes it. */
     on: function (name, fn) {

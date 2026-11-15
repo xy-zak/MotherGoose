@@ -22,6 +22,9 @@ import { upload, enablePageDrag } from './pages.js';
 import { tutorial } from './tutorial.js';
 import { isJumpKey, quickJump } from '/_mg/jump.js';
 
+// plural: "1 page", "3 pages".
+const plural = (n, one) => n + ' ' + one + (n === 1 ? '' : 's');
+
 const left = $('left'), right = $('right'), picker = $('picker');
 
 // ---- data -----------------------------------------------------------------------
@@ -88,7 +91,7 @@ function renderLeft() {
       (s.id === A.selectedId ? ' aria-current="true"' : '') +
       ' title="' + esc(s.name) + (s.gameType ? ' (' + esc(s.gameType) + ')' : '') + ': ' + sh + ' for players, ' + gm + ' for the referee, edited ' + esc(agoText(s.lastEdited)) + '">' +
       '<span class="what"><span class="name">' + esc(s.name) + '</span>' + gameTag(s.gameType) + '</span>' +
-      '<span class="meta"><span>' + sh + '·' + gm + ' · ' + esc(ago(s.lastEdited)) + '</span>' + (s.active ? livePort() : '') + '</span></a>';
+      '<span class="meta"><span>' + plural(sh + gm, 'page') + ' · ' + esc(ago(s.lastEdited)) + '</span>' + (s.active ? '<span class="mg-tag live">live</span>' : '') + '</span></a>';
   }).join('');
 
   const cur = A.sessions.find((s) => s.id === A.selectedId);
@@ -148,7 +151,7 @@ function welcome() {
       feat('tag', 'Details', 'Give each page a ' + term('description') + ' and ' + term('tags') + ' with ' + uiBtn('info', 'info') + ', so players know what they\'re looking at.') +
       feat('player', 'Party', 'Add your players to the campaign\'s ' + term('party', 'players') + '. Mark character sheets ' + term('per player', 'players') + ': each player fills in their own copy.') +
       feat('live', 'Go live', uiBtn('live', 'go live', 'go-live') + ' starts a session: the campaign goes on the players\' screens. ' + uiBtn('end', 'end session', 'end-session') + ' takes it off again.') +
-      feat('join', 'Joining', uiBtn('join', 'Join Info') + ' shows the address and QR code players open to join.') +
+      feat('join', 'Joining', uiBtn('join', 'join info') + ' shows the address and QR code players open to join.') +
       feat('export', 'Export', uiBtn('export', 'export filled') + ' downloads a page with every entry baked in, which works offline.') +
       feat('settings', 'Display', uiBtn('settings', 'display') + ' changes the theme, font, icons and animations, for this device.') +
     '</ul>' +
@@ -158,13 +161,13 @@ function welcome() {
       stepRow(1, 'Type a name, and a ' + term('game type') + ', under ' + term('Campaigns') + ' on the left, then press ' + uiBtn('add', 'new', 'primary') + '.') +
       stepRow(2, 'Drop ' + types + ' files on the ' + term('Players', 'players') + ' or ' + term('Referee', 'referee') + ' column.') +
       stepRow(3, 'Add each player\'s name to the ' + term('party', 'players') + '.') +
-      stepRow(4, 'Press ' + uiBtn('live', 'go live', 'go-live') + ', then show the table ' + uiBtn('join', 'Join Info') + '.') +
+      stepRow(4, 'Press ' + uiBtn('live', 'go live', 'go-live') + ', then show the table ' + uiBtn('join', 'join info') + '.') +
     '</ol>' +
 
     '<div class="mg-section-label">Learn more</div>' +
     '<div class="gs-learn">' +
       '<button type="button" class="mg-btn primary" data-act="tour" title="A guided tour of this page, using an example campaign">' + withIcon('tutorial', 'referee tutorial') + '</button>' +
-      '<a class="mg-btn players" href="/?tour=1" target="_blank" rel="noopener" data-switch="players" title="Opens the player dashboard in a new tab and starts its tour">' + withIcon('tutorial', 'player tutorial') + '</a>' +
+      '<a class="mg-btn players" href="/?tour=1" target="_blank" rel="noopener" data-switch="players" title="Opens the player view in a new tab and starts its tour">' + withIcon('tutorial', 'player tutorial') + '</a>' +
       '<button type="button" class="mg-btn" data-act="guide" title="How to write pages for MotherGoose, also as an AI skill">' + withIcon('guide', 'making HTML pages') + '</button>' +
       '<button type="button" class="mg-btn" data-act="help" title="Keyboard shortcuts (?)">' + withIcon('help', 'keyboard shortcuts') + '</button>' +
       '<button type="button" class="mg-btn" data-prefs title="Theme, font, icons and animations">' + withIcon('settings', 'display settings') + '</button>' +
@@ -180,7 +183,8 @@ function filterBar(s, filter) {
   if (!tags.length) return '';
   return '<div class="tagfilter" role="group" aria-label="Show only pages tagged">' +
     '<span class="tf-label">' + withIcon('filter', 'filter') + '</span>' + tagToggles(tags, filter, ' data-act="filter-tag"') +
-    (filter.length ? '<button type="button" class="mg-btn quiet small compact" data-act="filter-clear" title="Show every page again">' + withIcon('close', 'clear') + '</button>' : '') +
+    (filter.length ? '<span class="tf-count mg-muted mg-small" aria-live="polite">' + campaignFiles(s).filter((f) => hasTags(f, filter)).length + ' of ' + plural(campaignFiles(s).length, 'page') + '</span>' +
+      '<button type="button" class="mg-btn quiet small compact" data-act="filter-clear" title="Show every page again">' + withIcon('close', 'clear filter') + '</button>' : '') +
     '</div>';
 }
 
@@ -233,8 +237,8 @@ function column(s, scope, filter) {
     '<div class="mg-panel-title"><span class="t">' + ic(sc.icon) + sc.title + '</span>' +
       '<span class="side"><span class="count"' + (shown !== files.length ? ' title="' + shown + ' of ' + files.length + ' pages match the filter"' : '') + '>' +
         (shown !== files.length ? shown + '/' : '') + files.length + '</span>' +
-      '<button class="mg-btn small quiet" data-act="template" data-scope="' + scope + '" title="Add a ready-made page for the ' + sc.label + ': character sheet, notes, tracker…">' + withIcon('template', 'template') + '</button>' +
-      '<button class="mg-btn small ' + sc.cls + '" data-act="pick" data-scope="' + scope + '" title="Add files for the ' + sc.label + (scope === 'shared' ? ' (u)' : '') + '">' + withIcon('add', 'add') + '</button></span></div>' +
+      '<button class="mg-btn small quiet" data-act="template" data-scope="' + scope + '" title="Add a ready-made page for the ' + sc.label + ': character sheet, notes, tracker…">' + withIcon('template', 'ready-made') + '</button>' +
+      '<button class="mg-btn small ' + sc.cls + '" data-act="pick" data-scope="' + scope + '" title="Add pages for the ' + sc.label + (scope === 'shared' ? ' (u)' : '') + '">' + withIcon('add', 'add') + '</button></span></div>' +
     '<div class="files">' + (files.length ? files.map((f) => fileRow(s, f, filter)).join('') : '<p class="none">No pages yet: drop files here, or add a ready-made page.</p>') +
       (files.length && !shown ? '<p class="none filtered">No pages here have ' + (filter.length > 1 ? 'all those tags' : 'that tag') + '.</p>' : '') + '</div>' +
     '<div class="drop">' + ic('upload') + ' drop <b>.html .md .pdf .png .jpg</b> here' + (scope === 'gm' ? ': only this computer sees them' : ': every player sees them') +
@@ -320,7 +324,7 @@ right.addEventListener('submit', attempt(async (e) => {
 async function helpOverlay() {
   const keys = [
     ['n', 'new campaign'], ['↑ ↓', 'move through the campaigns list'], ['enter', 'open the highlighted campaign'],
-    ['e', 'edit the open campaign'], ['u', 'add files for the players'], ['p', 'add a player to the party'], ['j', 'Join Info: address and QR code'],
+    ['e', 'edit the open campaign'], ['u', 'add pages for the players'], ['p', 'add a player to the party'], ['j', 'join info: address and QR code'],
     ['ctrl k  /', 'jump to a campaign, page, tag or player'], ['?', 'this help'], ['esc', 'close an overlay']
   ];
   const v = await overlay({
@@ -402,7 +406,6 @@ document.addEventListener('click', attempt(async (e) => {
 picker.addEventListener('change', attempt(() => upload(A.pickScope, picker.files)));
 
 // What the boot and shutdown screens say (fx.js types them out).
-const plural = (n, one) => n + ' ' + one + (n === 1 ? '' : 's');
 function startScreen(s, was) {
   const sh = (s.files.shared || []).length, gm = (s.files.gm || []).length, np = (s.players || []).length;
   return {

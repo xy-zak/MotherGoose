@@ -173,7 +173,25 @@ body.mg-full .pick-btn { font-size: var(--fs-small); }
 
 .desc { white-space: pre-wrap; }
 
+/* The brand shortens to "MG" on phones. */
+.mg-brand .b-short { display: none; }
+
+@media (max-width: 900px) {
+  /* Tablets in portrait: the campaign's name needs the room more than the
+     words "player view", "display" and "help", which keep their icons (and
+     their names for screen readers and on hover). */
+  .info #where > span:not(#meName) { display: none; }
+  .info .mg-actions .mg-i ~ .lbl { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+  :root[data-labels="text"] .info .mg-actions .lbl { position: static; width: auto; height: auto; clip-path: none; }
+  .info .session { max-width: none; }
+}
+
 @media (max-width: 560px) {
+  .mg-brand .b-full { display: none; }
+  .mg-brand .b-short { display: inline; }
+  /* The name button gives way before the status and the buttons on the right do. */
+  .info .whoami { min-width: 0; flex-shrink: 1; overflow: hidden; }
+  .info .whoami .lbl { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   /* No room for the session name next to full-size buttons: it's in the
      details popup (tap LIVE) instead of leaving an empty box. */
   .info .session { display: none !important; }
@@ -182,8 +200,8 @@ body.mg-full .pick-btn { font-size: var(--fs-small); }
     position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap;
   }
   :root[data-labels="text"] .info .mg-actions .lbl, :root[data-labels="text"] #fullBtn .lbl { position: static; width: auto; height: auto; clip-path: none; }
-  /* "player dashboard · Ana" doesn't fit: the name moves into the "not you?"
-     button, which opens the name picker. The brand always stays MOTHERGOOSE. */
+  /* "player view · Ana" doesn't fit: the name moves into the "not you?"
+     button, which opens the name picker. */
   .info .whoami:not(.ask) .lbl { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   /* With no name picked, "who are you?" keeps its words: it's the first thing to do. */
   .info .whoami.ask .lbl { position: static; width: auto; height: auto; clip-path: none; }
@@ -191,3 +209,6 @@ body.mg-full .pick-btn { font-size: var(--fs-small); }
   .info .whoami .sm-name { display: inline; max-width: 9ch; overflow: hidden; text-overflow: ellipsis; font-weight: 700; color: var(--text); }
   #filterBtn .lbl { display: none; }   /* the icon, shaded while a filter is on */
 }
+
+/* A tab whose page lost its connection (the server is still there). */
+.tab .offmark { flex: none; min-width: 16px; height: 16px; padding: 0 3px; box-sizing: border-box; border: 1px solid var(--warn-ink); color: var(--warn-ink); font-size: 11px; font-weight: 700; line-height: 14px; text-align: center; }

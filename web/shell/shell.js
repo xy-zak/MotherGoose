@@ -4,7 +4,7 @@
 //
 // Per-player pages: each player picks their name from the campaign's party
 // (kept by a cookie the server sets) and sees their own copy. The referee
-// sees the template or any player's copy, chosen in a strip above the page.
+// sees the starting copy or any player's copy, chosen in a strip above the page.
 //
 // Tabs can be dragged into this device's own order, and shrunk (right-click,
 // or hold on a touch screen). When they don't all fit, the ones at the end
@@ -157,7 +157,7 @@ function liveScreen() {
   const n = S.files.length;
   return {
     lines: [].concat(
-      [{ k: S.isHost ? 'opening the player dashboard' : 'connecting to the referee', ok: 'OK' },
+      [{ k: S.isHost ? 'opening the player view' : 'connecting to the referee', ok: 'OK' },
        { k: 'loading "' + S.session.name + '"', ok: 'OK' }],
       S.session.gameType ? [{ k: 'game: ' + S.session.gameType }] : [],
       [{ k: n + ' page' + (n === 1 ? '' : 's') + (meName() ? ' · you are ' + meName() : '') }]),
@@ -315,10 +315,16 @@ function show(key, focusTab) {
   const who = copyFor(f);
   renderPick(f, who);
   const fk = who === null ? null : frameKey(f, who);
+  // A PDF viewer is heavy: on the host, a per-player PDF keeps one frame,
+  // for the copy picked now, rather than one per player. (Pages are light,
+  // and keeping theirs keeps each copy's scroll position.)
+  if (fk && f.kind === 'pdf' && f.perPlayer) {
+    Array.from(S.frames.keys()).forEach((k) => { if (k !== fk && k.startsWith(fileKey(f) + '#')) dropFrame(k); });
+  }
   if (fk && !S.frames.has(fk)) {
     const fr = document.createElement('iframe');
     fr.src = viewUrl(S.session.id, f, !isPage(f) ? f.modified : '', who, S.isHost && !previewing());
-    fr.title = titleOf(f) + (who ? ': ' + playerName(S.players, who) : f.perPlayer ? ': template' : '');
+    fr.title = titleOf(f) + (who ? ': ' + playerName(S.players, who) : f.perPlayer ? ': starting copy' : '');
     if (!isPage(f)) fr.className = 'viewer';
     fr.setAttribute('allow', 'fullscreen');
     fr.dataset.file = fileKey(f);
@@ -395,6 +401,28 @@ function updateSync() {
     if (!$('syncBtn').classList.contains('mg-state')) st = 'live';
   }
   drawSync(st);
+  markTabs();
+}
+
+// markTabs puts a "!" on tabs whose page has lost its connection while the
+// server is still there (one page's socket dropped): what's typed there is
+// kept and sent once it reconnects. When the server is gone, the status
+// says so for every page at once instead.
+function markTabs() {
+  document.querySelectorAll('#tabs .tab[data-key]').forEach((t) => {
+    const key = t.dataset.key;
+    let off = false;
+    if (S.serverUp) S.status.forEach((st, k) => { if (st === 'offline' && (k === key || k.startsWith(key + '#'))) off = true; });
+    let m = t.querySelector('.offmark');
+    if (off && !m) {
+      m = document.createElement('span');
+      m.className = 'offmark';
+      m.textContent = '!';
+      m.title = 'Reconnecting: changes on this page are kept and sent when it\'s back';
+      m.setAttribute('aria-label', 'reconnecting');
+      t.appendChild(m);
+    } else if (!off && m) m.remove();
+  });
 }
 function drawSync(st) {
   const ok = st === 'live' || st === 'static';
@@ -454,7 +482,7 @@ function detailsOverlay() {
     );
     if (f.perPlayer) {
       rows.push(['copy', who === null ? '<span class="mg-muted">none yet: ' + (S.players.length ? 'pick your name first' : 'the referee hasn\'t added players') + '</span>'
-        : S.isHost ? (who ? '<b>' + esc(playerName(S.players, who)) + '</b>\'s copy' : 'the template <span class="mg-muted">starting values for each player\'s copy</span>')
+        : S.isHost ? (who ? '<b>' + esc(playerName(S.players, who)) + '</b>\'s copy' : 'the starting copy <span class="mg-muted">each player\'s copy starts from it</span>')
         : 'yours, as <b>' + esc(meName()) + '</b> <span class="mg-muted">only you and the referee see it</span>']);
     }
     rows.push(
@@ -467,25 +495,35 @@ function detailsOverlay() {
         : esc(STATUS_HINT[st] || st)]
     );
   }
-  overlay({ title: 'Campaign details', icon: 'info', wide: true, body: kv(rows) });
+  overlay({ title: 'Details', icon: 'info', wide: true, body: kv(rows) });
 }
 
 async function helpOverlay() {
   const keys = [
     ['f', 'full screen on / off'], ['esc', 'leave full screen'], ['1 – 9', 'jump to a tab'],
-    ['[  ]', 'previous / next tab'], ['t', 'filter the tabs by tag'], ['ctrl k  /', 'jump to a page'], ['← →', 'move between tabs (when a tab has focus)'], ['i', 'campaign details'], ['?', 'this help']
+    ['[  ]', 'previous / next tab'], ['t', 'filter the tabs by tag'], ['ctrl k  /', 'jump to a page'], ['← →', 'move between tabs (when a tab has focus)'], ['i', 'details'], ['?', 'this help']
   ];
   const mouse = [
     ['drag a tab', 'put the tabs in your own order (on this device)'],
     ['right-click a tab', 'shrink it, move it, or reset the order. On a touch screen, hold the tab']
   ];
+  // On a tablet the touch gestures come first; keyboard shortcuts follow,
+  // for when a keyboard is attached.
+  const touch = matchMedia('(pointer: coarse)').matches;
+  const gestures = [
+    [ic('pages') + ' pages', 'every page in a list, with search: the quickest way to find one'],
+    ['tap the status', 'connection and page details'],
+    ['hold a tab', 'shrink it, move it, or reset the order'],
+    ['pinch', 'zoom a PDF or a picture; double-tap to zoom in a step'],
+    ['tap a checklist line', 'tick its box (Markdown pages)']
+  ];
+  const keysPart = '<hr class="mg-rule"><div class="mg-section-label">Keyboard shortcuts' + (touch ? ' (with a keyboard)' : '') + '</div>' + keysList(keys) + SHORTCUTS_NOTE;
   const v = await overlay({
     title: 'Help',
     icon: 'help',
     body: '<p><b>New here?</b> The <b>player tutorial</b> walks you through every part of this screen, one step at a time.</p>' +
-      '<hr class="mg-rule"><div class="mg-section-label">Keyboard shortcuts</div>' +
-      keysList(keys) + SHORTCUTS_NOTE +
-      '<hr class="mg-rule"><div class="mg-section-label">Tabs</div>' + kv(mouse),
+      (touch ? '<hr class="mg-rule"><div class="mg-section-label">Touch</div>' + kv(gestures) + keysPart
+        : keysPart + '<hr class="mg-rule"><div class="mg-section-label">Tabs</div>' + kv(mouse)),
     actions: [{ label: 'player tutorial', value: 'tour', kind: 'primary', icon: 'tutorial' }]
   });
   if (v === 'tour') tutorial();

@@ -70,7 +70,11 @@ body.viewer { position: relative; height: 100dvh; overflow: hidden; background: 
   background-image: linear-gradient(color-mix(in srgb, var(--accent) 6%, #fff), color-mix(in srgb, var(--accent) 6%, #fff));
 }
 .annotationLayer :is(.textWidgetAnnotation :is(input, textarea), .choiceWidgetAnnotation select, .buttonWidgetAnnotation:is(.checkBox, .radioButton) input):required {
-  outline: none; border-color: color-mix(in srgb, var(--danger) 60%, transparent);
+  outline: none; border-color: color-mix(in srgb, var(--danger) 60%, transparent); border-style: dashed;
+}
+/* A required field says so with a mark too, not only its border colour. */
+.annotationLayer :is(.textWidgetAnnotation, .choiceWidgetAnnotation, .buttonWidgetAnnotation):has(:required)::after {
+  content: "*"; position: absolute; top: -.35em; right: -.55em; font: 700 12px/1 var(--font); color: var(--danger); pointer-events: none;
 }
 .annotationLayer .textWidgetAnnotation [disabled]:is(input, textarea),
 .annotationLayer .choiceWidgetAnnotation select[disabled],
